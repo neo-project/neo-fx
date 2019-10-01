@@ -1,20 +1,15 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.26124.0
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29324.140
 MinimumVisualStudioVersion = 15.0.26124.0
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NeoFx.Models", "src\Models\NeoFx.Models.csproj", "{1FE4DE29-B84C-4B47-8C54-DA878E583F3A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NeoFx.Models", "src\Models\NeoFx.Models.csproj", "{1FE4DE29-B84C-4B47-8C54-DA878E583F3A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NeoFx.Models.Tests", "tests\NeoFx.Models.Tests.csproj", "{A46C0F54-A5D5-4C41-A891-CFD44BBB7EAA}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NeoFx.Models.Tests", "tests\NeoFx.Models.Tests.csproj", "{A46C0F54-A5D5-4C41-A891-CFD44BBB7EAA}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{D05A5DB8-0389-474D-BFF4-6F48E3F84EB0}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NeoFx.Abstractions", "src\Abstractions\NeoFx.Abstractions.csproj", "{9C4F09C9-E6CC-4C9F-A38E-530D6A854A86}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NeoFx.Storage", "src\Storage\NeoFx.Storage.csproj", "{9C4F09C9-E6CC-4C9F-A38E-530D6A854A86}"
 EndProject
 Global
-	GlobalSection(SolutionProperties) = preSolution
-		HideSolutionNode = FALSE
-	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Debug|x64 = Debug|x64
@@ -61,7 +56,10 @@ Global
 		{9C4F09C9-E6CC-4C9F-A38E-530D6A854A86}.Release|x86.ActiveCfg = Release|Any CPU
 		{9C4F09C9-E6CC-4C9F-A38E-530D6A854A86}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
-	GlobalSection(NestedProjects) = preSolution
-		{9C4F09C9-E6CC-4C9F-A38E-530D6A854A86} = {D05A5DB8-0389-474D-BFF4-6F48E3F84EB0}
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {AAAC4C7C-36D4-4DE8-ACC5-5D6512E7A1A2}
 	EndGlobalSection
 EndGlobal
