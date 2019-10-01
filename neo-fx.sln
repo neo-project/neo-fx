@@ -3,9 +3,13 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.26124.0
 MinimumVisualStudioVersion = 15.0.26124.0
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NeoFx.Models", "src\NeoFx.Models.csproj", "{1FE4DE29-B84C-4B47-8C54-DA878E583F3A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NeoFx.Models", "src\Models\NeoFx.Models.csproj", "{1FE4DE29-B84C-4B47-8C54-DA878E583F3A}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NeoFx.Models.Tests", "tests\NeoFx.Models.Tests.csproj", "{A46C0F54-A5D5-4C41-A891-CFD44BBB7EAA}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{D05A5DB8-0389-474D-BFF4-6F48E3F84EB0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NeoFx.Abstractions", "src\Abstractions\NeoFx.Abstractions.csproj", "{9C4F09C9-E6CC-4C9F-A38E-530D6A854A86}"
 EndProject
 Global
 	GlobalSection(SolutionProperties) = preSolution
@@ -44,5 +48,20 @@ Global
 		{A46C0F54-A5D5-4C41-A891-CFD44BBB7EAA}.Release|x64.Build.0 = Release|Any CPU
 		{A46C0F54-A5D5-4C41-A891-CFD44BBB7EAA}.Release|x86.ActiveCfg = Release|Any CPU
 		{A46C0F54-A5D5-4C41-A891-CFD44BBB7EAA}.Release|x86.Build.0 = Release|Any CPU
+		{9C4F09C9-E6CC-4C9F-A38E-530D6A854A86}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9C4F09C9-E6CC-4C9F-A38E-530D6A854A86}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9C4F09C9-E6CC-4C9F-A38E-530D6A854A86}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{9C4F09C9-E6CC-4C9F-A38E-530D6A854A86}.Debug|x64.Build.0 = Debug|Any CPU
+		{9C4F09C9-E6CC-4C9F-A38E-530D6A854A86}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{9C4F09C9-E6CC-4C9F-A38E-530D6A854A86}.Debug|x86.Build.0 = Debug|Any CPU
+		{9C4F09C9-E6CC-4C9F-A38E-530D6A854A86}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9C4F09C9-E6CC-4C9F-A38E-530D6A854A86}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9C4F09C9-E6CC-4C9F-A38E-530D6A854A86}.Release|x64.ActiveCfg = Release|Any CPU
+		{9C4F09C9-E6CC-4C9F-A38E-530D6A854A86}.Release|x64.Build.0 = Release|Any CPU
+		{9C4F09C9-E6CC-4C9F-A38E-530D6A854A86}.Release|x86.ActiveCfg = Release|Any CPU
+		{9C4F09C9-E6CC-4C9F-A38E-530D6A854A86}.Release|x86.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{9C4F09C9-E6CC-4C9F-A38E-530D6A854A86} = {D05A5DB8-0389-474D-BFF4-6F48E3F84EB0}
 	EndGlobalSection
 EndGlobal

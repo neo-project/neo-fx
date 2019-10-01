@@ -20,7 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\src\NeoFx.Models.csproj" />
+    <ProjectReference Include="..\src\Models\NeoFx.Models.csproj" />
   </ItemGroup>
 
 </Project>
