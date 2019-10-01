@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Buffers.Binary;
-using System.Collections.Generic;
-using System.Text;
 
 namespace NeoFx.Models
 {
@@ -47,11 +45,11 @@ namespace NeoFx.Models
         }
 
         // TODO:
+        //      IFormattable
         //      public bool TryWriteBytes(Span<byte> buffer)
         //      public static bool TryParse(ReadOnlySpan<char> @string, out UInt256 result)
         //      public bool TryFormat(Span<char> destination, out int charsWritten, ReadOnlySpan<char> format = default, IFormatProvider provider = null)
         //      public override string ToString()
-
 
         public override bool Equals(object obj)
         {

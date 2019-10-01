@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Buffers.Binary;
-using System.Collections.Generic;
-using System.Text;
+
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("NeoFx.Models.Tests")]
 
 namespace NeoFx.Models
 {
@@ -44,6 +44,7 @@ namespace NeoFx.Models
         }
 
         // TODO:
+        //      IFormattable
         //      public bool TryWriteBytes(Span<byte> buffer)
         //      public static bool TryParse(ReadOnlySpan<char> @string, out UInt160 result)
         //      public bool TryFormat(Span<char> destination, out int charsWritten, ReadOnlySpan<char> format = default, IFormatProvider provider = null)
