@@ -12,6 +12,8 @@ namespace NeoFx.Models
         private readonly ulong data3;
         private readonly ulong data4;
 
+        public const int Size = 4 * sizeof(ulong);
+
         internal UInt256(ulong data1, ulong data2, ulong data3, ulong data4)
         {
             this.data1 = data1;
@@ -30,7 +32,7 @@ namespace NeoFx.Models
 
         public static bool TryReadBytes(ReadOnlySpan<byte> buffer, out UInt256 result)
         {
-            if (buffer.Length >= 32
+            if (buffer.Length >= Size
                 && BinaryPrimitives.TryReadUInt64LittleEndian(buffer, out var data1)
                 && BinaryPrimitives.TryReadUInt64LittleEndian(buffer.Slice(8), out var data2)
                 && BinaryPrimitives.TryReadUInt64LittleEndian(buffer.Slice(16), out var data3)

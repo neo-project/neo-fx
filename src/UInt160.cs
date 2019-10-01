@@ -11,6 +11,8 @@ namespace NeoFx.Models
         private readonly ulong data2;
         private readonly uint data3;
 
+        public const int Size = sizeof(ulong) + sizeof(ulong) + sizeof(uint);
+
         internal UInt160(ulong data1, ulong data2, uint data3)
         {
             this.data1 = data1;
@@ -28,7 +30,7 @@ namespace NeoFx.Models
 
         public static bool TryReadBytes(ReadOnlySpan<byte> buffer, out UInt160 result)
         {
-            if (buffer.Length >= 20
+            if (buffer.Length >= Size
                 && BinaryPrimitives.TryReadUInt64LittleEndian(buffer, out var data1)
                 && BinaryPrimitives.TryReadUInt64LittleEndian(buffer.Slice(8), out var data2)
                 && BinaryPrimitives.TryReadUInt32LittleEndian(buffer.Slice(16), out var data3))
