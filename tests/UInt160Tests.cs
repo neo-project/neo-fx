@@ -1,7 +1,4 @@
 ﻿using FluentAssertions;
-using System;
-using System.Collections.Generic;
-using System.Text;
 using Xunit;
 
 namespace NeoFx.Models.Tests
@@ -9,14 +6,14 @@ namespace NeoFx.Models.Tests
     public class UInt160Tests
     {
         [Fact]
-        public void is_zero_by_default()
+        public void Is_zero_by_default()
         {
             var actual = new UInt160();
             (actual == UInt160.Zero).Should().BeTrue();
         }
 
         [Fact]
-        public void can_read_from_correct_size_byte_span()
+        public void Can_read_from_correct_size_byte_span()
         {
             byte[] span = new byte[] {
                 0x01, 0x02, 0x03, 0x04,
@@ -32,9 +29,8 @@ namespace NeoFx.Models.Tests
             actual.Should().Be(expected);
         }
 
-        
         [Fact]
-        public void fail_to_read_from_incorrect_size_byte_span()
+        public void Fail_to_read_from_incorrect_size_byte_span()
         {
             var span = new byte[] {
                 0x01, 0x02, 0x03, 0x04,
@@ -44,8 +40,6 @@ namespace NeoFx.Models.Tests
                 0x11, 0x12, 0x13};
             UInt160.TryReadBytes(span, out _).Should().BeFalse();
         }
-
-        
 
         [Fact]
         public void Can_be_not_equal_to_null_of_same_type()
