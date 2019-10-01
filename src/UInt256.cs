@@ -12,7 +12,7 @@ namespace NeoFx.Models
         private readonly ulong data3;
         private readonly ulong data4;
 
-        private UInt256(ulong data1, ulong data2, ulong data3, ulong data4)
+        internal UInt256(ulong data1, ulong data2, ulong data3, ulong data4)
         {
             this.data1 = data1;
             this.data2 = data2;

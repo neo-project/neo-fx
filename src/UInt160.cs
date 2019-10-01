@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Buffers.Binary;
 
-[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("NeoFx.Models.Tests")]
-
 namespace NeoFx.Models
 {
     public readonly struct UInt160 : IEquatable<UInt160>, IComparable<UInt160>
@@ -13,7 +11,7 @@ namespace NeoFx.Models
         private readonly ulong data2;
         private readonly uint data3;
 
-        private UInt160(ulong data1, ulong data2, uint data3)
+        internal UInt160(ulong data1, ulong data2, uint data3)
         {
             this.data1 = data1;
             this.data2 = data2;
