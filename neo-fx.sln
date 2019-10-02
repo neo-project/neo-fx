@@ -5,7 +5,7 @@ VisualStudioVersion = 16.0.29324.140
 MinimumVisualStudioVersion = 15.0.26124.0
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NeoFx.Models", "src\Models\NeoFx.Models.csproj", "{1FE4DE29-B84C-4B47-8C54-DA878E583F3A}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NeoFx.Models.Tests", "tests\NeoFx.Models.Tests.csproj", "{A46C0F54-A5D5-4C41-A891-CFD44BBB7EAA}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NeoFx.Models.Tests", "tests\Models\NeoFx.Models.Tests.csproj", "{A46C0F54-A5D5-4C41-A891-CFD44BBB7EAA}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NeoFx.Storage", "src\Storage\NeoFx.Storage.csproj", "{9C4F09C9-E6CC-4C9F-A38E-530D6A854A86}"
 EndProject
