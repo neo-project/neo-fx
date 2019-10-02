@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Buffers.Binary;
+using System.Diagnostics;
 
 namespace NeoFx.Models
 {
@@ -43,12 +44,48 @@ namespace NeoFx.Models
             return false;
         }
 
+        public bool TryWriteBytes(Span<byte> buffer)
+        {
+            return buffer.Length >= Size
+                && BinaryPrimitives.TryWriteUInt64LittleEndian(buffer, data1)
+                && BinaryPrimitives.TryWriteUInt64LittleEndian(buffer.Slice(8), data2)
+                && BinaryPrimitives.TryWriteUInt32LittleEndian(buffer.Slice(16), data3);
+        }
+
+        public override string ToString()
+        {
+            return string.Create(2 + (Size * 2), this, (buffer, that) =>
+            {
+                bool result = that.TryFormat(buffer, out var charWritten);
+                Debug.Assert(result && charWritten == (2 + (Size * 2)));
+            });
+        }
+
+        // TODO: ReadOnlySpan<char> format && IFormatProvider arguments
+        public bool TryFormat(Span<char> destination, out int charsWritten)
+        {
+            if (destination.Length >= ((Size * 2) + 2)
+                && data3.TryFormat(destination.Slice(2), out var d3, "x8")
+                && data2.TryFormat(destination.Slice(10), out var d2, "x16")
+                && data1.TryFormat(destination.Slice(26), out var d1, "x16"))
+            {
+                Debug.Assert(d1 == 16);
+                Debug.Assert(d2 == 16);
+                Debug.Assert(d3 == 8);
+
+                destination[0] = '0';
+                destination[1] = 'x';
+                charsWritten = ((Size * 2) + 2);
+                return true;
+            }
+
+            charsWritten = 0;
+            return false;
+        }
+
         // TODO:
         //      IFormattable
-        //      public bool TryWriteBytes(Span<byte> buffer)
         //      public static bool TryParse(ReadOnlySpan<char> @string, out UInt160 result)
-        //      public bool TryFormat(Span<char> destination, out int charsWritten, ReadOnlySpan<char> format = default, IFormatProvider provider = null)
-        //      public override string ToString()
 
         public override bool Equals(object obj)
         {

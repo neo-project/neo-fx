@@ -1,4 +1,5 @@
 ﻿using FluentAssertions;
+using System;
 using Xunit;
 
 namespace NeoFx.Models.Tests
@@ -100,6 +101,40 @@ namespace NeoFx.Models.Tests
             var a = new UInt160(0x0807060504030201, 0x100f0e0d0c0b0a09, 0x14131210);
             var b = new UInt160(0x0807060504030201, 0x100f0e0d0c0b0a09, 0x14131211);
             (a <= b).Should().BeTrue();
+        }
+
+        [Fact]
+        public void ToString_matches_NEO_ToString()
+        {
+            byte[] span = new byte[] {
+                0x01, 0x02, 0x03, 0x04,
+                0x05, 0x06, 0x07, 0x08,
+                0x09, 0x0a, 0x0b, 0x0c,
+                0x0d, 0x0e, 0x0f, 0x10,
+                0x11, 0x12, 0x13, 0x14 };
+
+            var fx = new UInt160(span);
+            var neo = new Neo.UInt160(span);
+
+            (fx.ToString() == neo.ToString()).Should().BeTrue();
+        }
+
+        [Fact]
+        public void TryWriteBytes_matches_NEO_ToArray()
+        {
+            byte[] span = new byte[] {
+                0x01, 0x02, 0x03, 0x04,
+                0x05, 0x06, 0x07, 0x08,
+                0x09, 0x0a, 0x0b, 0x0c,
+                0x0d, 0x0e, 0x0f, 0x10,
+                0x11, 0x12, 0x13, 0x14 };
+
+            var fx = new UInt160(span);
+            var neo = new Neo.UInt160(span);
+
+            byte[] buffer = new byte[UInt160.Size];
+            fx.TryWriteBytes(buffer).Should().BeTrue();
+            buffer.AsSpan().SequenceEqual(neo.ToArray()).Should().BeTrue();
         }
     }
 }

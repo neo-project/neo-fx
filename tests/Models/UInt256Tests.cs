@@ -1,4 +1,5 @@
 using FluentAssertions;
+using System;
 using Xunit;
 
 namespace NeoFx.Models.Tests
@@ -128,6 +129,46 @@ namespace NeoFx.Models.Tests
                 0x0807060504030201, 0x100f0e0d0c0b0a09,
                 0x1817161514131211, 0x201f1e1d1c1b1a19);
             (a <= b).Should().BeTrue();
+        }
+
+        [Fact]
+        public void ToString_matches_NEO_ToString()
+        {
+            byte[] span = new byte[] {
+                0x01, 0x02, 0x03, 0x04,
+                0x05, 0x06, 0x07, 0x08,
+                0x09, 0x0a, 0x0b, 0x0c,
+                0x0d, 0x0e, 0x0f, 0x10,
+                0x11, 0x12, 0x13, 0x14,
+                0x15, 0x16, 0x17, 0x18,
+                0x19, 0x1a, 0x1b, 0x1c,
+                0x1d, 0x1e, 0x1f, 0x20 };
+
+            var fx = new UInt256(span);
+            var neo = new Neo.UInt256(span);
+
+            (fx.ToString() == neo.ToString()).Should().BeTrue();
+        }
+
+        [Fact]
+        public void TryWriteBytes_matches_NEO_ToArray()
+        {
+            byte[] span = new byte[] {
+                0x01, 0x02, 0x03, 0x04,
+                0x05, 0x06, 0x07, 0x08,
+                0x09, 0x0a, 0x0b, 0x0c,
+                0x0d, 0x0e, 0x0f, 0x10,
+                0x11, 0x12, 0x13, 0x14,
+                0x15, 0x16, 0x17, 0x18,
+                0x19, 0x1a, 0x1b, 0x1c,
+                0x1d, 0x1e, 0x1f, 0x20 };
+
+            var fx = new UInt256(span);
+            var neo = new Neo.UInt256(span);
+
+            byte[] buffer = new byte[UInt256.Size];
+            fx.TryWriteBytes(buffer).Should().BeTrue();
+            buffer.AsSpan().SequenceEqual(neo.ToArray()).Should().BeTrue();
         }
     }
 }
