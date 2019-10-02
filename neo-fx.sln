@@ -7,8 +7,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NeoFx.Models", "src\Models\
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NeoFx.Models.Tests", "tests\Models\NeoFx.Models.Tests.csproj", "{A46C0F54-A5D5-4C41-A891-CFD44BBB7EAA}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NeoFx.Storage", "src\Storage\NeoFx.Storage.csproj", "{9C4F09C9-E6CC-4C9F-A38E-530D6A854A86}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -43,18 +41,6 @@ Global
 		{A46C0F54-A5D5-4C41-A891-CFD44BBB7EAA}.Release|x64.Build.0 = Release|Any CPU
 		{A46C0F54-A5D5-4C41-A891-CFD44BBB7EAA}.Release|x86.ActiveCfg = Release|Any CPU
 		{A46C0F54-A5D5-4C41-A891-CFD44BBB7EAA}.Release|x86.Build.0 = Release|Any CPU
-		{9C4F09C9-E6CC-4C9F-A38E-530D6A854A86}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{9C4F09C9-E6CC-4C9F-A38E-530D6A854A86}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{9C4F09C9-E6CC-4C9F-A38E-530D6A854A86}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{9C4F09C9-E6CC-4C9F-A38E-530D6A854A86}.Debug|x64.Build.0 = Debug|Any CPU
-		{9C4F09C9-E6CC-4C9F-A38E-530D6A854A86}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{9C4F09C9-E6CC-4C9F-A38E-530D6A854A86}.Debug|x86.Build.0 = Debug|Any CPU
-		{9C4F09C9-E6CC-4C9F-A38E-530D6A854A86}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{9C4F09C9-E6CC-4C9F-A38E-530D6A854A86}.Release|Any CPU.Build.0 = Release|Any CPU
-		{9C4F09C9-E6CC-4C9F-A38E-530D6A854A86}.Release|x64.ActiveCfg = Release|Any CPU
-		{9C4F09C9-E6CC-4C9F-A38E-530D6A854A86}.Release|x64.Build.0 = Release|Any CPU
-		{9C4F09C9-E6CC-4C9F-A38E-530D6A854A86}.Release|x86.ActiveCfg = Release|Any CPU
-		{9C4F09C9-E6CC-4C9F-A38E-530D6A854A86}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
