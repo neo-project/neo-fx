@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Buffers;
 using System.Buffers.Binary;
 using System.Diagnostics;
 
@@ -43,6 +44,9 @@ namespace NeoFx.Models
             result = default;
             return false;
         }
+
+        public static bool TryRead(ref SequenceReader<byte> reader, out UInt160 value) =>
+            reader.TryRead(Size, TryReadBytes, out value);
 
         public bool TryWriteBytes(Span<byte> buffer)
         {
