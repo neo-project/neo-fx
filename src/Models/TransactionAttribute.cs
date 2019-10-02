@@ -56,6 +56,6 @@ namespace NeoFx.Models
         }
 
         public UsageType Usage;
-        public byte[] Data;
+        public byte[] Data = Array.Empty<byte>();
     }
 }

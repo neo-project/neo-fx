@@ -14,12 +14,12 @@ namespace NeoFx.Models
         public uint Index;
         public ulong ConsensusData;
         public UInt160 NextConsensus;
-        public Witness Witness;
+        public Witness Witness = new Witness();
     }
 
     public class Block
     {
-        public BlockHeader Header;
-        public Transaction[] Transactions;
+        public BlockHeader Header = new BlockHeader();
+        public Transaction[] Transactions = Array.Empty<Transaction>();
     }
 }

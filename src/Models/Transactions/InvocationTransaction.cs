@@ -9,7 +9,7 @@ namespace NeoFx.Models
     {
         public override TransactionType Type => TransactionType.InvocationTransaction;
 
-        public byte[] Script;
+        public byte[] Script = Array.Empty<byte>();
         public Fixed8 Gas;
     }
 }

@@ -16,12 +16,12 @@ namespace NeoFx.Models
         public class StateDescriptor
         {
             public StateType Type;
-            public byte[] Key;
-            public string Field;
-            public byte[] Value;
+            public byte[] Key = Array.Empty<byte>();
+            public string Field = string.Empty;
+            public byte[] Value = Array.Empty<byte>();
         }
 
-        public StateDescriptor[] Descriptors;
+        public StateDescriptor[] Descriptors = Array.Empty<StateDescriptor>();
 
         public override TransactionType Type => TransactionType.StateTransaction;
     }

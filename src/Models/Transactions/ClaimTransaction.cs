@@ -8,6 +8,6 @@ namespace NeoFx.Models
     {
         public override TransactionType Type => TransactionType.ClaimTransaction;
 
-        public CoinReference[] Claims;
+        public CoinReference[] Claims = Array.Empty<CoinReference>();
     }
 }

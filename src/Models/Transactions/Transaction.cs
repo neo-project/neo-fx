@@ -21,9 +21,9 @@ namespace NeoFx.Models
 
         public abstract TransactionType Type { get; }
         public byte Version;
-        public TransactionAttribute[] Attributes;
-        public CoinReference[] Inputs;
-        public TransactionOutput[] Outputs;
-        public Witness[] Witnesses { get; set; }
+        public TransactionAttribute[] Attributes = Array.Empty<TransactionAttribute>();
+        public CoinReference[] Inputs = Array.Empty<CoinReference>();
+        public TransactionOutput[] Outputs = Array.Empty<TransactionOutput>();
+        public Witness[] Witnesses = Array.Empty<Witness>();
     }
 }

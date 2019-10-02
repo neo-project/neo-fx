@@ -6,7 +6,7 @@ namespace NeoFx.Models
 {
     public class Witness
     {
-        public byte[] InvocationScript;
-        public byte[] VerificationScript;
+        public byte[] InvocationScript = Array.Empty<byte>();
+        public byte[] VerificationScript = Array.Empty<byte>();
     }
 }

@@ -26,13 +26,13 @@ namespace NeoFx.Models.Tests
                 0x1d, 0x1e, 0x1f, 0x20 };
 
             UInt256 expected = new UInt256(
-                0x0807060504030201, 0x100f0e0d0c0b0a09, 
+                0x0807060504030201, 0x100f0e0d0c0b0a09,
                 0x1817161514131211, 0x201f1e1d1c1b1a19);
 
             UInt256.TryReadBytes(span, out var actual).Should().BeTrue();
             actual.Should().Be(expected);
         }
-        
+
         [Fact]
         public void Fail_to_read_from_incorrect_size_byte_span()
         {
@@ -49,19 +49,21 @@ namespace NeoFx.Models.Tests
         public void Can_be_not_equal_to_null_of_same_type()
         {
             var a = new UInt256(
-                0x0807060504030201, 0x100f0e0d0c0b0a09, 
+                0x0807060504030201, 0x100f0e0d0c0b0a09,
                 0x1817161514131211, 0x201f1e1d1c1b1a19);
+#pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
             a.Equals(null).Should().BeFalse();
+#pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
         }
 
         [Fact]
         public void Can_be_equal_to_another_number_of_object_type()
         {
             var a = new UInt256(
-                0x0807060504030201, 0x100f0e0d0c0b0a09, 
+                0x0807060504030201, 0x100f0e0d0c0b0a09,
                 0x1817161514131211, 0x201f1e1d1c1b1a19);
             var o = (object)new UInt256(
-                0x0807060504030201, 0x100f0e0d0c0b0a09, 
+                0x0807060504030201, 0x100f0e0d0c0b0a09,
                 0x1817161514131211, 0x201f1e1d1c1b1a19);
 
             a.Equals(o).Should().BeTrue();
@@ -71,7 +73,7 @@ namespace NeoFx.Models.Tests
         public void Can_be_not_equal_to_another_number_of_object_type()
         {
             var a = new UInt256(
-                0x0807060504030201, 0x100f0e0d0c0b0a09, 
+                0x0807060504030201, 0x100f0e0d0c0b0a09,
                 0x1817161514131211, 0x201f1e1d1c1b1a19);
             object o = (object)1;
 
@@ -82,10 +84,10 @@ namespace NeoFx.Models.Tests
         public void Can_be_greater_than_another_number()
         {
             var a = new UInt256(
-                0x0807060504030201, 0x100f0e0d0c0b0a09, 
+                0x0807060504030201, 0x100f0e0d0c0b0a09,
                 0x1817161514131211, 0x201f1e1d1c1b1a20);
             var b = new UInt256(
-                0x0807060504030201, 0x100f0e0d0c0b0a09, 
+                0x0807060504030201, 0x100f0e0d0c0b0a09,
                 0x1817161514131211, 0x201f1e1d1c1b1a19);
 
             (a > b).Should().BeTrue();
@@ -95,10 +97,10 @@ namespace NeoFx.Models.Tests
         public void Can_be_greater_than_another_number_or_equal()
         {
             var a = new UInt256(
-                0x0807060504030201, 0x100f0e0d0c0b0a09, 
+                0x0807060504030201, 0x100f0e0d0c0b0a09,
                 0x1817161514131211, 0x201f1e1d1c1b1a20);
             var b = new UInt256(
-                0x0807060504030201, 0x100f0e0d0c0b0a09, 
+                0x0807060504030201, 0x100f0e0d0c0b0a09,
                 0x1817161514131211, 0x201f1e1d1c1b1a19);
 
             (a >= b).Should().BeTrue();
@@ -108,10 +110,10 @@ namespace NeoFx.Models.Tests
         public void Can_be_less_than_another_number()
         {
             var a = new UInt256(
-                0x0807060504030201, 0x100f0e0d0c0b0a09, 
+                0x0807060504030201, 0x100f0e0d0c0b0a09,
                 0x1817161514131211, 0x201f1e1d1c1b1a18);
             var b = new UInt256(
-                0x0807060504030201, 0x100f0e0d0c0b0a09, 
+                0x0807060504030201, 0x100f0e0d0c0b0a09,
                 0x1817161514131211, 0x201f1e1d1c1b1a19);
             (a < b).Should().BeTrue();
         }
@@ -120,10 +122,10 @@ namespace NeoFx.Models.Tests
         public void Can_be_less_than_another_number_or_equal()
         {
             var a = new UInt256(
-                0x0807060504030201, 0x100f0e0d0c0b0a09, 
+                0x0807060504030201, 0x100f0e0d0c0b0a09,
                 0x1817161514131211, 0x201f1e1d1c1b1a18);
             var b = new UInt256(
-                0x0807060504030201, 0x100f0e0d0c0b0a09, 
+                0x0807060504030201, 0x100f0e0d0c0b0a09,
                 0x1817161514131211, 0x201f1e1d1c1b1a19);
             (a <= b).Should().BeTrue();
         }

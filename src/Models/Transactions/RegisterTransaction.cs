@@ -11,7 +11,7 @@ namespace NeoFx.Models
         public override TransactionType Type => TransactionType.RegisterTransaction;
 
         //public AssetType AssetType;
-        public string Name;
+        public string Name = string.Empty;
         public Fixed8 Amount;
         public byte Precision;
         //public ECPoint Owner;

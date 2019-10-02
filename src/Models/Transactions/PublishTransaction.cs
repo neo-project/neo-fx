@@ -10,14 +10,14 @@ namespace NeoFx.Models
     {
         public override TransactionType Type => TransactionType.PublishTransaction;
 
-        public byte[] Script;
+        public byte[] Script = Array.Empty<byte>();
         //public ContractParameterType[] ParameterList;
         //public ContractParameterType ReturnType;
         public bool NeedStorage;
-        public string Name;
-        public string CodeVersion;
-        public string Author;
-        public string Email;
-        public string Description;
+        public string Name = string.Empty;
+        public string CodeVersion = string.Empty;
+        public string Author = string.Empty;
+        public string Email = string.Empty;
+        public string Description = string.Empty;
     }
 }
