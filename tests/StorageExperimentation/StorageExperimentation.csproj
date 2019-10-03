@@ -24,6 +24,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="cp1.neo-express-checkpoint">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="cp1\000033.sst">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
