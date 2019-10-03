@@ -57,6 +57,27 @@ namespace NeoFx.Models
             return false;
         }
 
+        // TODO find a better home
+        static int GetVarIntLength(ulong value)
+        {
+            if (value < 0xfd)
+            {
+                return 1;
+            }
+
+            if (value < 0xffff)
+            {
+                return 3;
+            }
+
+            if (value < 0xffffffff)
+            {
+                return 5;
+            }
+
+            return 9;
+        }
+
         private static bool TryReadTransactionData(ref SequenceReader<byte> reader, TransactionType type, out ReadOnlyMemory<byte> value)
         {
             switch (type)
@@ -77,13 +98,10 @@ namespace NeoFx.Models
                     // public byte[] Script;
                     // public Fixed8 Gas;
                     {
-                        if (reader.TryReadVarArray(out var script) && reader.TryReadByteArray(sizeof(long), out var gas))
+                        if (reader.TryPeekVarInt(out var scriptLength))
                         {
-                            var buffer = new byte[script.Length + gas.Length];
-                            script.CopyTo(buffer);
-                            gas.CopyTo(buffer.AsMemory().Slice(script.Length));
-                            value = buffer;
-                            return true;
+                            var size = (int)scriptLength + GetVarIntLength(scriptLength) + sizeof(long);
+                            return reader.TryReadByteArray(size, out value);
                         }
                     }
                     break;

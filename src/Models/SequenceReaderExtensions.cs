@@ -45,29 +45,43 @@ namespace NeoFx.Models
 
         public static bool TryReadVarInt(ref this SequenceReader<byte> reader, out ulong value)
         {
+            return TryReadVarInt(ref reader, false, out value);
+        }
+
+        public static bool TryPeekVarInt(ref this SequenceReader<byte> reader, out ulong value)
+        {
+            return TryReadVarInt(ref reader, true, out value);
+        }
+
+        static bool TryReadVarInt(ref this SequenceReader<byte> reader, bool peek, out ulong value)
+        {
             if (reader.TryRead(out byte b))
             {
                 if (b < 0xfd)
                 {
                     value = b;
+                    if (peek) { reader.Rewind(1); }
                     return true;
                 }
 
                 if (b == 0xfd && reader.TryReadUInt16LittleEndian(out ushort @ushort))
                 {
                     value = @ushort;
+                    if (peek) { reader.Rewind(3); }
                     return true;
                 }
 
                 if (b == 0xfe && reader.TryReadUInt32LittleEndian(out uint @uint))
                 {
                     value = @uint;
+                    if (peek) { reader.Rewind(5); }
                     return true;
                 }
 
                 if (b == 0xff && reader.TryReadUInt64LittleEndian(out ulong @ulong))
                 {
                     value = @ulong;
+                    if (peek) { reader.Rewind(9); }
                     return true;
                 }
             }
