@@ -30,7 +30,7 @@ namespace NeoFx.Models.Tests
                 0x0807060504030201, 0x100f0e0d0c0b0a09,
                 0x1817161514131211, 0x201f1e1d1c1b1a19);
 
-            UInt256.TryReadBytes(span, out var actual).Should().BeTrue();
+            UInt256.TryRead(span, out var actual).Should().BeTrue();
             actual.Should().Be(expected);
         }
 
@@ -43,7 +43,7 @@ namespace NeoFx.Models.Tests
                 0x09, 0x0a, 0x0b, 0x0c,
                 0x0d, 0x0e, 0x0f, 0x10,
                 0x11, 0x12, 0x13};
-            UInt256.TryReadBytes(span, out _).Should().BeFalse();
+            UInt256.TryRead(span, out _).Should().BeFalse();
         }
 
         [Fact]
@@ -167,7 +167,7 @@ namespace NeoFx.Models.Tests
             var neo = new Neo.UInt256(span);
 
             byte[] buffer = new byte[UInt256.Size];
-            fx.TryWriteBytes(buffer).Should().BeTrue();
+            fx.TryWrite(buffer).Should().BeTrue();
             buffer.AsSpan().SequenceEqual(neo.ToArray()).Should().BeTrue();
         }
     }

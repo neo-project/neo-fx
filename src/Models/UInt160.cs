@@ -24,13 +24,13 @@ namespace NeoFx.Models
 
         public UInt160(ReadOnlySpan<byte> span)
         {
-            if (!TryReadBytes(span, out this))
+            if (!TryRead(span, out this))
             {
                 throw new ArgumentException(nameof(span));
             }
         }
 
-        public static bool TryReadBytes(ReadOnlySpan<byte> buffer, out UInt160 result)
+        public static bool TryRead(ReadOnlySpan<byte> buffer, out UInt160 result)
         {
             if (buffer.Length >= Size
                 && BinaryPrimitives.TryReadUInt64LittleEndian(buffer, out var data1)
@@ -46,9 +46,9 @@ namespace NeoFx.Models
         }
 
         public static bool TryRead(ref SequenceReader<byte> reader, out UInt160 value) =>
-            reader.TryRead(Size, TryReadBytes, out value);
+            reader.TryRead(Size, TryRead, out value);
 
-        public bool TryWriteBytes(Span<byte> buffer)
+        public bool TryWrite(Span<byte> buffer)
         {
             return buffer.Length >= Size
                 && BinaryPrimitives.TryWriteUInt64LittleEndian(buffer, data1)

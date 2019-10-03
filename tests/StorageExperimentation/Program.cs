@@ -57,7 +57,8 @@ namespace StorageExperimentation
 
         private static void StorageColumnExperiment(RocksDb db)
         {
-            using var iterator = db.NewIterator(db.GetColumnFamily(STORAGE_FAMILY));
+            var storageFamily = db.GetColumnFamily(STORAGE_FAMILY);
+            using var iterator = db.NewIterator(storageFamily);
             iterator.SeekToFirst();
             while (iterator.Valid())
             {
@@ -65,21 +66,57 @@ namespace StorageExperimentation
                 var keyArray = iterator.Key();
                 var key = keyArray.Deserialize<Neo.Ledger.StorageKey>();
 
-                var reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(keyArray));
-                StorageKey.TryRead(ref reader, out var storageKey);
+                StorageKey.TryRead(keyArray, out var storageKey);
 
                 var valueArray = iterator.Value();
-                var reader2 = new SequenceReader<byte>(new ReadOnlySequence<byte>(valueArray));
-                if (TryReadStateVersion(ref reader2, 0)
-                    && StorageItem.TryRead(ref reader2, out var item))
+                var reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(valueArray));
+                if (TryReadStateVersion(ref reader, 0)
+                    && StorageItem.TryRead(ref reader, out var item))
                 {
-                    Debug.Assert(reader2.Remaining == 0);
+                    Debug.Assert(reader.Remaining == 0);
+                    Console.WriteLine("bar");
+                }
+
+                var newKeyBuffer = new byte[storageKey.Size];
+                storageKey.TryWrite(newKeyBuffer);
+
+                var newValueBuffer = db.Get(newKeyBuffer, storageFamily);
+
+                var newReader = new SequenceReader<byte>(new ReadOnlySequence<byte>(newValueBuffer));
+                if (TryReadStateVersion(ref newReader, 0)
+                    && StorageItem.TryRead(ref newReader, out var item1))
+                {
+                    Debug.Assert(newReader.Remaining == 0);
                     Console.WriteLine("bar");
                 }
 
 
-                Console.WriteLine("Foo");
-                
+                var r = new Random();
+
+                var testRandomBuffer1 = new byte[16];
+                r.NextBytes(testRandomBuffer1);
+
+                var testKey1 = new StorageKey(storageKey.ScriptHash, testRandomBuffer1);
+
+                var testKey1Buffer = new byte[testKey1.Size];
+                testKey1.TryWrite(testKey1Buffer);
+
+                StorageKey.TryRead(testKey1Buffer, out var testKey1After);
+                Debug.Assert(testKey1After.ScriptHash == testKey1.ScriptHash);
+                Debug.Assert(testKey1.Key.Span.SequenceEqual(testKey1After.Key.Span));
+                Debug.Assert(testRandomBuffer1.AsSpan().SequenceEqual(testKey1.Key.Span));
+                Debug.Assert(testRandomBuffer1.AsSpan().SequenceEqual(testKey1After.Key.Span));
+
+                //var randomBuffer2 = new byte[16];
+                //r.NextBytes(randomBuffer2);
+                //var testKey2 = new StorageKey(storageKey.ScriptHash, randomBuffer2);
+                //var testKey2Buffer = new byte[testKey2.Size];
+                //testKey2.TryWrite(testKey2Buffer);
+
+
+                //StorageKey.TryRead(testKey2Buffer, out var key3);
+                //var k3 = key3.Key.Span.SequenceEqual(randomBuffer2);
+
                 iterator.Next();
             }
         }
@@ -241,12 +278,12 @@ namespace StorageExperimentation
 
         private static bool TryReadUInt256(ReadOnlyMemory<byte> memory, out UInt256 key)
         {
-            return UInt256.TryReadBytes(memory.Span, out key);
+            return UInt256.TryRead(memory.Span, out key);
         }
 
         private static bool TryWriteUInt256(in UInt256 key, Span<byte> span)
         {
-            return key.TryWriteBytes(span);
+            return key.TryWrite(span);
         }
 
         private static bool TryReadBlockState(ReadOnlyMemory<byte> memory, out (long systemFee, TrimmedBlock block) value)

@@ -131,6 +131,37 @@ namespace NeoFx.Storage.RocksDb
             return TryGetTransactionState(db, key, out index, out tx);
         }
 
+        public bool TryGetStorage(in UInt160 scriptHash, ReadOnlyMemory<byte> key, out StorageItem item)
+        {
+            item = default;
+            return false;
+        }
+
+        public IEnumerable<(ReadOnlyMemory<byte> key, StorageItem item)> EnumerateStorage(in UInt160 scriptHash)
+        {
+            static IEnumerable<(ReadOnlyMemory<byte> key, StorageItem item)> EnumerateStorage(RocksDb db, UInt160 scriptHash)
+            {
+                var keyPrefix = new byte[UInt160.Size];
+                scriptHash.TryWrite(keyPrefix);
+
+                using var iterator = db.NewIterator(db.GetColumnFamily(STORAGE_FAMILY));
+                iterator.Seek(keyPrefix);
+                while (iterator.Valid())
+                {
+                    var keyReadResult = StorageKey.TryRead(iterator.Key(), out var key);
+                    var valueReadResult = TryReadStorageItem(iterator.Value(), out var value);
+
+                    Debug.Assert(keyReadResult);
+                    Debug.Assert(valueReadResult);
+
+                    yield return (key.Key, value);
+                    iterator.Next();
+                }
+            }
+
+            return EnumerateStorage(db, scriptHash);
+        }
+
         private static bool TryReadStateVersion(ref SequenceReader<byte> reader, byte expectedVersion)
         {
             if (reader.TryPeek(out var value) && value == expectedVersion)
@@ -145,13 +176,13 @@ namespace NeoFx.Storage.RocksDb
         private static bool TryReadUInt256(ReadOnlyMemory<byte> memory, out UInt256 key)
         {
             Debug.Assert(memory.Length == UInt256.Size);
-            return UInt256.TryReadBytes(memory.Span, out key);
+            return UInt256.TryRead(memory.Span, out key);
         }
 
         private static bool TryWriteUInt256(in UInt256 key, Span<byte> span)
         {
             Debug.Assert(span.Length >= UInt256.Size);
-            return key.TryWriteBytes(span);
+            return key.TryWrite(span);
         }
 
         private static bool TryReadBlockState(ReadOnlyMemory<byte> memory, out (long systemFee, TrimmedBlock block) value)
@@ -164,6 +195,23 @@ namespace NeoFx.Storage.RocksDb
             {
                 Debug.Assert(reader.Remaining == 0);
                 value = (systemFee, block);
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
+
+        private static bool TryReadStorageItem(ReadOnlyMemory<byte> memory, out StorageItem value)
+        {
+            var reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(memory));
+
+            if (TryReadStateVersion(ref reader, 0)
+                && StorageItem.TryRead(ref reader, out var item))
+            {
+                Debug.Assert(reader.Remaining == 0);
+
+                value = item;
                 return true;
             }
 
