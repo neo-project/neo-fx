@@ -1,0 +1,45 @@
+variables:
+  configuration: Release
+
+pool:
+  vmImage: 'windows-2019'
+
+trigger:
+  batch: false
+  branches:
+    include:
+      - master
+      - release/*
+  paths:
+    include:
+    - '*'
+    exclude:
+    - 'readme.md'
+    - 'changelog.md'
+    - 'docs/*'
+
+steps:
+- task: UseDotNet@2
+  displayName: 'use .NET Core SDK from global.json'
+  inputs:
+    packageType: 'sdk'
+    useGlobalJson: true
+
+- task: DotNetCoreCLI@2
+  displayName: 'dotnet pack'
+  inputs:
+    command: 'custom'
+    custom: pack
+    arguments: '-c $(configuration) -o $(Build.ArtifactStagingDirectory) --include-symbols'
+
+- publish: '$(Build.ArtifactStagingDirectory)'
+  displayName: 'publish build artifact'
+  name: nugetPackage
+
+- task: NuGetCommand@2
+  displayName: 'NuGet push to NeoDevPackages feed'
+  inputs:
+    command: 'push'
+    packagesToPush: '$(Build.ArtifactStagingDirectory)/**/*.nupkg;!$(Build.ArtifactStagingDirectory)/**/*.symbols.nupkg'
+    nuGetFeedType: 'internal'
+    publishVstsFeed: '176ef395-dca6-4e1c-a5e7-cb4f884a7fdf'
