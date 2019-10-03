@@ -80,19 +80,76 @@ namespace StorageExperimentation
             return false;
         }
 
+        static bool TryReadTxState(ReadOnlyMemory<byte> memory, out (uint blockIndex, Transaction tx) value)
+        {
+            var sequence = new ReadOnlySequence<byte>(memory);
+            var reader = new SequenceReader<byte>(sequence);
+
+            if (TryReadStateVersion(ref reader, 0)
+                && reader.TryReadUInt32LittleEndian(out var blockIndex)
+                && Transaction.TryRead(ref reader, out var tx))
+            {
+                Debug.Assert(reader.Remaining == 0);
+                value = (blockIndex, tx);
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
+
         static IEnumerable<(UInt256 key, long systemFee, TrimmedBlock block)> GetBlocks(RocksDb db)
         {
             using var iterator = db.NewIterator(db.GetColumnFamily(BLOCK_FAMILY));
             iterator.SeekToFirst();
             while (iterator.Valid())
             {
-                var uint256ReadResult = UInt256.TryReadBytes(iterator.Key(), out var key);
-                var tryReadBlockStateResult = TryReadBlockState(iterator.Value(), out var value);
+                var keyReadResult = UInt256.TryReadBytes(iterator.Key(), out var key);
+                var valueReadResult = TryReadBlockState(iterator.Value(), out var value);
 
-                Debug.Assert(uint256ReadResult && iterator.Key().Length == UInt256.Size);
-                Debug.Assert(tryReadBlockStateResult);
+                Debug.Assert(keyReadResult && iterator.Key().Length == UInt256.Size);
+                Debug.Assert(valueReadResult);
 
                 yield return (key, value.systemFee, value.block);
+                iterator.Next();
+            }
+        }
+
+        // 0xc56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b && 0x602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7
+        // these tx in the test data do not load. These are the two register Transactions in the genesis block
+        static IEnumerable<(UInt256 key, uint blockIndex, Transaction tx)> GetTransactions(RocksDb db)
+        {
+            var tests = new string[]
+            {
+                "0xc56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b",
+                "0x602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7"
+            };
+
+            using var iterator = db.NewIterator(db.GetColumnFamily(TX_FAMILY));
+            iterator.SeekToFirst();
+            while (iterator.Valid())
+            {
+
+                var keyReadResult = UInt256.TryReadBytes(iterator.Key(), out var key);
+                Debug.Assert(keyReadResult && iterator.Key().Length == UInt256.Size);
+
+                var keyString = key.ToString();
+                if (tests.Any(t => t.Equals(keyString)))
+                {
+                    Debugger.Break();
+                }
+
+                var valueReadResult = TryReadTxState(iterator.Value(), out var value);
+
+                if (valueReadResult)
+                {
+                    yield return (key, value.blockIndex, value.tx);
+                }
+                else
+                {
+                    Console.WriteLine(key);
+                }
+                
                 iterator.Next();
             }
         }
@@ -108,20 +165,22 @@ namespace StorageExperimentation
 
             using var db = RocksDb.Open(options, path, ColumnFamilies);
 
-            var blocks = GetBlocks(db).ToList();
-            UInt256 prev = default;
+            var tx = GetTransactions(db).ToList();
 
-            foreach (var tuple in blocks.OrderByDescending(t => t.block.Header.Timestamp))
-            {
-                Debug.Assert(prev == default || prev == tuple.key);
-                //Console.WriteLine($"{tuple.block.Header.Witness.InvocationScript.Length} {tuple.block.Header.Witness.VerificationScript.Length}");
-                //Console.WriteLine(tuple.block.Header.Timestamp);
-                //Console.WriteLine($"  {prev}");
-                //Console.WriteLine($"  {tuple.key}");
-                Console.WriteLine(tuple.block.Hashes.Length);
-                prev = tuple.block.Header.PreviousHash;
-            }
-            ;
+            //var blocks = GetBlocks(db).ToList();
+            //UInt256 prev = default;
+
+            //foreach (var tuple in blocks.OrderByDescending(t => t.block.Timestamp))
+            //{
+            //    Debug.Assert(prev == default || prev == tuple.key);
+            //    //Console.WriteLine($"{tuple.block.Header.Witness.InvocationScript.Length} {tuple.block.Header.Witness.VerificationScript.Length}");
+            //    //Console.WriteLine(tuple.block.Header.Timestamp);
+            //    //Console.WriteLine($"  {prev}");
+            //    //Console.WriteLine($"  {tuple.key}");
+            //    Console.WriteLine(tuple.block.Hashes.Length);
+            //    prev = tuple.block.PreviousHash;
+            //}
+            //;
 
         }
     }

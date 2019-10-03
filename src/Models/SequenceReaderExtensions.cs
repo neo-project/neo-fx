@@ -76,19 +76,26 @@ namespace NeoFx.Models
             return false;
         }
 
+        public static bool TryReadByteArray(ref this SequenceReader<byte> reader, int count, out ReadOnlyMemory<byte> value)
+        {
+            var buffer = new byte[count];
+            if (reader.TryCopyTo(buffer))
+            {
+                value = buffer;
+                reader.Advance((long)count);
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
+
         public static bool TryReadVarArray(ref this SequenceReader<byte> reader, out ReadOnlyMemory<byte> value)
         {
             if (reader.TryReadVarInt(out var count))
             {
                 Debug.Assert(count < int.MaxValue);
-
-                var buffer = new byte[count];
-                if (reader.TryCopyTo(buffer))
-                {
-                    value = buffer;
-                    reader.Advance((long)count);
-                    return true;
-                }
+                return reader.TryReadByteArray((int)count, out value);
             }
 
             value = default;

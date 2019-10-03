@@ -4,7 +4,6 @@ using System.Text;
 
 namespace NeoFx.Models
 {
-
     public struct Fixed8
     {
         private const long D = 100_000_000;
