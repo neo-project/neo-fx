@@ -62,44 +62,25 @@ namespace StorageExperimentation
             return false;
         }
 
-        static bool TryReadBlockState(ReadOnlyMemory<byte> memory, out (long systemFee, TrimmedBlock block) value)
-        {
-            var sequence = new ReadOnlySequence<byte>(memory);
-            var reader = new SequenceReader<byte>(sequence);
-
-            if (TryReadStateVersion(ref reader, 0)
-                && reader.TryReadInt64LittleEndian(out var systemFee)
-                && TrimmedBlock.TryRead(ref reader, out var block))
-            {
-                Debug.Assert(reader.Remaining == 0);
-                value = (systemFee, block);
-                return true;
-            }
-
-            value = default;
-            return false;
-        }
-
-        static bool TryReadTxState(ReadOnlyMemory<byte> memory, out (uint blockIndex, Transaction tx) value)
-        {
-            var sequence = new ReadOnlySequence<byte>(memory);
-            var reader = new SequenceReader<byte>(sequence);
-
-            if (TryReadStateVersion(ref reader, 0)
-                && reader.TryReadUInt32LittleEndian(out var blockIndex)
-                && Transaction.TryRead(ref reader, out var tx))
-            {
-                Debug.Assert(reader.Remaining == 0);
-                value = (blockIndex, tx);
-                return true;
-            }
-
-            value = default;
-            return false;
-        }
-
         static IEnumerable<(UInt256 key, long systemFee, TrimmedBlock block)> GetBlocks(RocksDb db)
         {
+            static bool TryReadBlockState(ReadOnlyMemory<byte> memory, out (long systemFee, TrimmedBlock block) value)
+            {
+                var reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(memory));
+
+                if (TryReadStateVersion(ref reader, 0)
+                    && reader.TryReadInt64LittleEndian(out var systemFee)
+                    && TrimmedBlock.TryRead(ref reader, out var block))
+                {
+                    Debug.Assert(reader.Remaining == 0);
+                    value = (systemFee, block);
+                    return true;
+                }
+
+                value = default;
+                return false;
+            }
+
             using var iterator = db.NewIterator(db.GetColumnFamily(BLOCK_FAMILY));
             iterator.SeekToFirst();
             while (iterator.Valid())
@@ -119,6 +100,23 @@ namespace StorageExperimentation
         // these tx in the test data do not load. These are the two register Transactions in the genesis block
         static IEnumerable<(UInt256 key, uint blockIndex, Transaction tx)> GetTransactions(RocksDb db)
         {
+            static bool TryReadTxState(ReadOnlyMemory<byte> memory, out (uint blockIndex, Transaction tx) value)
+            {
+                var reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(memory));
+
+                if (TryReadStateVersion(ref reader, 0)
+                    && reader.TryReadUInt32LittleEndian(out var blockIndex)
+                    && Transaction.TryRead(ref reader, out var tx))
+                {
+                    Debug.Assert(reader.Remaining == 0);
+                    value = (blockIndex, tx);
+                    return true;
+                }
+
+                value = default;
+                return false;
+            }
+
             var tests = new string[]
             {
                 "0xc56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b",
