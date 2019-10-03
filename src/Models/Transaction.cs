@@ -98,19 +98,18 @@ namespace NeoFx.Models
                         //public ECPoint Owner;
                         //public UInt160 Admin;
                         {
-                            if (reader.TryRead(out var assetType)
-                                && reader.TryReadVarString(out var name)
-                                && reader.TryReadInt64LittleEndian(out var amount)
-                                && reader.TryRead(out var precision)
-                                && reader.TryRead(out var ecPointType) && ecPointType == 0
-                                && UInt160.TryRead(ref reader, out var admin))
+                            reader.Advance(1); // assetType
+                            if (reader.TryReadVarString(out var name))
                             {
-                                size =
-                                    3 // assetType, precision, Owner
-                                    + name.GetVarSize()
-                                    + sizeof(long) // amount
-                                    + UInt160.Size;
-                                return true;
+                                reader.Advance(sizeof(long) + 1); // amount + precision
+                                if (reader.TryRead(out var ecPointType) && ecPointType == 0)
+                                {
+                                    size = 3 // assetType, precision, Owner
+                                        + sizeof(long) // amount
+                                        + UInt160.Size // admin
+                                        + name.GetVarSize();
+                                    return true;
+                                }
                             }
                         }
                         break;
