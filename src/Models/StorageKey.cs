@@ -17,24 +17,6 @@ namespace NeoFx.Models
             Key = key;
         }
 
-        class BufferSegment : ReadOnlySequenceSegment<byte>
-        {
-            public BufferSegment(ReadOnlyMemory<byte> memory)
-            {
-                Memory = memory;
-            }
-
-            public BufferSegment Append(ReadOnlyMemory<byte> memory)
-            {
-                var segment = new BufferSegment(memory)
-                {
-                    RunningIndex = RunningIndex + Memory.Length
-                };
-                Next = segment;
-                return segment;
-            }
-        }
-
         public static bool TryRead(ref SequenceReader<byte> reader, out StorageKey value)
         {
             const int BlockSize = 16;
