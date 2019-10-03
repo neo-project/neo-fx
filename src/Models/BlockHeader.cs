@@ -14,12 +14,12 @@ namespace NeoFx.Models
         public readonly UInt160 NextConsensus;
         public readonly Witness Witness;
 
-        public BlockHeader(uint version, UInt256 previousHash, UInt256 merkleRoot, uint timestamp, uint index, ulong consensusData, UInt160 nextConsensus, Witness witness)
+        public BlockHeader(uint version, in UInt256 previousHash, in UInt256 merkleRoot, uint timestamp, uint index, ulong consensusData, in UInt160 nextConsensus, in Witness witness)
             : this(version, previousHash, merkleRoot, DateTimeOffset.FromUnixTimeSeconds(timestamp), index, consensusData, nextConsensus, witness)
         {
         }
 
-        public BlockHeader(uint version, UInt256 previousHash, UInt256 merkleRoot, DateTimeOffset timestamp, uint index, ulong consensusData, UInt160 nextConsensus, Witness witness)
+        public BlockHeader(uint version, in UInt256 previousHash, in UInt256 merkleRoot, DateTimeOffset timestamp, uint index, ulong consensusData, in UInt160 nextConsensus, in Witness witness)
         {
             Version = version;
             PreviousHash = previousHash;

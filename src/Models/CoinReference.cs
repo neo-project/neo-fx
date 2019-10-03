@@ -12,7 +12,7 @@ namespace NeoFx.Models
 
         public const int Size = sizeof(ushort) + UInt256.Size;
 
-        public CoinReference(UInt256 prevHash, ushort prevIndex)
+        public CoinReference(in UInt256 prevHash, ushort prevIndex)
         {
             PrevHash = prevHash;
             PrevIndex = prevIndex;

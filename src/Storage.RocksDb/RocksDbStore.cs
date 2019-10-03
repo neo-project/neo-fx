@@ -1,0 +1,229 @@
+﻿using NeoFx.Models;
+using System;
+using System.Buffers;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
+
+namespace NeoFx.Storage.RocksDb
+{
+    // type aliases needed to avoid collision between RocksDbSharp.RocksDb type 
+    // and NeoFx.Storage.RocksDb namespace.
+
+    using RocksDb = RocksDbSharp.RocksDb;
+    using ColumnFamilies = RocksDbSharp.ColumnFamilies;
+    using ColumnFamilyOptions = RocksDbSharp.ColumnFamilyOptions;
+
+    public sealed class RocksDbStore : IDisposable, Abstractions.IBlockchainStorage
+    {
+        #region Column Family Constants
+        private const string BLOCK_FAMILY = "data:block";
+        private const string TX_FAMILY = "data:transaction";
+        private const string ACCOUNT_FAMILY = "st:account";
+        private const string ASSET_FAMILY = "st:asset";
+        private const string CONTRACT_FAMILY = "st:contract";
+        private const string HEADER_HASH_LIST_FAMILY = "ix:header-hash-list";
+        private const string SPENT_COIN_FAMILY = "st:spent-coin";
+        private const string STORAGE_FAMILY = "st:storage";
+        private const string UNSPENT_COIN_FAMILY = "st:coin";
+        private const string VALIDATOR_FAMILY = "st:validator";
+        private const string METADATA_FAMILY = "metadata";
+        private const string GENERAL_STORAGE_FAMILY = "general-storage";
+
+        private const byte VALIDATORS_COUNT_KEY = 0x90;
+        private const byte CURRENT_BLOCK_KEY = 0xc0;
+        private const byte CURRENT_HEADER_KEY = 0xc1;
+
+        private static ColumnFamilies ColumnFamilies => new ColumnFamilies {
+                { BLOCK_FAMILY, new ColumnFamilyOptions() },
+                { TX_FAMILY, new ColumnFamilyOptions() },
+                { ACCOUNT_FAMILY, new ColumnFamilyOptions() },
+                { UNSPENT_COIN_FAMILY, new ColumnFamilyOptions() },
+                { SPENT_COIN_FAMILY, new ColumnFamilyOptions() },
+                { VALIDATOR_FAMILY, new ColumnFamilyOptions() },
+                { ASSET_FAMILY, new ColumnFamilyOptions() },
+                { CONTRACT_FAMILY, new ColumnFamilyOptions() },
+                { STORAGE_FAMILY, new ColumnFamilyOptions() },
+                { HEADER_HASH_LIST_FAMILY, new ColumnFamilyOptions() },
+                { METADATA_FAMILY, new ColumnFamilyOptions() },
+                { GENERAL_STORAGE_FAMILY, new ColumnFamilyOptions() }};
+        #endregion
+
+        private readonly RocksDb db;
+        private readonly IList<UInt256> blockIndex;
+
+        public RocksDbStore(string path)
+        {
+            var options = new RocksDbSharp.DbOptions()
+                .SetCreateIfMissing(false)
+                .SetCreateMissingColumnFamilies(false);
+
+            db = RocksDb.Open(options, path, ColumnFamilies);
+            blockIndex = GetBlocks(db)
+                .OrderBy(t => t.blockState.block.Index)
+                .Select(t => t.key)
+                .ToList();
+        }
+
+        private bool objectDisposed = false;
+
+        public void Dispose()
+        {
+            if (!objectDisposed)
+            {
+                db.Dispose();
+                blockIndex.Clear();
+                objectDisposed = true;
+            }
+        }
+
+        public uint Height
+        {
+            get
+            {
+                if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
+                return (uint)blockIndex.Count;
+            }
+        }
+
+        public bool TryGetBlock(in UInt256 key, out Block block)
+        {
+            if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
+
+            if (TryGetBlockState(db, key, out var _, out var trimmedBlock))
+            {
+                var hashes = trimmedBlock.Hashes.Span;
+                var transactions = new Transaction[hashes.Length];
+                for (int i = 0; i < hashes.Length; i++)
+                {
+                    if (!TryGetTransactionState(db, hashes[i], out var _, out transactions[i]))
+                    {
+                        block = default;
+                        return false;
+                    }
+                }
+
+                block = new Block(trimmedBlock.Header, transactions);
+                return true;
+            }
+
+            block = default;
+            return false;
+        }
+
+        public bool TryGetBlock(uint index, out Block block)
+        {
+            if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
+
+            if (index < blockIndex.Count)
+            {
+                return TryGetBlock(blockIndex[(int)index], out block);
+            }
+
+            block = default;
+            return false;
+        }
+
+        public bool TryGetTransaction(in UInt256 key, out uint index, out Transaction tx)
+        {
+            if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
+
+            return TryGetTransactionState(db, key, out index, out tx);
+        }
+
+        private static bool TryReadStateVersion(ref SequenceReader<byte> reader, byte expectedVersion)
+        {
+            if (reader.TryPeek(out var value) && value == expectedVersion)
+            {
+                reader.Advance(sizeof(byte));
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool TryReadUInt256(ReadOnlyMemory<byte> memory, out UInt256 key)
+        {
+            Debug.Assert(memory.Length == UInt256.Size);
+            return UInt256.TryReadBytes(memory.Span, out key);
+        }
+
+        private static bool TryWriteUInt256(in UInt256 key, Span<byte> span)
+        {
+            Debug.Assert(span.Length >= UInt256.Size);
+            return key.TryWriteBytes(span);
+        }
+
+        private static bool TryReadBlockState(ReadOnlyMemory<byte> memory, out (long systemFee, TrimmedBlock block) value)
+        {
+            var reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(memory));
+
+            if (TryReadStateVersion(ref reader, 0)
+                && reader.TryReadInt64LittleEndian(out var systemFee)
+                && TrimmedBlock.TryRead(ref reader, out var block))
+            {
+                Debug.Assert(reader.Remaining == 0);
+                value = (systemFee, block);
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
+
+        private static IEnumerable<(UInt256 key, (long systemFee, TrimmedBlock block) blockState)> GetBlocks(RocksDb db)
+        {
+            return db.Iterate<UInt256, (long, TrimmedBlock)>(BLOCK_FAMILY, TryReadUInt256, TryReadBlockState);
+        }
+
+        private static bool TryGetBlockState(RocksDb db, UInt256 key, out long systemFee, out TrimmedBlock block)
+        {
+            if (db.TryGet(BLOCK_FAMILY, key, out (long systemFee, TrimmedBlock block) value, UInt256.Size, 2048, TryWriteUInt256, TryReadBlockState))
+            {
+                systemFee = value.systemFee;
+                block = value.block;
+                return true;
+            }
+
+            systemFee = default;
+            block = default;
+            return false;
+        }
+
+        private static bool TryReadTransactionState(ReadOnlyMemory<byte> memory, out (uint blockIndex, Transaction tx) value)
+        {
+            var reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(memory));
+
+            if (TryReadStateVersion(ref reader, 0)
+                && reader.TryReadUInt32LittleEndian(out var blockIndex)
+                && Transaction.TryRead(ref reader, out var tx))
+            {
+                Debug.Assert(reader.Remaining == 0);
+                value = (blockIndex, tx);
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
+
+        private static IEnumerable<(UInt256 key, (uint blockIndex, Transaction tx) txState)> GetTransactions(RocksDb db)
+        {
+            return db.Iterate<UInt256, (uint, Transaction)>(TX_FAMILY, TryReadUInt256, TryReadTransactionState);
+        }
+
+        private static bool TryGetTransactionState(RocksDb db, UInt256 key, out uint blockIndex, out Transaction tx)
+        {
+            if (db.TryGet(TX_FAMILY, key, out (uint blockIndex, Transaction tx) value, UInt256.Size, 2048, TryWriteUInt256, TryReadTransactionState))
+            {
+                blockIndex = value.blockIndex;
+                tx = value.tx;
+                return true;
+            }
+
+            blockIndex = default;
+            tx = default;
+            return false;
+        }
+    }
+}

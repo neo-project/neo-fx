@@ -4,9 +4,24 @@ using System.Text;
 
 namespace NeoFx.Models
 {
-    public class Block
+    public readonly struct Block
     {
-        public BlockHeader Header = new BlockHeader();
-        public Transaction[] Transactions = Array.Empty<Transaction>();
+        private readonly BlockHeader Header;
+        public readonly ReadOnlyMemory<Transaction> Transactions;
+
+        public readonly uint Version => Header.Version;
+        public readonly UInt256 PreviousHash => Header.PreviousHash;
+        public readonly UInt256 MerkleRoot => Header.MerkleRoot;
+        public readonly DateTimeOffset Timestamp => Header.Timestamp;
+        public readonly uint Index => Header.Index;
+        public readonly ulong ConsensusData => Header.ConsensusData;
+        public readonly UInt160 NextConsensus => Header.NextConsensus;
+        public readonly Witness Witness => Header.Witness;
+
+        public Block(in BlockHeader header, in ReadOnlyMemory<Transaction> transactions)
+        {
+            Header = header;
+            Transactions = transactions;
+        }
     }
 }

@@ -5,7 +5,7 @@ namespace NeoFx.Models
 {
     public readonly struct TrimmedBlock
     {
-        private readonly BlockHeader Header;
+        public readonly BlockHeader Header;
         public readonly ReadOnlyMemory<UInt256> Hashes;
 
         public readonly uint Version => Header.Version;
@@ -17,7 +17,7 @@ namespace NeoFx.Models
         public readonly UInt160 NextConsensus => Header.NextConsensus;
         public readonly Witness Witness => Header.Witness;
 
-        public TrimmedBlock(BlockHeader header, ReadOnlyMemory<UInt256> hashes)
+        public TrimmedBlock(in BlockHeader header, ReadOnlyMemory<UInt256> hashes)
         {
             Header = header;
             Hashes = hashes;

@@ -1,10 +1,13 @@
 ﻿using NeoFx.Models;
+using NeoFx.Storage.Abstractions;
+using NeoFx.Storage.RocksDb;
 using RocksDbSharp;
 using System;
 using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 
@@ -12,6 +15,22 @@ namespace StorageExperimentation
 {
     internal static class Program
     {
+        private static void Main()
+        {
+            var path = Path.GetFullPath("./cp1");
+            Console.WriteLine(path);
+
+            using var storage = new RocksDbStore(path);
+            if (storage.TryGetBlock(0, out var block))
+            {
+                for (int i = 0; i < block.Transactions.Length; i++)
+                {
+                    var tx = block.Transactions.Span[i];
+                    Console.WriteLine(tx.Type);
+                }
+            }
+        }
+
         public const string BLOCK_FAMILY = "data:block";
         public const string TX_FAMILY = "data:transaction";
         public const string ACCOUNT_FAMILY = "st:account";
@@ -43,21 +62,14 @@ namespace StorageExperimentation
                 { METADATA_FAMILY, new ColumnFamilyOptions() },
                 { GENERAL_STORAGE_FAMILY, new ColumnFamilyOptions() }};
 
-        private static bool TryReadStateVersion(ref SequenceReader<byte> reader, byte expectedVersion)
-        {
-            if (reader.TryPeek(out var value) && value == expectedVersion)
-            {
-                reader.Advance(sizeof(byte));
-                return true;
-            }
-
-            return false;
-        }
-
         private delegate bool TryRead<T>(ReadOnlyMemory<byte> span, out T key);
+        private delegate bool TryWriteKey<TKey>(in TKey key, Span<byte> span);
 
         private static IEnumerable<(TKey key, TValue value)> Iterate<TKey, TValue>(
-            RocksDb db, string familyName, TryRead<TKey> tryReadKey, TryRead<TValue> tryReadValue)
+            RocksDb db,
+            string familyName,
+            TryRead<TKey> tryReadKey,
+            TryRead<TValue> tryReadValue)
         {
             using var iterator = db.NewIterator(db.GetColumnFamily(familyName));
             iterator.SeekToFirst();
@@ -74,58 +86,120 @@ namespace StorageExperimentation
             }
         }
 
+        private static bool TryGet<TKey, TValue>(
+            RocksDb db,
+            string columnFamily,
+            TKey key,
+            [MaybeNull] out TValue value,
+            int keySize,
+            int valueSize,
+            TryWriteKey<TKey> tryWriteKey,
+            TryRead<TValue> tryReadValue)
+        {
+            var keyBuffer = ArrayPool<byte>.Shared.Rent(keySize);
+            var valueBuffer = ArrayPool<byte>.Shared.Rent(valueSize);
+            try
+            {
+                if (tryWriteKey(key, keyBuffer.AsSpan().Slice(0, keySize)))
+                {
+                    var count = db.Get(keyBuffer, keySize, valueBuffer, 0, valueSize, db.GetColumnFamily(columnFamily));
+                    if (count >= 0)
+                    {
+                        Debug.Assert(count < valueSize);
+                        return tryReadValue(valueBuffer.AsMemory().Slice(0, (int)count), out value);
+                    }
+                }
+
+#pragma warning disable CS8653 // A default expression introduces a null value for a type parameter.
+                value = default;
+#pragma warning restore CS8653 // A default expression introduces a null value for a type parameter.
+                return false;
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(keyBuffer);
+                ArrayPool<byte>.Shared.Return(valueBuffer);
+            }
+        }
+
+        private static bool TryReadStateVersion(ref SequenceReader<byte> reader, byte expectedVersion)
+        {
+            if (reader.TryPeek(out var value) && value == expectedVersion)
+            {
+                reader.Advance(sizeof(byte));
+                return true;
+            }
+
+            return false;
+        }
+
         private static bool TryReadUInt256(ReadOnlyMemory<byte> memory, out UInt256 key)
         {
             return UInt256.TryReadBytes(memory.Span, out key);
         }
 
-        private static IEnumerable<(UInt256 key, (long systemFee, TrimmedBlock block) blockState)> GetBlocks(RocksDb db)
+        private static bool TryWriteUInt256(in UInt256 key, Span<byte> span)
         {
-            static bool TryReadValue(ReadOnlyMemory<byte> memory, out (long systemFee, TrimmedBlock block) value)
+            return key.TryWriteBytes(span);
+        }
+
+        private static bool TryReadBlockState(ReadOnlyMemory<byte> memory, out (long systemFee, TrimmedBlock block) value)
+        {
+            var reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(memory));
+
+            if (TryReadStateVersion(ref reader, 0)
+                && reader.TryReadInt64LittleEndian(out var systemFee)
+                && TrimmedBlock.TryRead(ref reader, out var block))
             {
-                var reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(memory));
-
-                if (TryReadStateVersion(ref reader, 0)
-                    && reader.TryReadInt64LittleEndian(out var systemFee)
-                    && TrimmedBlock.TryRead(ref reader, out var block))
-                {
-                    Debug.Assert(reader.Remaining == 0);
-                    value = (systemFee, block);
-                    return true;
-                }
-
-                value = default;
-                return false;
+                Debug.Assert(reader.Remaining == 0);
+                value = (systemFee, block);
+                return true;
             }
 
+            value = default;
+            return false;
+        }
+
+        static bool TryReadTransactionState(ReadOnlyMemory<byte> memory, out (uint blockIndex, Transaction tx) value)
+        {
+            var reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(memory));
+
+            if (TryReadStateVersion(ref reader, 0)
+                && reader.TryReadUInt32LittleEndian(out var blockIndex)
+                && Transaction.TryRead(ref reader, out var tx))
+            {
+                Debug.Assert(reader.Remaining == 0);
+                value = (blockIndex, tx);
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
+
+        private static IEnumerable<(UInt256 key, (long systemFee, TrimmedBlock block) blockState)> GetBlocks(RocksDb db)
+        {
             return Iterate<UInt256, (long, TrimmedBlock)>
-                (db, BLOCK_FAMILY, TryReadUInt256, TryReadValue);
+                (db, BLOCK_FAMILY, TryReadUInt256, TryReadBlockState);
+        }
+
+        private static bool TryGetBlock(RocksDb db, UInt256 key, out (long systemFee, TrimmedBlock block) value)
+        {
+            return TryGet(db, BLOCK_FAMILY, key, out value, UInt256.Size, 2048, TryWriteUInt256, TryReadBlockState);
         }
 
         private static IEnumerable<(UInt256 key, (uint blockIndex, Transaction tx) txState)> GetTransactions(RocksDb db)
         {
-            static bool TryReadValue(ReadOnlyMemory<byte> memory, out (uint blockIndex, Transaction tx) value)
-            {
-                var reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(memory));
-
-                if (TryReadStateVersion(ref reader, 0)
-                    && reader.TryReadUInt32LittleEndian(out var blockIndex)
-                    && Transaction.TryRead(ref reader, out var tx))
-                {
-                    Debug.Assert(reader.Remaining == 0);
-                    value = (blockIndex, tx);
-                    return true;
-                }
-
-                value = default;
-                return false;
-            }
-
             return Iterate<UInt256, (uint, Transaction)>
-                (db, TX_FAMILY, TryReadUInt256, TryReadValue);
+                (db, TX_FAMILY, TryReadUInt256, TryReadTransactionState);
         }
 
-        private static void Main(string[] args)
+        private static bool TryGetTransaction(RocksDb db, UInt256 key, out (uint blockIndex, Transaction tx) value)
+        {
+            return TryGet(db, TX_FAMILY, key, out value, UInt256.Size, 2048, TryWriteUInt256, TryReadTransactionState);
+        }
+
+        private static void FirstTest()
         {
             var options = new DbOptions()
                 .SetCreateIfMissing(false)
@@ -150,6 +224,26 @@ namespace StorageExperimentation
                     var txHash = block.Hashes.Span[txIndex];
                     var (blockIndex2, tx) = txs[txHash];
                     Debug.Assert(index == blockIndex2);
+                }
+
+                if (TryGetBlock(db, blockHash, out var blockState))
+                {
+                    var hashes = blockState.block.Hashes;
+                    for (int z = 0; z < hashes.Length; z++)
+                    {
+                        if (TryGetTransaction(db, hashes.Span[z], out var txState))
+                        {
+                            Console.WriteLine(txState.tx.Type);
+                        }
+                        else
+                        {
+                            ;
+                        }
+                    }
+                }
+                else
+                {
+                    ;
                 }
             }
             ;

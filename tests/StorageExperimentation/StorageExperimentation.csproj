@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Models\NeoFx.Models.csproj" />
+    <ProjectReference Include="..\..\src\Storage.RocksDb\NeoFx.Storage.RocksDb.csproj" />
   </ItemGroup>
 
   <ItemGroup>

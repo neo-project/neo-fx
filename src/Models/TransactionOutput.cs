@@ -13,7 +13,7 @@ namespace NeoFx.Models
 
         public const int Size = sizeof(long) + UInt256.Size + UInt160.Size;
 
-        public TransactionOutput(UInt256 assetId, /*Fixed8 */long value, UInt160 scriptHash)
+        public TransactionOutput(in UInt256 assetId, /*Fixed8 */long value, in UInt160 scriptHash)
         {
             AssetId = assetId;
             Value = value;
