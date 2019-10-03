@@ -82,6 +82,7 @@ namespace NeoFx.Storage.RocksDb
             get
             {
                 if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
+
                 return (uint)blockIndex.Count;
             }
         }
@@ -90,7 +91,7 @@ namespace NeoFx.Storage.RocksDb
         {
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
-            if (db.TryGet(BLOCK_FAMILY, key, out (long systemFee, TrimmedBlock block) value, UInt256.Size, 2048, TryWriteUInt256, TryReadBlockState))
+            if (db.TryGet(BLOCK_FAMILY, key, out (long systemFee, TrimmedBlock block) value, UInt256.Size, 2048, TryWriteUInt256Key, TryReadBlockState))
             {
                 var hashes = value.block.Hashes.Span;
                 var transactions = new Transaction[hashes.Length];
@@ -128,7 +129,7 @@ namespace NeoFx.Storage.RocksDb
         {
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
-            if (db.TryGet(TX_FAMILY, key, out (uint blockIndex, Transaction tx) value, UInt256.Size, 2048, TryWriteUInt256, TryReadTransactionState))
+            if (db.TryGet(TX_FAMILY, key, out (uint blockIndex, Transaction tx) value, UInt256.Size, 2048, TryWriteUInt256Key, TryReadTransactionState))
             {
                 index = value.blockIndex;
                 tx = value.tx;
@@ -197,15 +198,15 @@ namespace NeoFx.Storage.RocksDb
             return false;
         }
 
-        private static bool TryReadUInt256(ReadOnlyMemory<byte> memory, out UInt256 key)
+        private static bool TryReadUInt256Key(ReadOnlyMemory<byte> memory, out UInt256 key)
         {
             Debug.Assert(memory.Length == UInt256.Size);
             return UInt256.TryRead(memory.Span, out key);
         }
 
-        private static bool TryWriteUInt256(in UInt256 key, Span<byte> span)
+        private static bool TryWriteUInt256Key(in UInt256 key, Span<byte> span)
         {
-            Debug.Assert(span.Length >= UInt256.Size);
+            Debug.Assert(span.Length == UInt256.Size);
             return key.TryWrite(span);
         }
 
@@ -219,6 +220,23 @@ namespace NeoFx.Storage.RocksDb
             {
                 Debug.Assert(reader.Remaining == 0);
                 value = (systemFee, block);
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
+
+        private static bool TryReadTransactionState(ReadOnlyMemory<byte> memory, out (uint blockIndex, Transaction tx) value)
+        {
+            var reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(memory));
+
+            if (TryReadStateVersion(ref reader, 0)
+                && reader.TryReadUInt32LittleEndian(out var blockIndex)
+                && Transaction.TryRead(ref reader, out var tx))
+            {
+                Debug.Assert(reader.Remaining == 0);
+                value = (blockIndex, tx);
                 return true;
             }
 
@@ -245,29 +263,12 @@ namespace NeoFx.Storage.RocksDb
 
         private static IEnumerable<(UInt256 key, (long systemFee, TrimmedBlock block) blockState)> GetBlocks(RocksDb db)
         {
-            return db.Iterate<UInt256, (long, TrimmedBlock)>(BLOCK_FAMILY, TryReadUInt256, TryReadBlockState);
-        }
-
-        private static bool TryReadTransactionState(ReadOnlyMemory<byte> memory, out (uint blockIndex, Transaction tx) value)
-        {
-            var reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(memory));
-
-            if (TryReadStateVersion(ref reader, 0)
-                && reader.TryReadUInt32LittleEndian(out var blockIndex)
-                && Transaction.TryRead(ref reader, out var tx))
-            {
-                Debug.Assert(reader.Remaining == 0);
-                value = (blockIndex, tx);
-                return true;
-            }
-
-            value = default;
-            return false;
+            return db.Iterate<UInt256, (long, TrimmedBlock)>(BLOCK_FAMILY, TryReadUInt256Key, TryReadBlockState);
         }
 
         private static IEnumerable<(UInt256 key, (uint blockIndex, Transaction tx) txState)> GetTransactions(RocksDb db)
         {
-            return db.Iterate<UInt256, (uint, Transaction)>(TX_FAMILY, TryReadUInt256, TryReadTransactionState);
+            return db.Iterate<UInt256, (uint, Transaction)>(TX_FAMILY, TryReadUInt256Key, TryReadTransactionState);
         }
     }
 }

@@ -47,12 +47,19 @@ namespace StorageExperimentation
             System.IO.Compression.ZipFile.ExtractToDirectory(cpArchivePath, cpTempPath);
             Console.WriteLine(cpTempPath);
 
+            RunWithDB(cpTempPath, StorageColumnExperiment);
+            RocksDbStoreTryGetBlockExperiment(cpTempPath);
+            RunWithDB(cpTempPath, BlocksAndTransactionsExperiment);
+        }
+
+        static void RunWithDB(string path, Action<RocksDb> action)
+        {
             var options = new DbOptions()
                 .SetCreateIfMissing(false)
                 .SetCreateMissingColumnFamilies(false);
 
-            using var db = RocksDb.Open(options, cpTempPath, ColumnFamilies);
-            StorageColumnExperiment(db);
+            using var db = RocksDb.Open(options, path, ColumnFamilies);
+            action(db);
         }
 
         private static void StorageColumnExperiment(RocksDb db)
