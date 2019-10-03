@@ -9,11 +9,13 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NeoFx.Models.Tests", "tests
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StorageExperimentation", "tests\StorageExperimentation\StorageExperimentation.csproj", "{8BF471C8-430D-4FA8-B4E8-716BD02681A2}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{83D4EA4B-AE7F-41F2-99FC-45653521512F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NeoFx.Storage.Abstractions", "src\Storage.Abstractions\NeoFx.Storage.Abstractions.csproj", "{37078D8A-134B-45BE-B9AC-D61AAAF8C2EF}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NeoFx.Storage.Abstractions", "src\Storage.Abstractions\NeoFx.Storage.Abstractions.csproj", "{37078D8A-134B-45BE-B9AC-D61AAAF8C2EF}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NeoFx.Storage.RocksDb", "src\Storage.RocksDb\NeoFx.Storage.RocksDb.csproj", "{6C1F181F-32C5-438B-AA5D-C438277E5B0B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NeoFx.Storage.RocksDb", "src\Storage.RocksDb\NeoFx.Storage.RocksDb.csproj", "{6C1F181F-32C5-438B-AA5D-C438277E5B0B}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{E1774378-C3C1-47CB-9C34-09620BC89BC9}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{F78D20E3-45AB-4AD7-9A7F-7A64D1AF7ABE}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -89,11 +91,14 @@ Global
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{1FE4DE29-B84C-4B47-8C54-DA878E583F3A} = {E1774378-C3C1-47CB-9C34-09620BC89BC9}
+		{A46C0F54-A5D5-4C41-A891-CFD44BBB7EAA} = {F78D20E3-45AB-4AD7-9A7F-7A64D1AF7ABE}
+		{8BF471C8-430D-4FA8-B4E8-716BD02681A2} = {F78D20E3-45AB-4AD7-9A7F-7A64D1AF7ABE}
+		{37078D8A-134B-45BE-B9AC-D61AAAF8C2EF} = {E1774378-C3C1-47CB-9C34-09620BC89BC9}
+		{6C1F181F-32C5-438B-AA5D-C438277E5B0B} = {E1774378-C3C1-47CB-9C34-09620BC89BC9}
+	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {AAAC4C7C-36D4-4DE8-ACC5-5D6512E7A1A2}
-	EndGlobalSection
-	GlobalSection(NestedProjects) = preSolution
-		{37078D8A-134B-45BE-B9AC-D61AAAF8C2EF} = {83D4EA4B-AE7F-41F2-99FC-45653521512F}
-		{6C1F181F-32C5-438B-AA5D-C438277E5B0B} = {83D4EA4B-AE7F-41F2-99FC-45653521512F}
 	EndGlobalSection
 EndGlobal
