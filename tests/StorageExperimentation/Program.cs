@@ -36,13 +36,65 @@ namespace StorageExperimentation
             System.IO.Compression.ZipFile.ExtractToDirectory(cpArchivePath, cpTempPath);
             Console.WriteLine(cpTempPath);
 
-            using var storage = new RocksDbStore(cpTempPath);
+            BlocksAndTransactionsExperiment(cpTempPath);
+        }
+
+        private static void RocksDbStoreTryGetBlockExperiment(string path)
+        {
+            using var storage = new RocksDbStore(path);
             if (storage.TryGetBlock(0, out var block))
             {
                 for (int i = 0; i < block.Transactions.Length; i++)
                 {
                     var tx = block.Transactions.Span[i];
                     Console.WriteLine(tx.Type);
+                }
+            }
+        }
+
+        private static void BlocksAndTransactionsExperiment(string path)
+        {
+            var options = new DbOptions()
+                .SetCreateIfMissing(false)
+                .SetCreateMissingColumnFamilies(false);
+
+            Console.WriteLine(path);
+            using var db = RocksDb.Open(options, path, ColumnFamilies);
+
+            var blocks = GetBlocks(db).ToDictionary(t => t.key, t => t.blockState);
+            var txs = GetTransactions(db).ToDictionary(t => t.key, t => t.txState);
+
+            var blockIndex = blocks.ToDictionary(kvp => kvp.Value.block.Index, t => t.Key);
+
+            for (uint index = 0; index < blockIndex.Count; index++)
+            {
+                var blockHash = blockIndex[index];
+                var (_, block) = blocks[blockHash];
+                for (int txIndex = 0; txIndex < block.Hashes.Length; txIndex++)
+                {
+                    var txHash = block.Hashes.Span[txIndex];
+                    var (blockIndex2, tx) = txs[txHash];
+                    Debug.Assert(index == blockIndex2);
+                }
+
+                if (TryGetBlock(db, blockHash, out var blockState))
+                {
+                    var hashes = blockState.block.Hashes;
+                    for (int z = 0; z < hashes.Length; z++)
+                    {
+                        if (TryGetTransaction(db, hashes.Span[z], out var txState))
+                        {
+                            Console.WriteLine(txState.tx.Type);
+                        }
+                        else
+                        {
+                            ;
+                        }
+                    }
+                }
+                else
+                {
+                    ;
                 }
             }
         }
@@ -213,53 +265,6 @@ namespace StorageExperimentation
         private static bool TryGetTransaction(RocksDb db, UInt256 key, out (uint blockIndex, Transaction tx) value)
         {
             return TryGet(db, TX_FAMILY, key, out value, UInt256.Size, 2048, TryWriteUInt256, TryReadTransactionState);
-        }
-
-        private static void BlocksAndTransactionsExperiment(string path)
-        {
-            var options = new DbOptions()
-                .SetCreateIfMissing(false)
-                .SetCreateMissingColumnFamilies(false);
-
-            Console.WriteLine(path);
-            using var db = RocksDb.Open(options, path, ColumnFamilies);
-
-            var blocks = GetBlocks(db).ToDictionary(t => t.key, t => t.blockState);
-            var txs = GetTransactions(db).ToDictionary(t => t.key, t => t.txState);
-
-            var blockIndex = blocks.ToDictionary(kvp => kvp.Value.block.Index, t => t.Key);
-
-            for (uint index = 0; index < blockIndex.Count; index++)
-            {
-                var blockHash = blockIndex[index];
-                var (_, block) = blocks[blockHash];
-                for (int txIndex = 0; txIndex < block.Hashes.Length; txIndex++)
-                {
-                    var txHash = block.Hashes.Span[txIndex];
-                    var (blockIndex2, tx) = txs[txHash];
-                    Debug.Assert(index == blockIndex2);
-                }
-
-                if (TryGetBlock(db, blockHash, out var blockState))
-                {
-                    var hashes = blockState.block.Hashes;
-                    for (int z = 0; z < hashes.Length; z++)
-                    {
-                        if (TryGetTransaction(db, hashes.Span[z], out var txState))
-                        {
-                            Console.WriteLine(txState.tx.Type);
-                        }
-                        else
-                        {
-                            ;
-                        }
-                    }
-                }
-                else
-                {
-                    ;
-                }
-            }
         }
     }
 }
