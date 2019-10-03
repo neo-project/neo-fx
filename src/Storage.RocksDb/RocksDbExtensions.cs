@@ -35,6 +35,38 @@ namespace NeoFx.Storage.RocksDb
             }
         }
 
+        public static bool TryGet<TValue>(
+            this RocksDb db,
+            string columnFamily,
+            byte[] keyBuffer,
+            int keySize,
+            [MaybeNull] out TValue value,
+            int valueSize,
+            TryRead<TValue> tryReadValue)
+        {
+            var valueBuffer = ArrayPool<byte>.Shared.Rent(valueSize);
+
+            try
+            {
+                var count = db.Get(keyBuffer, keySize, valueBuffer, 0, valueSize, db.GetColumnFamily(columnFamily));
+                if (count >= 0)
+                {
+                    Debug.Assert(count < valueSize);
+                    return tryReadValue(valueBuffer.AsMemory().Slice(0, (int)count), out value);
+                }
+
+#pragma warning disable CS8653 // A default expression introduces a null value for a type parameter.
+                value = default;
+#pragma warning restore CS8653 // A default expression introduces a null value for a type parameter.
+                return false;
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(valueBuffer);
+            }
+        }
+
+
         public static bool TryGet<TKey, TValue>(
             this RocksDb db,
             string columnFamily,
@@ -46,17 +78,11 @@ namespace NeoFx.Storage.RocksDb
             TryRead<TValue> tryReadValue)
         {
             var keyBuffer = ArrayPool<byte>.Shared.Rent(keySize);
-            var valueBuffer = ArrayPool<byte>.Shared.Rent(valueSize);
             try
             {
                 if (tryWriteKey(key, keyBuffer.AsSpan().Slice(0, keySize)))
                 {
-                    var count = db.Get(keyBuffer, keySize, valueBuffer, 0, valueSize, db.GetColumnFamily(columnFamily));
-                    if (count >= 0)
-                    {
-                        Debug.Assert(count < valueSize);
-                        return tryReadValue(valueBuffer.AsMemory().Slice(0, (int)count), out value);
-                    }
+                    return db.TryGet(columnFamily, keyBuffer, keySize, out value, valueSize, tryReadValue);
                 }
 
 #pragma warning disable CS8653 // A default expression introduces a null value for a type parameter.
@@ -67,7 +93,6 @@ namespace NeoFx.Storage.RocksDb
             finally
             {
                 ArrayPool<byte>.Shared.Return(keyBuffer);
-                ArrayPool<byte>.Shared.Return(valueBuffer);
             }
         }
     }
