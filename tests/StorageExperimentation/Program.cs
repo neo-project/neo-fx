@@ -141,6 +141,17 @@ namespace StorageExperimentation
 
             var blockIndex = blocks.ToDictionary(kvp => kvp.Value.block.Index, t => t.Key);
 
+            for (uint index = 0; index < blockIndex.Count; index++)
+            {
+                var blockHash = blockIndex[index];
+                var (_, block) = blocks[blockHash];
+                for (int txIndex = 0; txIndex < block.Hashes.Length; txIndex++)
+                {
+                    var txHash = block.Hashes.Span[txIndex];
+                    var (blockIndex2, tx) = txs[txHash];
+                    Debug.Assert(index == blockIndex2);
+                }
+            }
             ;
         }
     }
