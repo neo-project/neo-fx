@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Buffers;
-using System.Collections.Generic;
-using System.Text;
 
 namespace NeoFx.Models
 {
@@ -113,11 +111,30 @@ namespace NeoFx.Models
                             }
                         }
                         break;
+                    case TransactionType.State:
+                        // public StateDescriptor[] Descriptors;
+                        {
+                            if (reader.TryReadVarArray<StateDescriptor>(StateDescriptor.TryRead, out var array))
+                            {
+                                size = 0;
+                                for (int i = 0; i < array.Length; i++)
+                                {
+                                    size += array.Span[i].Size;
+                                }
+
+                                return true;
+                            }
+                        }
+                        break;
                     // these transactions have no transaction type specific data
                     case TransactionType.Contract:
                     case TransactionType.Issue:
                         size = 0;
                         return true;
+                    // these transactions are obsolete so haven't been implemented yet
+                    case TransactionType.Enrollment:
+                    case TransactionType.Publish:
+                        break;
                 }
 
                 size = default;

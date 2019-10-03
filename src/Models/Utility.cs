@@ -28,6 +28,11 @@ namespace NeoFx.Models
             return sizeof(byte) + sizeof(ulong);
         }
 
+        public static int GetVarSize(this ReadOnlyMemory<byte> value)
+        {
+            return GetVarSize((ulong)value.Length) + value.Length;
+        }
+
         public static int GetVarSize(this string value)
         {
             int size = System.Text.Encoding.UTF8.GetByteCount(value);
