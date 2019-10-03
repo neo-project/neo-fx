@@ -11,11 +11,22 @@ using System.Linq;
 
 namespace StorageExperimentation
 {
+    internal static class Extensions
+    { 
+        public static T Deserialize<T>(this byte[] array) where T : Neo.IO.ISerializable, new()
+        {
+            return Neo.IO.Helper.AsSerializable<T>(array);
+        }
+    }
+
     internal static class Program
     {
+
         private static void Main()
         {
-            var cpArchivePath = Path.GetFullPath("./cp1.neo-express-checkpoint");
+            var cpArchivePath = @"C:\Users\harry\Source\neo\seattle\express\src\neo-express\cp2.neo-express-checkpoint";
+                //Path.GetFullPath("./cp1.neo-express-checkpoint");
+
             if (!File.Exists(cpArchivePath))
             {
                 throw new Exception("Can't find checkpoint archive");
@@ -36,7 +47,41 @@ namespace StorageExperimentation
             System.IO.Compression.ZipFile.ExtractToDirectory(cpArchivePath, cpTempPath);
             Console.WriteLine(cpTempPath);
 
-            BlocksAndTransactionsExperiment(cpTempPath);
+            var options = new DbOptions()
+                .SetCreateIfMissing(false)
+                .SetCreateMissingColumnFamilies(false);
+
+            using var db = RocksDb.Open(options, cpTempPath, ColumnFamilies);
+            StorageColumnExperiment(db);
+        }
+
+        private static void StorageColumnExperiment(RocksDb db)
+        {
+            using var iterator = db.NewIterator(db.GetColumnFamily(STORAGE_FAMILY));
+            iterator.SeekToFirst();
+            while (iterator.Valid())
+            {
+
+                var keyArray = iterator.Key();
+                var key = keyArray.Deserialize<Neo.Ledger.StorageKey>();
+
+                var reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(keyArray));
+                StorageKey.TryRead(ref reader, out var storageKey);
+
+                var valueArray = iterator.Value();
+                var reader2 = new SequenceReader<byte>(new ReadOnlySequence<byte>(valueArray));
+                if (TryReadStateVersion(ref reader2, 0)
+                    && StorageItem.TryRead(ref reader2, out var item))
+                {
+                    Debug.Assert(reader2.Remaining == 0);
+                    Console.WriteLine("bar");
+                }
+
+
+                Console.WriteLine("Foo");
+                
+                iterator.Next();
+            }
         }
 
         private static void RocksDbStoreTryGetBlockExperiment(string path)
@@ -52,15 +97,8 @@ namespace StorageExperimentation
             }
         }
 
-        private static void BlocksAndTransactionsExperiment(string path)
+        private static void BlocksAndTransactionsExperiment(RocksDb db)
         {
-            var options = new DbOptions()
-                .SetCreateIfMissing(false)
-                .SetCreateMissingColumnFamilies(false);
-
-            Console.WriteLine(path);
-            using var db = RocksDb.Open(options, path, ColumnFamilies);
-
             var blocks = GetBlocks(db).ToDictionary(t => t.key, t => t.blockState);
             var txs = GetTransactions(db).ToDictionary(t => t.key, t => t.txState);
 
