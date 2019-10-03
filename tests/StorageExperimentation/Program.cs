@@ -13,9 +13,14 @@ namespace StorageExperimentation
             {
                 throw new Exception("Can't find checkpoint archive");
             }
-            Console.WriteLine($"{cpArchivePath}");
 
-            var cpTempPath = Path.Combine(Path.GetTempPath(), $"NeoFX.StorageExperimentation.{Path.GetRandomFileName()}");
+            var murmur = Murmur.MurmurHash.Create32();
+            var hashArray = murmur.ComputeHash(System.Text.Encoding.UTF8.GetBytes(cpArchivePath));
+            var hash = BitConverter.ToUInt32(hashArray);
+
+            Console.WriteLine($"{cpArchivePath} {hash}");
+
+            var cpTempPath = Path.Combine(Path.GetTempPath(), $"NeoFX.StorageExperimentation.{hash}");
             if (Directory.Exists(cpTempPath))
             {
                 Directory.Delete(cpTempPath, true);
