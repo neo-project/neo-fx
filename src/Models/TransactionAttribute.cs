@@ -81,17 +81,6 @@ namespace NeoFx.Models
 
         private static bool TryReadData(ref SequenceReader<byte> reader, UsageType usage, out ReadOnlyMemory<byte> value)
         {
-            static bool TryCopyToAndAdvance(ref SequenceReader<byte> reader, Span<byte> buffer)
-            {
-                if (reader.TryCopyTo(buffer))
-                {
-                    reader.Advance(buffer.Length);
-                    return true;
-                }
-
-                return false;
-            }
-
             switch (usage)
             {
                 case UsageType.ContractHash:

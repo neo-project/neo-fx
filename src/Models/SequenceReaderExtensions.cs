@@ -2,6 +2,7 @@
 using System.Buffers;
 using System.Buffers.Binary;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 
 namespace NeoFx.Models
 {
@@ -9,12 +10,12 @@ namespace NeoFx.Models
     {
         public delegate bool TryConvert<T>(ReadOnlySpan<byte> span, out T value);
 
-        public static bool TryRead<T>(ref this SequenceReader<byte> reader, int size, TryConvert<T> tryConvert, out T value) where T : struct
+        public static bool TryRead<T>(ref this SequenceReader<byte> reader, int size, TryConvert<T> tryConvert, [MaybeNull] out T value)
         {
             var span = reader.UnreadSpan;
             if (span.Length >= size)
             {
-                if (tryConvert(span, out value))
+                if (tryConvert(span.Slice(0, size), out value))
                 {
                     reader.Advance(size);
                     return true;
@@ -39,55 +40,48 @@ namespace NeoFx.Models
                 }
             }
 
+#pragma warning disable CS8653 // A default expression introduces a null value for a type parameter.
             value = default;
+#pragma warning restore CS8653 // A default expression introduces a null value for a type parameter.
             return false;
         }
 
         public static bool TryReadVarInt(ref this SequenceReader<byte> reader, out ulong value)
-        {
-            return TryReadVarInt(ref reader, false, out value);
-        }
-
-        public static bool TryPeekVarInt(ref this SequenceReader<byte> reader, out ulong value)
-        {
-            return TryReadVarInt(ref reader, true, out value);
-        }
-
-        static bool TryReadVarInt(ref this SequenceReader<byte> reader, bool peek, out ulong value)
         {
             if (reader.TryRead(out byte b))
             {
                 if (b < 0xfd)
                 {
                     value = b;
-                    if (peek) { reader.Rewind(1); }
                     return true;
                 }
 
                 if (b == 0xfd && reader.TryReadUInt16LittleEndian(out ushort @ushort))
                 {
                     value = @ushort;
-                    if (peek) { reader.Rewind(3); }
                     return true;
                 }
 
                 if (b == 0xfe && reader.TryReadUInt32LittleEndian(out uint @uint))
                 {
                     value = @uint;
-                    if (peek) { reader.Rewind(5); }
                     return true;
                 }
 
                 if (b == 0xff && reader.TryReadUInt64LittleEndian(out ulong @ulong))
                 {
                     value = @ulong;
-                    if (peek) { reader.Rewind(9); }
                     return true;
                 }
             }
 
             value = default;
             return false;
+        }
+
+        public static bool TryPeekVarInt(this SequenceReader<byte> reader, out ulong value)
+        {
+            return TryReadVarInt(ref reader, out value);
         }
 
         public static bool TryReadByteArray(ref this SequenceReader<byte> reader, int count, out ReadOnlyMemory<byte> value)
@@ -139,6 +133,26 @@ namespace NeoFx.Models
             }
 
             memory = default;
+            return false;
+        }
+
+        public static bool TryReadVarString(ref this SequenceReader<byte> reader, out string value)
+        {
+            static bool TryConvertString(ReadOnlySpan<byte> span, out string value)
+            {
+                value = System.Text.Encoding.UTF8.GetString(span);
+                return true;
+            }
+
+            if (reader.TryReadVarInt(out var length)
+                && length < int.MaxValue
+                && reader.TryRead<string>((int)length, TryConvertString, out var _value))
+            {
+                value = _value ?? string.Empty;
+                return true;
+            }
+
+            value = string.Empty;
             return false;
         }
 

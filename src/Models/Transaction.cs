@@ -57,74 +57,81 @@ namespace NeoFx.Models
             return false;
         }
 
-        // TODO find a better home
-        static int GetVarIntLength(ulong value)
-        {
-            if (value < 0xfd)
-            {
-                return 1;
-            }
-
-            if (value < 0xffff)
-            {
-                return 3;
-            }
-
-            if (value < 0xffffffff)
-            {
-                return 5;
-            }
-
-            return 9;
-        }
-
         private static bool TryReadTransactionData(ref SequenceReader<byte> reader, TransactionType type, out ReadOnlyMemory<byte> value)
         {
-            switch (type)
+            // note, reader parameter here is *NOT* ref so TryGetTransactionDataSize can modify it as it wishes 
+            //       without affecting the "real" reader
+            static bool TryGetTransactionDataSize(SequenceReader<byte> reader, TransactionType type, out int size)
             {
-                case TransactionType.Miner:
-                    // public uint Nonce;
-                    return reader.TryReadByteArray(sizeof(uint), out value);
-                case TransactionType.Claim:
-                    // public CoinReference[] Claims;
-                    {
-                        if (reader.TryReadVarInt(out var count))
-                        {
-                            return reader.TryReadByteArray((int)count * CoinReference.Size, out value);
-                        }
-                    }
-                    break;
-                case TransactionType.Invocation:
-                    // public byte[] Script;
-                    // public Fixed8 Gas;
-                    {
-                        if (reader.TryPeekVarInt(out var scriptLength))
-                        {
-                            var size = (int)scriptLength + GetVarIntLength(scriptLength) + sizeof(long);
-                            return reader.TryReadByteArray(size, out value);
-                        }
-                    }
-                    break;
-                // these transactions have no transaction type specific data
-                case TransactionType.Contract:
-                case TransactionType.Issue:
-                    {
-                        value = default;
+                switch (type)
+                {
+                    case TransactionType.Miner:
+                        // public uint Nonce;
+                        size = sizeof(uint);
                         return true;
-                    }
-                // State transaction is not implemented yet
-                case TransactionType.State:
-                    break;
-                // these transactions are obsolete
-                case TransactionType.Enrollment:
-                case TransactionType.Register:
-                case TransactionType.Publish:
-                    break;
+                    case TransactionType.Claim:
+                        // public CoinReference[] Claims;
+                        {
+                            if (reader.TryReadVarInt(out var count))
+                            {
+                                size = ((int)count * CoinReference.Size) + Utility.GetVarSize(count);
+                                return true;
+                            }
+                        }
+                        break;
+                    case TransactionType.Invocation:
+                        // public byte[] Script;
+                        // public Fixed8 Gas;
+                        {
+                            if (reader.TryReadVarInt(out var scriptSize))
+                            {
+                                size = (int)scriptSize + Utility.GetVarSize(scriptSize) + sizeof(long);
+                                return true;
+                            }
+                        }
+                        break;
+                    case TransactionType.Register:
+                        //public AssetType AssetType;
+                        //public string Name;
+                        //public Fixed8 Amount;
+                        //public byte Precision;
+                        //public ECPoint Owner;
+                        //public UInt160 Admin;
+                        {
+                            if (reader.TryRead(out var assetType)
+                                && reader.TryReadVarString(out var name)
+                                && reader.TryReadInt64LittleEndian(out var amount)
+                                && reader.TryRead(out var precision)
+                                && reader.TryRead(out var ecPointType) && ecPointType == 0
+                                && UInt160.TryRead(ref reader, out var admin))
+                            {
+                                size =
+                                    3 // assetType, precision, Owner
+                                    + name.GetVarSize()
+                                    + sizeof(long) // amount
+                                    + UInt160.Size;
+                                return true;
+                            }
+                        }
+                        break;
+                    // these transactions have no transaction type specific data
+                    case TransactionType.Contract:
+                    case TransactionType.Issue:
+                        size = 0;
+                        return true;
+                }
+
+                size = default;
+                return false;
+            }
+
+            if (TryGetTransactionDataSize(reader, type, out var count))
+            {
+                return reader.TryReadByteArray(count, out value);
             }
 
             value = default;
             return false;
         }
-
     }
 }

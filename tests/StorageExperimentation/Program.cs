@@ -117,12 +117,6 @@ namespace StorageExperimentation
                 return false;
             }
 
-            var tests = new string[]
-            {
-                "0xc56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b",
-                "0x602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7"
-            };
-
             using var iterator = db.NewIterator(db.GetColumnFamily(TX_FAMILY));
             iterator.SeekToFirst();
             while (iterator.Valid())
@@ -131,22 +125,9 @@ namespace StorageExperimentation
                 var keyReadResult = UInt256.TryReadBytes(iterator.Key(), out var key);
                 Debug.Assert(keyReadResult && iterator.Key().Length == UInt256.Size);
 
-                var keyString = key.ToString();
-                if (tests.Any(t => t.Equals(keyString)))
-                {
-                    Debugger.Break();
-                }
-
                 var valueReadResult = TryReadTxState(iterator.Value(), out var value);
-
-                if (valueReadResult)
-                {
-                    yield return (key, value.blockIndex, value.tx);
-                }
-                else
-                {
-                    Console.WriteLine(key);
-                }
+                Debug.Assert(valueReadResult);
+                yield return (key, value.blockIndex, value.tx);
                 
                 iterator.Next();
             }
