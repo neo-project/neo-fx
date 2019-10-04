@@ -32,7 +32,7 @@ namespace NeoFx.Models
                 && reader.TryReadInt64LittleEndian(out var amount)
                 && reader.TryRead(out var precision)
                 && reader.TryRead(out var owner) && owner == 0
-                && UInt160.TryRead(ref reader, out var admin))
+                && reader.TryReadUInt160(out var admin))
             {
                 Debug.Assert(reader.Remaining == 0);
                 data = new RegisterTransactionData((AssetType)assetType, name, amount, precision, owner, admin);

@@ -22,9 +22,9 @@ namespace NeoFx.Models
 
         public static bool TryRead(ref SequenceReader<byte> reader, out TransactionOutput value)
         {
-            if (UInt256.TryRead(ref reader, out var assetId)
+            if (reader.TryReadUInt256(out var assetId)
                && reader.TryReadInt64LittleEndian(out long outputValue)
-               && UInt160.TryRead(ref reader, out var scriptHash))
+               && reader.TryReadUInt160(out var scriptHash))
             {
                 value = new TransactionOutput(assetId, outputValue, scriptHash);
                 return true;

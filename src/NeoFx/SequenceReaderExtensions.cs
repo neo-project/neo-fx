@@ -173,5 +173,11 @@ namespace NeoFx
 
         public static bool TryReadUInt64LittleEndian(ref this SequenceReader<byte> reader, out ulong value) =>
             reader.TryRead(sizeof(ulong), BinaryPrimitives.TryReadUInt64LittleEndian, out value);
+
+        public static bool TryReadUInt160(this ref SequenceReader<byte> reader, out UInt160 value) =>
+            reader.TryRead(UInt160.Size, UInt160.TryRead, out value);
+
+        public static bool TryReadUInt256(this ref SequenceReader<byte> reader, out UInt256 value) =>
+            reader.TryRead(UInt256.Size, UInt256.TryRead, out value);
     }
 }

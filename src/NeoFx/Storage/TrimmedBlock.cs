@@ -27,7 +27,7 @@ namespace NeoFx.Storage
         public static bool TryRead(ref SequenceReader<byte> reader, out TrimmedBlock value)
         {
             if (BlockHeader.TryRead(ref reader, out var header)
-                && reader.TryReadVarArray<UInt256>(UInt256.TryRead, out var hashes))
+                && reader.TryReadVarArray<UInt256>(SequenceReaderExtensions.TryReadUInt256, out var hashes))
             {
                 value = new TrimmedBlock(header, hashes);
                 return true;

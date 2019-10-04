@@ -19,7 +19,7 @@ namespace NeoFx.Models
         }
         public static bool TryRead(ref SequenceReader<byte> reader, out CoinReference value)
         {
-            if (UInt256.TryRead(ref reader, out var prevHash)
+            if (reader.TryReadUInt256(out var prevHash)
                 && reader.TryReadUInt16LittleEndian(out ushort prevIndex))
             {
                 value = new CoinReference(prevHash, prevIndex);
