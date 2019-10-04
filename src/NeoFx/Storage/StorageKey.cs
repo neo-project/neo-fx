@@ -102,7 +102,7 @@ namespace NeoFx.Storage
 
         public bool TryWrite(Span<byte> span)
         {
-            if (span.Length >= Size && ScriptHash.TryWrite(span))
+            if (span.Length >= Size && ScriptHash.TryWriteBytes(span))
             {
                 span = span.Slice(UInt160.Size);
                 var keySpan = Key.Span;

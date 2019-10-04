@@ -6,6 +6,8 @@ using System.Globalization;
 
 namespace NeoFx
 {
+    // TODO: IFormattable?
+
     public readonly struct UInt160 : IEquatable<UInt160>, IComparable<UInt160>
     {
         public static readonly UInt160 Zero = new UInt160(0, 0, 0);
@@ -14,7 +16,7 @@ namespace NeoFx
         private readonly ulong data2;
         private readonly uint data3;
 
-        public const int Size = sizeof(ulong) + sizeof(ulong) + sizeof(uint);
+        public const int Size = (2 * sizeof(ulong)) + sizeof(uint);
 
         internal UInt160(ulong data1, ulong data2, uint data3)
         {
@@ -49,7 +51,7 @@ namespace NeoFx
         public static bool TryRead(ref SequenceReader<byte> reader, out UInt160 value) =>
             reader.TryRead(Size, TryRead, out value);
 
-        public bool TryWrite(Span<byte> buffer)
+        public bool TryWriteBytes(Span<byte> buffer)
         {
             return buffer.Length >= Size
                 && BinaryPrimitives.TryWriteUInt64LittleEndian(buffer, data1)
@@ -66,17 +68,18 @@ namespace NeoFx
             });
         }
 
-        // TODO: ReadOnlySpan<char> format && IFormatProvider arguments
         public bool TryFormat(Span<char> destination, out int charsWritten)
         {
+            // TODO: add ReadOnlySpan<char> format && IFormatProvider arguments
+
             if (destination.Length >= ((Size * 2) + 2)
-                && data3.TryFormat(destination.Slice(2), out var d3, "x8")
-                && data2.TryFormat(destination.Slice(10), out var d2, "x16")
-                && data1.TryFormat(destination.Slice(26), out var d1, "x16"))
+                && data3.TryFormat(destination.Slice(2), out var data3Written, "x8")
+                && data2.TryFormat(destination.Slice(10), out var data2Written, "x16")
+                && data1.TryFormat(destination.Slice(26), out var data1Written, "x16"))
             {
-                Debug.Assert(d1 == 16);
-                Debug.Assert(d2 == 16);
-                Debug.Assert(d3 == 8);
+                Debug.Assert(data1Written == 16);
+                Debug.Assert(data2Written == 16);
+                Debug.Assert(data3Written == 8);
 
                 destination[0] = '0';
                 destination[1] = 'x';
@@ -87,9 +90,6 @@ namespace NeoFx
             charsWritten = 0;
             return false;
         }
-
-        // TODO:
-        //      IFormattable
 
         public static bool TryParse(ReadOnlySpan<char> @string, out UInt160 result)
         {

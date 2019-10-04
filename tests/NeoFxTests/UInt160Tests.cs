@@ -134,7 +134,7 @@ namespace NeoFxTests
             var neo = new Neo.UInt160(span);
 
             byte[] buffer = new byte[UInt160.Size];
-            fx.TryWrite(buffer).Should().BeTrue();
+            fx.TryWriteBytes(buffer).Should().BeTrue();
             buffer.AsSpan().SequenceEqual(neo.ToArray()).Should().BeTrue();
         }
 
@@ -147,7 +147,7 @@ namespace NeoFxTests
             UInt160.TryParse(@string, out var fx).Should().BeTrue();
 
             byte[] buffer = new byte[UInt160.Size];
-            fx.TryWrite(buffer).Should().BeTrue();
+            fx.TryWriteBytes(buffer).Should().BeTrue();
             buffer.AsSpan().SequenceEqual(neo.ToArray()).Should().BeTrue();
             (fx.ToString() == neo.ToString()).Should().BeTrue();
         }
@@ -161,7 +161,7 @@ namespace NeoFxTests
             UInt160.TryParse(@string, out var fx).Should().BeTrue();
 
             byte[] buffer = new byte[UInt160.Size];
-            fx.TryWrite(buffer).Should().BeTrue();
+            fx.TryWriteBytes(buffer).Should().BeTrue();
             buffer.AsSpan().SequenceEqual(neo.ToArray()).Should().BeTrue();
             (fx.ToString() == neo.ToString()).Should().BeTrue();
         }

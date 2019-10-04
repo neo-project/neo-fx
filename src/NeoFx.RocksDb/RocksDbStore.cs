@@ -168,7 +168,7 @@ namespace NeoFx.RocksDb
             static IEnumerable<(ReadOnlyMemory<byte> key, StorageItem item)> EnumerateStorage(RocksDb db, UInt160 scriptHash)
             {
                 var keyPrefix = new byte[UInt160.Size];
-                scriptHash.TryWrite(keyPrefix);
+                scriptHash.TryWriteBytes(keyPrefix);
 
                 using var iterator = db.NewIterator(db.GetColumnFamily(STORAGE_FAMILY));
                 iterator.Seek(keyPrefix);
@@ -208,7 +208,7 @@ namespace NeoFx.RocksDb
         private static bool TryWriteUInt256Key(in UInt256 key, Span<byte> span)
         {
             Debug.Assert(span.Length == UInt256.Size);
-            return key.TryWrite(span);
+            return key.TryWriteBytes(span);
         }
 
         private static bool TryReadBlockState(ReadOnlyMemory<byte> memory, out (long systemFee, TrimmedBlock block) value)
