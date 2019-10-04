@@ -1,8 +1,9 @@
 ﻿using FluentAssertions;
+using NeoFx;
 using System;
 using Xunit;
 
-namespace NeoFx.Models.Tests
+namespace NeoFxTests
 {
     public class UInt160Tests
     {

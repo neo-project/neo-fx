@@ -1,10 +1,12 @@
 ﻿using FluentAssertions;
+using NeoFx;
+using NeoFx.Storage;
 using System;
 using System.Collections.Generic;
 using System.Text;
 using Xunit;
 
-namespace NeoFx.Models.Tests
+namespace NeoFxTests
 {
     public class StorageKeyTests
     {
