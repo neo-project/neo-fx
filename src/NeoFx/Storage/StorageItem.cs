@@ -3,7 +3,7 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.Text;
 
-namespace NeoFx.Models
+namespace NeoFx.Storage
 {
     public readonly struct StorageItem
     {

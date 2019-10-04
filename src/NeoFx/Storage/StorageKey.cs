@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
 
-namespace NeoFx.Models
+namespace NeoFx.Storage
 {
     public readonly struct StorageKey
     {

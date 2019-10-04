@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace NeoFx.Storage.Abstractions
+namespace NeoFx.Storage
 {
     public interface IBlockchainStorage
     {

@@ -1,7 +1,8 @@
 ﻿using System;
 using System.Buffers;
+using NeoFx.Models;
 
-namespace NeoFx.Models
+namespace NeoFx.Storage
 {
     public readonly struct TrimmedBlock
     {

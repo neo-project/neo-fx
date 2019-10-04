@@ -4,7 +4,7 @@ using System.Buffers.Binary;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 
-namespace NeoFx.Models
+namespace NeoFx
 {
     public static class SequenceReaderExtensions
     {

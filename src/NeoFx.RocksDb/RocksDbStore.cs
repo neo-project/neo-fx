@@ -4,8 +4,9 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using NeoFx.Storage;
 
-namespace NeoFx.Storage.RocksDb
+namespace NeoFx.RocksDb
 {
     // type aliases needed to avoid collision between RocksDbSharp.RocksDb type 
     // and NeoFx.Storage.RocksDb namespace.
@@ -14,7 +15,7 @@ namespace NeoFx.Storage.RocksDb
     using ColumnFamilies = RocksDbSharp.ColumnFamilies;
     using ColumnFamilyOptions = RocksDbSharp.ColumnFamilyOptions;
 
-    public sealed class RocksDbStore : IDisposable, Abstractions.IBlockchainStorage
+    public sealed class RocksDbStore : IDisposable, IBlockchainStorage
     {
         #region Column Family Constants
         private const string BLOCK_FAMILY = "data:block";
@@ -269,6 +270,26 @@ namespace NeoFx.Storage.RocksDb
         private static IEnumerable<(UInt256 key, (uint blockIndex, Transaction tx) txState)> GetTransactions(RocksDb db)
         {
             return db.Iterate<UInt256, (uint, Transaction)>(TX_FAMILY, TryReadUInt256Key, TryReadTransactionState);
+        }
+
+        public bool TryGetBlockHeader(in UInt256 key, out BlockHeader block, out ReadOnlyMemory<UInt256> hashes)
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool TryGetBlockHeader(uint index, out BlockHeader block, out ReadOnlyMemory<UInt256> hashes)
+        {
+            throw new NotImplementedException();
+        }
+
+        //public bool TryGetStorage(in StorageKey key, out StorageItem item)
+        //{
+        //    throw new NotImplementedException();
+        //}
+
+        IEnumerable<(ReadOnlyMemory<byte> key, StorageItem item)> IBlockchainStorage.EnumerateStorage(in UInt160 scriptHash)
+        {
+            throw new NotImplementedException();
         }
     }
 }

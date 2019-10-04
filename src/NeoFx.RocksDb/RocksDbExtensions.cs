@@ -5,7 +5,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
 
-namespace NeoFx.Storage.RocksDb
+namespace NeoFx.RocksDb
 {
     using RocksDb = RocksDbSharp.RocksDb;
 

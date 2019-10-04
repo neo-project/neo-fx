@@ -5,7 +5,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
 
-namespace NeoFx.Models
+namespace NeoFx
 {
     public static class Utility
     {
