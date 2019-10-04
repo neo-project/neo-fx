@@ -272,25 +272,5 @@ namespace NeoFx.RocksDb
         {
             return db.Iterate<UInt256, (uint, Transaction)>(TX_FAMILY, TryReadUInt256Key, TryReadTransactionState);
         }
-
-        public bool TryGetBlockHeader(in UInt256 key, out BlockHeader block, out ReadOnlyMemory<UInt256> hashes)
-        {
-            throw new NotImplementedException();
-        }
-
-        public bool TryGetBlockHeader(uint index, out BlockHeader block, out ReadOnlyMemory<UInt256> hashes)
-        {
-            throw new NotImplementedException();
-        }
-
-        //public bool TryGetStorage(in StorageKey key, out StorageItem item)
-        //{
-        //    throw new NotImplementedException();
-        //}
-
-        IEnumerable<(ReadOnlyMemory<byte> key, StorageItem item)> IBlockchainStorage.EnumerateStorage(in UInt160 scriptHash)
-        {
-            throw new NotImplementedException();
-        }
     }
 }
