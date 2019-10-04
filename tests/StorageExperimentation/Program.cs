@@ -47,9 +47,11 @@ namespace StorageExperimentation
             System.IO.Compression.ZipFile.ExtractToDirectory(cpArchivePath, cpTempPath);
             Console.WriteLine(cpTempPath);
 
-            RunWithDB(cpTempPath, StorageColumnExperiment);
+            //RunWithDB(cpTempPath, StorageColumnExperiment);
             RocksDbStoreTryGetBlockExperiment(cpTempPath);
-            RunWithDB(cpTempPath, BlocksAndTransactionsExperiment);
+            //RunWithDB(cpTempPath, BlocksAndTransactionsExperiment);
+
+           
         }
 
         static void RunWithDB(string path, Action<RocksDb> action)
@@ -133,10 +135,14 @@ namespace StorageExperimentation
             using var storage = new RocksDbStore(path);
             if (storage.TryGetBlock(0, out var block))
             {
-                for (int i = 0; i < block.Transactions.Length; i++)
+                foreach (var tx in block.Transactions.Span)
                 {
-                    var tx = block.Transactions.Span[i];
-                    Console.WriteLine(tx.Type);
+                    if (tx.Type == TransactionType.Register
+                        && RegisterTransactionData.TryRead(tx.TransactionData, out var data))
+                    {
+                        Console.WriteLine(data.AssetType);
+                        Console.WriteLine(data.Name);
+                    }
                 }
             }
         }
