@@ -61,7 +61,7 @@ namespace NeoFx.RocksDb
 
             db = RocksDb.Open(options, path, ColumnFamilies);
             blockIndex = GetBlocks(db)
-                .OrderBy(t => t.blockState.block.Index)
+                .OrderBy(t => t.blockState.header.Index)
                 .Select(t => t.key)
                 .ToList();
         }
@@ -92,9 +92,9 @@ namespace NeoFx.RocksDb
         {
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
-            if (db.TryGet(BLOCK_FAMILY, key, out (long systemFee, TrimmedBlock block) value, UInt256.Size, 2048, TryWriteUInt256Key, TryReadBlockState))
+            if (db.TryGet(BLOCK_FAMILY, key, out (long systemFee, BlockHeader header, ReadOnlyMemory<UInt256> hashes) value, UInt256.Size, 2048, TryWriteUInt256Key, TryReadBlockState))
             {
-                var hashes = value.block.Hashes.Span;
+                var hashes = value.hashes.Span;
                 var transactions = new Transaction[hashes.Length];
                 for (int i = 0; i < hashes.Length; i++)
                 {
@@ -105,7 +105,7 @@ namespace NeoFx.RocksDb
                     }
                 }
 
-                block = new Block(value.block.Header, transactions);
+                block = new Block(value.header, transactions);
                 return true;
             }
 
@@ -211,16 +211,17 @@ namespace NeoFx.RocksDb
             return key.TryWriteBytes(span);
         }
 
-        private static bool TryReadBlockState(ReadOnlyMemory<byte> memory, out (long systemFee, TrimmedBlock block) value)
+        private static bool TryReadBlockState(ReadOnlyMemory<byte> memory, out (long systemFee, BlockHeader header, ReadOnlyMemory<UInt256> hashes) value)
         {
             var reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(memory));
 
             if (TryReadStateVersion(ref reader, 0)
                 && reader.TryReadInt64LittleEndian(out var systemFee)
-                && TrimmedBlock.TryRead(ref reader, out var block))
+                && BlockHeader.TryRead(ref reader, out var header)
+                && reader.TryReadVarArray<UInt256>(SequenceReaderExtensions.TryReadUInt256, out var hashes))
             {
                 Debug.Assert(reader.Remaining == 0);
-                value = (systemFee, block);
+                value = (systemFee, header, hashes);
                 return true;
             }
 
@@ -262,9 +263,9 @@ namespace NeoFx.RocksDb
             return false;
         }
 
-        private static IEnumerable<(UInt256 key, (long systemFee, TrimmedBlock block) blockState)> GetBlocks(RocksDb db)
+        private static IEnumerable<(UInt256 key, (long systemFee, BlockHeader header, ReadOnlyMemory<UInt256> hashes) blockState)> GetBlocks(RocksDb db)
         {
-            return db.Iterate<UInt256, (long, TrimmedBlock)>(BLOCK_FAMILY, TryReadUInt256Key, TryReadBlockState);
+            return db.Iterate<UInt256, (long, BlockHeader, ReadOnlyMemory<UInt256>)>(BLOCK_FAMILY, TryReadUInt256Key, TryReadBlockState);
         }
 
         private static IEnumerable<(UInt256 key, (uint blockIndex, Transaction tx) txState)> GetTransactions(RocksDb db)
