@@ -2,6 +2,7 @@
 using System.Buffers;
 using System.Buffers.Binary;
 using System.Diagnostics;
+using System.Globalization;
 
 namespace NeoFx.Models
 {
@@ -89,7 +90,35 @@ namespace NeoFx.Models
 
         // TODO:
         //      IFormattable
-        //      public static bool TryParse(ReadOnlySpan<char> @string, out UInt160 result)
+
+        public static bool TryParse(ReadOnlySpan<char> @string, out UInt160 result)
+        {
+            @string = @string.StartsWith("0x", StringComparison.InvariantCultureIgnoreCase)
+                ? @string.Slice(2) : @string;
+
+            if (@string.Length == (Size * 2) &&
+                uint.TryParse(@string.Slice(0, 8), NumberStyles.AllowHexSpecifier, null, out var d3) &&
+                ulong.TryParse(@string.Slice(8, 16), NumberStyles.AllowHexSpecifier, null, out var d2) &&
+                ulong.TryParse(@string.Slice(24, 16), NumberStyles.AllowHexSpecifier, null, out var d1))
+            {
+                result = new UInt160(d1, d2, d3);
+
+                return true;
+            }
+
+            result = default;
+            return false;
+        }
+
+        public static UInt160 Parse(ReadOnlySpan<char> @string)
+        {
+            if (TryParse(@string, out var value))
+            {
+                return value;
+            }
+
+            throw new ArgumentException(nameof(@string));
+        }
 
         public override bool Equals(object obj)
         {

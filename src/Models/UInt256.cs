@@ -2,6 +2,7 @@
 using System.Buffers;
 using System.Buffers.Binary;
 using System.Diagnostics;
+using System.Globalization;
 
 namespace NeoFx.Models
 {
@@ -95,7 +96,35 @@ namespace NeoFx.Models
 
         // TODO:
         //      IFormattable
-        //      public static bool TryParse(ReadOnlySpan<char> @string, out UInt256 result)
+
+        public static bool TryParse(ReadOnlySpan<char> @string, out UInt256 result)
+        {
+            @string = @string.StartsWith("0x", StringComparison.InvariantCultureIgnoreCase)
+                ? @string.Slice(2) : @string;
+
+            if (@string.Length == (Size * 2) &&
+                ulong.TryParse(@string.Slice(0, 16), NumberStyles.AllowHexSpecifier, null, out var d4) &&
+                ulong.TryParse(@string.Slice(16, 16), NumberStyles.AllowHexSpecifier, null, out var d3) &&
+                ulong.TryParse(@string.Slice(32, 16), NumberStyles.AllowHexSpecifier, null, out var d2) &&
+                ulong.TryParse(@string.Slice(48, 16), NumberStyles.AllowHexSpecifier, null, out var d1))
+            {
+                result = new UInt256(d1, d2, d3, d4);
+                return true;
+            }
+
+            result = default;
+            return false;
+        }
+
+        public static UInt256 Parse(ReadOnlySpan<char> @string)
+        {
+            if (TryParse(@string, out var value))
+            {
+                return value;
+            }
+
+            throw new ArgumentException(nameof(@string));
+        }
 
         public override bool Equals(object obj)
         {
@@ -109,10 +138,10 @@ namespace NeoFx.Models
 
         public bool Equals(in UInt256 other)
         {
-            return (this.data1 == other.data1)
-                && (this.data2 == other.data2)
-                && (this.data3 == other.data3)
-                && (this.data4 == other.data4);
+            return (data1 == other.data1)
+                && (data2 == other.data2)
+                && (data3 == other.data3)
+                && (data4 == other.data4);
         }
 
         public int CompareTo(in UInt256 other)

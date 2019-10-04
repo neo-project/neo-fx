@@ -136,5 +136,33 @@ namespace NeoFx.Models.Tests
             fx.TryWrite(buffer).Should().BeTrue();
             buffer.AsSpan().SequenceEqual(neo.ToArray()).Should().BeTrue();
         }
+
+        [Fact]
+        public void TryParse_matches_NEO()
+        {
+            const string @string = "30f41a14ca6019038b055b585d002b287b5fdd47";
+
+            Neo.UInt160.TryParse(@string, out var neo).Should().BeTrue();
+            UInt160.TryParse(@string, out var fx).Should().BeTrue();
+
+            byte[] buffer = new byte[UInt160.Size];
+            fx.TryWrite(buffer).Should().BeTrue();
+            buffer.AsSpan().SequenceEqual(neo.ToArray()).Should().BeTrue();
+            (fx.ToString() == neo.ToString()).Should().BeTrue();
+        }
+
+        [Fact]
+        public void TryParse_0x_matches_NEO()
+        {
+            const string @string = "0x30f41a14ca6019038b055b585d002b287b5fdd47";
+
+            Neo.UInt160.TryParse(@string, out var neo).Should().BeTrue();
+            UInt160.TryParse(@string, out var fx).Should().BeTrue();
+
+            byte[] buffer = new byte[UInt160.Size];
+            fx.TryWrite(buffer).Should().BeTrue();
+            buffer.AsSpan().SequenceEqual(neo.ToArray()).Should().BeTrue();
+            (fx.ToString() == neo.ToString()).Should().BeTrue();
+        }
     }
 }

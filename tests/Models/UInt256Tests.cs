@@ -170,5 +170,33 @@ namespace NeoFx.Models.Tests
             fx.TryWrite(buffer).Should().BeTrue();
             buffer.AsSpan().SequenceEqual(neo.ToArray()).Should().BeTrue();
         }
+
+        [Fact]
+        public void TryParse_matches_NEO()
+        {
+            const string @string = "0a372ac8f778eeebb1ccdbb250fe596b83d1d1b9f366d71dfd4c53956bed5cce";
+
+            Neo.UInt256.TryParse(@string, out var neo).Should().BeTrue();
+            UInt256.TryParse(@string, out var fx).Should().BeTrue();
+
+            byte[] buffer = new byte[UInt256.Size];
+            fx.TryWrite(buffer).Should().BeTrue();
+            buffer.AsSpan().SequenceEqual(neo.ToArray()).Should().BeTrue();
+            (fx.ToString() == neo.ToString()).Should().BeTrue();
+        }
+
+        [Fact]
+        public void TryParse_0x_matches_NEO()
+        {
+            const string @string = "0x0a372ac8f778eeebb1ccdbb250fe596b83d1d1b9f366d71dfd4c53956bed5cce";
+
+            Neo.UInt256.TryParse(@string, out var neo).Should().BeTrue();
+            UInt256.TryParse(@string, out var fx).Should().BeTrue();
+
+            byte[] buffer = new byte[UInt256.Size];
+            fx.TryWrite(buffer).Should().BeTrue();
+            buffer.AsSpan().SequenceEqual(neo.ToArray()).Should().BeTrue();
+            (fx.ToString() == neo.ToString()).Should().BeTrue();
+        }
     }
 }
