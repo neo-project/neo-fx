@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Buffers;
-using System.Collections.Generic;
-using System.Text;
+using System.Buffers.Binary;
 
 namespace NeoFx.Models
 {
@@ -32,6 +31,14 @@ namespace NeoFx.Models
 
             value = default;
             return false;
+        }
+
+        public bool TryWriteBytes(Span<byte> span)
+        {
+            return span.Length >= Size
+                && AssetId.TryWriteBytes(span)
+                && BinaryPrimitives.TryWriteInt64LittleEndian(span.Slice(UInt256.Size), Value)
+                && ScriptHash.TryWriteBytes(span.Slice(UInt256.Size + sizeof(long)));
         }
     }
 }

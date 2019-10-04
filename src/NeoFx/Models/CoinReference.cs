@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Buffers;
-using System.Collections.Generic;
-using System.Text;
+using System.Buffers.Binary;
 
 namespace NeoFx.Models
 {
@@ -17,6 +16,7 @@ namespace NeoFx.Models
             PrevHash = prevHash;
             PrevIndex = prevIndex;
         }
+
         public static bool TryRead(ref SequenceReader<byte> reader, out CoinReference value)
         {
             if (reader.TryReadUInt256(out var prevHash)
@@ -28,6 +28,13 @@ namespace NeoFx.Models
 
             value = default;
             return false;
+        }
+
+        public bool TryWriteBytes(Span<byte> span)
+        {
+            return span.Length >= Size
+                && PrevHash.TryWriteBytes(span)
+                && BinaryPrimitives.TryWriteUInt16LittleEndian(span.Slice(UInt256.Size), PrevIndex);
         }
     }
 }
