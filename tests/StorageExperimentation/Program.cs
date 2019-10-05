@@ -65,18 +65,31 @@ namespace StorageExperimentation
         private static void RocksDbStoreTryGetBlockExperiment(string path)
         {
             using var storage = new RocksDbStore(path);
-            if (storage.TryGetBlock(0, out var block))
+
+            for (uint i = 0; i < storage.Height; i++)
             {
-                foreach (var tx in block.Transactions.Span)
+                if (storage.TryGetBlock(i, out var block))
                 {
-                    //if (tx.Type == TransactionType.Register
-                    //    && RegisterTransactionData.TryRead(tx.TransactionData, out var data))
-                    //{
-                    //    Console.WriteLine(data.AssetType);
-                    //    Console.WriteLine(data.Name);
-                    //}
+                    for (var j = 0; j < block.Transactions.Length; j++)
+                    {
+                        Console.WriteLine(block.Transactions.Span[j].Attributes.Length);
+                    }
+
                 }
             }
+
+            //if (storage.TryGetBlock(0, out var block))
+            //{
+            //    foreach (var tx in block.Transactions.Span)
+            //    {
+            //        //if (tx.Type == TransactionType.Register
+            //        //    && RegisterTransactionData.TryRead(tx.TransactionData, out var data))
+            //        //{
+            //        //    Console.WriteLine(data.AssetType);
+            //        //    Console.WriteLine(data.Name);
+            //        //}
+            //    }
+            //}
         }
 
 

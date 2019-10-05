@@ -108,31 +108,31 @@ namespace NeoFx
             return false;
         }
 
-        //public delegate bool TryReadItem<T>(ref SequenceReader<byte> reader, out T value);
+        public delegate bool TryReadItem<T>(ref SequenceReader<byte> reader, out T value);
 
-        //public static bool TryReadVarArray<T>(ref this SequenceReader<byte> reader, TryReadItem<T> tryReadItem, out ReadOnlyMemory<T> memory)
-        //{
-        //    if (reader.TryReadVarInt(out var count))
-        //    {
-        //        Debug.Assert(count <= int.MaxValue);
+        public static bool TryReadVarArray<T>(ref this SequenceReader<byte> reader, TryReadItem<T> tryReadItem, out ReadOnlyMemory<T> memory)
+        {
+            if (reader.TryReadVarInt(out var count))
+            {
+                Debug.Assert(count <= int.MaxValue);
 
-        //        var buffer = new T[count];
-        //        for (int index = 0; index < (int)count; index++)
-        //        {
-        //            if (!tryReadItem(ref reader, out buffer[index]))
-        //            {
-        //                memory = default;
-        //                return false;
-        //            }
-        //        }
+                var buffer = new T[count];
+                for (int index = 0; index < (int)count; index++)
+                {
+                    if (!tryReadItem(ref reader, out buffer[index]))
+                    {
+                        memory = default;
+                        return false;
+                    }
+                }
 
-        //        memory = buffer;
-        //        return true;
-        //    }
+                memory = buffer;
+                return true;
+            }
 
-        //    memory = default;
-        //    return false;
-        //}
+            memory = default;
+            return false;
+        }
 
         public static bool TryReadVarString(ref this SequenceReader<byte> reader, out string value)
         {

@@ -68,50 +68,50 @@ namespace NeoFx.Models
 
         public static bool TryRead(ref SequenceReader<byte> reader, out TransactionAttribute value)
         {
+            static bool TryReadData(ref SequenceReader<byte> reader, UsageType usage, out ReadOnlyMemory<byte> value)
+            {
+                switch (usage)
+                {
+                    case UsageType.ContractHash:
+                    case UsageType.Vote:
+                    case var _ when usage >= UsageType.Hash1 && usage <= UsageType.Hash15:
+                        return reader.TryReadByteArray(32, out value);
+                    case UsageType.Script:
+                        return reader.TryReadByteArray(20, out value);
+                    case UsageType.Description:
+                    case var _ when usage >= UsageType.Remark:
+                        return reader.TryReadVarArray(out value);
+                    case UsageType.ECDH02:
+                    case UsageType.ECDH03:
+                        {
+                            var buffer = new byte[33];
+                            buffer[0] = (byte)usage;
+
+                            if (reader.TryCopyTo(buffer.AsSpan().Slice(1)))
+                            {
+                                reader.Advance(32);
+                                value = buffer;
+                                return true;
+                            }
+                        }
+                        break;
+                    case UsageType.DescriptionUrl:
+                        if (reader.TryRead(out var size))
+                        {
+                            return reader.TryReadByteArray(size, out value);
+                        }
+                        break;
+                }
+
+                value = default;
+                return false;
+            }
+
             if (reader.TryRead(out byte usage)
                 && TryReadData(ref reader, (UsageType)usage, out var data))
             {
                 value = new TransactionAttribute((UsageType)usage, data);
                 return true;
-            }
-
-            value = default;
-            return false;
-        }
-
-        private static bool TryReadData(ref SequenceReader<byte> reader, UsageType usage, out ReadOnlyMemory<byte> value)
-        {
-            switch (usage)
-            {
-                case UsageType.ContractHash:
-                case UsageType.Vote:
-                case var _ when usage >= UsageType.Hash1 && usage <= UsageType.Hash15:
-                    return reader.TryReadByteArray(32, out value);
-                case UsageType.Script:
-                    return reader.TryReadByteArray(20, out value);
-                case UsageType.Description:
-                case var _ when usage >= UsageType.Remark:
-                    return reader.TryReadVarArray(out value);
-                case UsageType.ECDH02:
-                case UsageType.ECDH03:
-                    {
-                        var buffer = new byte[33];
-                        buffer[0] = (byte)usage;
-
-                        if (reader.TryCopyTo(buffer.AsSpan().Slice(1)))
-                        {
-                            reader.Advance(32);
-                            value = buffer;
-                            return true;
-                        }
-                    }
-                    break;
-                case UsageType.DescriptionUrl:
-                    if (reader.TryRead(out var size))
-                    {
-                        return reader.TryReadByteArray(size, out value);
-                    }
-                    break;
             }
 
             value = default;
