@@ -3,6 +3,7 @@ using System;
 using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Text;
 
 namespace NeoFx.Storage
@@ -53,8 +54,8 @@ namespace NeoFx.Storage
 
         public static bool TryRead(ref this SequenceReader<byte> reader, out Witness value)
         {
-            if (reader.TryReadVarArray(out ReadOnlyMemory<byte> invocationScript)
-                && reader.TryReadVarArray(out ReadOnlyMemory<byte> verificationScript))
+            if (reader.TryReadVarByteArray(65536, out ReadOnlyMemory<byte> invocationScript)
+                && reader.TryReadVarByteArray(65536, out ReadOnlyMemory<byte> verificationScript))
             {
                 value = new Witness(invocationScript, verificationScript);
                 return true;
@@ -100,7 +101,7 @@ namespace NeoFx.Storage
                         return reader.TryReadByteArray(20, out value);
                     case TransactionAttribute.UsageType.Description:
                     case var _ when usage >= TransactionAttribute.UsageType.Remark:
-                        return reader.TryReadVarArray(out value); // max == 65535
+                        return reader.TryReadVarByteArray(ushort.MaxValue, out value);
                     case TransactionAttribute.UsageType.DescriptionUrl:
                         {
                             if (reader.TryRead(out byte length)
@@ -158,9 +159,9 @@ namespace NeoFx.Storage
         public static bool TryRead(ref this SequenceReader<byte> reader, out StateDescriptor descriptor)
         {
             if (reader.TryRead(out var type)
-                && reader.TryReadVarArray(out var key)
-                && reader.TryReadVarString(out var field)
-                && reader.TryReadVarArray(out var value))
+                && reader.TryReadVarByteArray(100, out var key)
+                && reader.TryReadVarString(32, out var field)
+                && reader.TryReadVarByteArray(65535, out var value))
             {
                 descriptor = new StateDescriptor((StateDescriptor.StateType)type, key, field, value);
                 return true;
@@ -173,7 +174,7 @@ namespace NeoFx.Storage
         public static bool TryRead(ref this SequenceReader<byte> reader, out RegisterTransactionData data)
         {
             if (reader.TryRead(out byte assetType)
-                && reader.TryReadVarString(out var name)
+                && reader.TryReadVarString(1024, out var name)
                 && reader.TryRead(out long amount)
                 && reader.TryRead(out byte precision)
                 && reader.TryRead(out byte owner) && owner == 0
@@ -189,14 +190,95 @@ namespace NeoFx.Storage
 
         public static bool TryRead(ref this SequenceReader<byte> reader, out Transaction tx)
         {
+            // note, reader parameter here is purposefully *NOT* ref. TryGetTransactionDataSize needs a 
+            //       copy it can modify if it needs to
+            static bool TryGetTransactionDataSize(SequenceReader<byte> reader, TransactionType type, out int size)
+            {
+                switch (type)
+                {
+                    case TransactionType.Miner:
+                        // public uint Nonce;
+                        size = sizeof(uint);
+                        return true;
+                    case TransactionType.Claim:
+                        // public CoinReference[] Claims;
+                        {
+                            if (reader.TryReadVarInt(out var count))
+                            {
+                                size = ((int)count * CoinReference.Size) + Utility.GetVarSize(count);
+                                return true;
+                            }
+                        }
+                        break;
+                    case TransactionType.Invocation:
+                        // public byte[] Script;
+                        // public Fixed8 Gas;
+                        {
+                            if (reader.TryReadVarInt(65536, out var scriptSize))
+                            {
+                                size = (int)scriptSize + Utility.GetVarSize(scriptSize) + sizeof(long);
+                                return true;
+                            }
+                        }
+                        break;
+                    case TransactionType.Register:
+                        //public AssetType AssetType;
+                        //public string Name;
+                        //public Fixed8 Amount;
+                        //public byte Precision;
+                        //public ECPoint Owner;
+                        //public UInt160 Admin;
+                        {
+                            reader.Advance(1); // assetType
+                            if (reader.TryReadVarString(1024, out var name))
+                            {
+                                reader.Advance(sizeof(long) + 1); // amount + precision
+                                if (reader.TryRead(out var ecPointType) && ecPointType == 0)
+                                {
+                                    size = 3 // assetType, precision, Owner
+                                        + sizeof(long) // amount
+                                        + UInt160.Size // admin
+                                        + name.GetVarSize();
+                                    return true;
+                                }
+                            }
+                        }
+                        break;
+                    case TransactionType.State:
+                        // public StateDescriptor[] Descriptors;
+                        {
+                            var startRemaining = reader.Remaining;
+                            if (reader.TryReadVarArray<StateDescriptor>(BinaryReader.TryRead, out var _))
+                            {
+                                Debug.Assert((startRemaining - reader.Remaining) <= int.MaxValue);
+                                size = (int)(startRemaining - reader.Remaining);
+                                return true;
+                            }
+                        }
+                        break;
+                    // these transactions have no transaction type specific data
+                    case TransactionType.Contract:
+                    case TransactionType.Issue:
+                        size = 0;
+                        return true;
+                    // these transactions are obsolete so haven't been implemented yet
+                    case TransactionType.Enrollment:
+                    case TransactionType.Publish:
+                        break;
+                }
+
+                size = default;
+                return false;
+            }
+
             if (reader.TryRead(out byte type)
                 && reader.TryRead(out byte version)
                 && TryGetTransactionDataSize(reader, (TransactionType)type, out int dataSize)
                 && reader.TryReadByteArray(dataSize, out var data)
-                && reader.TryReadVarArray<TransactionAttribute>(Storage.BinaryReader.TryRead, out var attributes)
-                && reader.TryReadVarArray<CoinReference>(Storage.BinaryReader.TryRead, out var inputs)
-                && reader.TryReadVarArray<TransactionOutput>(Storage.BinaryReader.TryRead, out var outputs)
-                && reader.TryReadVarArray<Witness>(Storage.BinaryReader.TryRead, out var witnesses))
+                && reader.TryReadVarArray<TransactionAttribute>(TryRead, out var attributes)
+                && reader.TryReadVarArray<CoinReference>(TryRead, out var inputs)
+                && reader.TryReadVarArray<TransactionOutput>(TryRead, out var outputs)
+                && reader.TryReadVarArray<Witness>(TryRead, out var witnesses))
             {
                 tx = new Transaction((TransactionType)type, version, data, attributes, inputs, outputs, witnesses);
                 return true;
@@ -205,90 +287,5 @@ namespace NeoFx.Storage
             tx = default;
             return false;
         }
-
-        // note, reader parameter here is purposefully *NOT* ref. TryGetTransactionDataSize needs a 
-        //       copy it can modify if it needs to
-        private static bool TryGetTransactionDataSize(SequenceReader<byte> reader, TransactionType type, out int size)
-        {
-            switch (type)
-            {
-                case TransactionType.Miner:
-                    // public uint Nonce;
-                    size = sizeof(uint);
-                    return true;
-                case TransactionType.Claim:
-                    // public CoinReference[] Claims;
-                    {
-                        if (reader.TryReadVarInt(out var count))
-                        {
-                            size = ((int)count * CoinReference.Size) + Utility.GetVarSize(count);
-                            return true;
-                        }
-                    }
-                    break;
-                case TransactionType.Invocation:
-                    // public byte[] Script;
-                    // public Fixed8 Gas;
-                    {
-                        if (reader.TryReadVarInt(out var scriptSize))
-                        {
-                            size = (int)scriptSize + Utility.GetVarSize(scriptSize) + sizeof(long);
-                            return true;
-                        }
-                    }
-                    break;
-                case TransactionType.Register:
-                    //public AssetType AssetType;
-                    //public string Name;
-                    //public Fixed8 Amount;
-                    //public byte Precision;
-                    //public ECPoint Owner;
-                    //public UInt160 Admin;
-                    {
-                        reader.Advance(1); // assetType
-                        if (reader.TryReadVarString(out var name))
-                        {
-                            reader.Advance(sizeof(long) + 1); // amount + precision
-                            if (reader.TryRead(out var ecPointType) && ecPointType == 0)
-                            {
-                                size = 3 // assetType, precision, Owner
-                                    + sizeof(long) // amount
-                                    + UInt160.Size // admin
-                                    + name.GetVarSize();
-                                return true;
-                            }
-                        }
-                    }
-                    break;
-                case TransactionType.State:
-                    // public StateDescriptor[] Descriptors;
-                    {
-                        if (reader.TryReadVarArray<StateDescriptor>(Storage.BinaryReader.TryRead, out var array))
-                        {
-                            size = 0;
-                            for (int i = 0; i < array.Length; i++)
-                            {
-                                size += array.Span[i].Size;
-                            }
-
-                            return true;
-                        }
-                    }
-                    break;
-                // these transactions have no transaction type specific data
-                case TransactionType.Contract:
-                case TransactionType.Issue:
-                    size = 0;
-                    return true;
-                // these transactions are obsolete so haven't been implemented yet
-                case TransactionType.Enrollment:
-                case TransactionType.Publish:
-                    break;
-            }
-
-            size = default;
-            return false;
-        }
-
     }
 }

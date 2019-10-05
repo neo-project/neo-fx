@@ -18,7 +18,7 @@ namespace NeoFx.Storage
 
         public static bool TryRead(ref SequenceReader<byte> reader, out StorageItem value)
         {
-            if (reader.TryReadVarArray(out var _value)
+            if (reader.TryReadVarByteArray(out var _value)
                 && reader.TryRead(out var isConstant))
             {
                 value = new StorageItem(_value, isConstant != 0);
