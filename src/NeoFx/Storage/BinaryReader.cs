@@ -84,6 +84,42 @@ namespace NeoFx.Storage
             return false;
         }
 
+        public static bool TryRead(ref SequenceReader<byte> reader, out TransactionAttribute value)
+        {
+            static bool TryReadAttributeData(ref SequenceReader<byte> reader, TransactionAttribute.UsageType usage, out ReadOnlyMemory<byte> value)
+            {
+                switch (usage)
+                {
+                    case TransactionAttribute.UsageType.ContractHash:
+                    case TransactionAttribute.UsageType.Vote:
+                    case TransactionAttribute.UsageType.ECDH02:
+                    case TransactionAttribute.UsageType.ECDH03:
+                    case var _ when usage >= TransactionAttribute.UsageType.Hash1 && usage <= TransactionAttribute.UsageType.Hash15:
+                        return reader.TryReadByteArray(32, out value);
+                    case TransactionAttribute.UsageType.Script:
+                        return reader.TryReadByteArray(20, out value);
+                    case TransactionAttribute.UsageType.Description:
+                    case var _ when usage >= TransactionAttribute.UsageType.Remark:
+                        return reader.TryReadVarArray(out value); // max == 65535
+                    case TransactionAttribute.UsageType.DescriptionUrl:
+                        return reader.TryReadVarArray(out value); // max = 255
+                }
+
+                value = default;
+                return false;
+            }
+
+            if (reader.TryRead(out byte usage)
+                && TryReadAttributeData(ref reader, (TransactionAttribute.UsageType)usage, out var data))
+            {
+                value = new TransactionAttribute((TransactionAttribute.UsageType)usage, data);
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
+
         public static bool TryRead(ref this SequenceReader<byte> reader, out CoinReference value)
         {
             if (reader.TryRead(out UInt256 prevHash)

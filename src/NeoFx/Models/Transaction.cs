@@ -29,7 +29,7 @@ namespace NeoFx.Models
             if (reader.TryRead(out byte type)
                 && reader.TryRead(out byte version)
                 && TryReadTransactionData(ref reader, (TransactionType)type, out var data)
-                && reader.TryReadVarArray<TransactionAttribute>(TransactionAttribute.TryRead, out var attributes)
+                && reader.TryReadVarArray<TransactionAttribute>(Storage.BinaryReader.TryRead, out var attributes)
                 && reader.TryReadVarArray<CoinReference>(Storage.BinaryReader.TryRead, out var inputs)
                 && reader.TryReadVarArray<TransactionOutput>(Storage.BinaryReader.TryRead, out var outputs)
                 && reader.TryReadVarArray<Witness>(Storage.BinaryReader.TryRead, out var witnesses))

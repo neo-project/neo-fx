@@ -72,7 +72,11 @@ namespace StorageExperimentation
                 {
                     for (var j = 0; j < block.Transactions.Length; j++)
                     {
-                        Console.WriteLine(block.Transactions.Span[j].Attributes.Length);
+                        if (block.Transactions.Span[j].Attributes.Length > 0)
+                        {
+                            Console.WriteLine($"{i} {j}");
+
+                        }
                     }
 
                 }
