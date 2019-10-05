@@ -69,12 +69,12 @@ namespace StorageExperimentation
             {
                 foreach (var tx in block.Transactions.Span)
                 {
-                    if (tx.Type == TransactionType.Register
-                        && RegisterTransactionData.TryRead(tx.TransactionData, out var data))
-                    {
-                        Console.WriteLine(data.AssetType);
-                        Console.WriteLine(data.Name);
-                    }
+                    //if (tx.Type == TransactionType.Register
+                    //    && RegisterTransactionData.TryRead(tx.TransactionData, out var data))
+                    //{
+                    //    Console.WriteLine(data.AssetType);
+                    //    Console.WriteLine(data.Name);
+                    //}
                 }
             }
         }

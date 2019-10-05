@@ -30,25 +30,5 @@ namespace NeoFx.Models
             NextConsensus = nextConsensus;
             Witness = witness;
         }
-
-        public static bool TryRead(ref SequenceReader<byte> reader, out BlockHeader value)
-        {
-            if (reader.TryReadUInt32LittleEndian(out var version)
-                && reader.TryReadUInt256(out var prevHash)
-                && reader.TryReadUInt256(out var merkleRoot)
-                && reader.TryReadUInt32LittleEndian(out var timestamp)
-                && reader.TryReadUInt32LittleEndian(out var index)
-                && reader.TryReadUInt64LittleEndian(out ulong consensusData)
-                && reader.TryReadUInt160(out var nextConsensus)
-                && reader.TryRead(out var witnessCount) && witnessCount == 1
-                && Witness.TryRead(ref reader, out var witness))
-            {
-                value = new BlockHeader(version, prevHash, merkleRoot, timestamp, index, consensusData, nextConsensus, witness);
-                return true;
-            }
-
-            value = default;
-            return false;
-        }
     }
 }

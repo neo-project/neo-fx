@@ -17,19 +17,6 @@ namespace NeoFx.Models
             PrevIndex = prevIndex;
         }
 
-        public static bool TryRead(ref SequenceReader<byte> reader, out CoinReference value)
-        {
-            if (reader.TryReadUInt256(out var prevHash)
-                && reader.TryReadUInt16LittleEndian(out ushort prevIndex))
-            {
-                value = new CoinReference(prevHash, prevIndex);
-                return true;
-            }
-
-            value = default;
-            return false;
-        }
-
         public bool TryWriteBytes(Span<byte> span)
         {
             return span.Length >= Size

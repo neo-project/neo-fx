@@ -17,18 +17,5 @@ namespace NeoFx.Models
             InvocationScript = invocationScript;
             VerificationScript = verificationScript;
         }
-
-        public static bool TryRead(ref SequenceReader<byte> reader, out Witness value)
-        {
-            if (reader.TryReadVarArray(out ReadOnlyMemory<byte> invocationScript)
-                && reader.TryReadVarArray(out ReadOnlyMemory<byte> verificationScript))
-            {
-                value = new Witness(invocationScript, verificationScript);
-                return true;
-            }
-
-            value = default;
-            return false;
-        }
     }
 }

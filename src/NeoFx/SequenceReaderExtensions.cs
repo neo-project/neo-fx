@@ -56,19 +56,22 @@ namespace NeoFx
                     return true;
                 }
 
-                if (b == 0xfd && reader.TryReadUInt16LittleEndian(out ushort @ushort))
+                if (b == 0xfd 
+                    && reader.TryRead(sizeof(ushort), BinaryPrimitives.TryReadUInt16LittleEndian, out ushort @ushort))
                 {
                     value = @ushort;
                     return true;
                 }
 
-                if (b == 0xfe && reader.TryReadUInt32LittleEndian(out uint @uint))
+                if (b == 0xfe 
+                    && reader.TryRead(sizeof(uint), BinaryPrimitives.TryReadUInt32LittleEndian, out uint @uint))
                 {
                     value = @uint;
                     return true;
                 }
 
-                if (b == 0xff && reader.TryReadUInt64LittleEndian(out ulong @ulong))
+                if (b == 0xfe 
+                    && reader.TryRead(sizeof(ulong), BinaryPrimitives.TryReadUInt64LittleEndian, out ulong @ulong))
                 {
                     value = @ulong;
                     return true;
@@ -77,11 +80,6 @@ namespace NeoFx
 
             value = default;
             return false;
-        }
-
-        public static bool TryPeekVarInt(this SequenceReader<byte> reader, out ulong value)
-        {
-            return TryReadVarInt(ref reader, out value);
         }
 
         public static bool TryReadByteArray(ref this SequenceReader<byte> reader, int count, out ReadOnlyMemory<byte> value)
@@ -110,31 +108,31 @@ namespace NeoFx
             return false;
         }
 
-        public delegate bool TryReadItem<T>(ref SequenceReader<byte> reader, out T value);
+        //public delegate bool TryReadItem<T>(ref SequenceReader<byte> reader, out T value);
 
-        public static bool TryReadVarArray<T>(ref this SequenceReader<byte> reader, TryReadItem<T> tryReadItem, out ReadOnlyMemory<T> memory)
-        {
-            if (reader.TryReadVarInt(out var count))
-            {
-                Debug.Assert(count <= int.MaxValue);
+        //public static bool TryReadVarArray<T>(ref this SequenceReader<byte> reader, TryReadItem<T> tryReadItem, out ReadOnlyMemory<T> memory)
+        //{
+        //    if (reader.TryReadVarInt(out var count))
+        //    {
+        //        Debug.Assert(count <= int.MaxValue);
 
-                var buffer = new T[count];
-                for (int index = 0; index < (int)count; index++)
-                {
-                    if (!tryReadItem(ref reader, out buffer[index]))
-                    {
-                        memory = default;
-                        return false;
-                    }
-                }
+        //        var buffer = new T[count];
+        //        for (int index = 0; index < (int)count; index++)
+        //        {
+        //            if (!tryReadItem(ref reader, out buffer[index]))
+        //            {
+        //                memory = default;
+        //                return false;
+        //            }
+        //        }
 
-                memory = buffer;
-                return true;
-            }
+        //        memory = buffer;
+        //        return true;
+        //    }
 
-            memory = default;
-            return false;
-        }
+        //    memory = default;
+        //    return false;
+        //}
 
         public static bool TryReadVarString(ref this SequenceReader<byte> reader, out string value)
         {
@@ -155,29 +153,5 @@ namespace NeoFx
             value = string.Empty;
             return false;
         }
-
-        public static bool TryReadInt16LittleEndian(ref this SequenceReader<byte> reader, out short value) =>
-            reader.TryRead(sizeof(short), BinaryPrimitives.TryReadInt16LittleEndian, out value);
-
-        public static bool TryReadInt32LittleEndian(ref this SequenceReader<byte> reader, out int value) =>
-            reader.TryRead(sizeof(int), BinaryPrimitives.TryReadInt32LittleEndian, out value);
-
-        public static bool TryReadInt64LittleEndian(ref this SequenceReader<byte> reader, out long value) =>
-            reader.TryRead(sizeof(long), BinaryPrimitives.TryReadInt64LittleEndian, out value);
-
-        public static bool TryReadUInt16LittleEndian(ref this SequenceReader<byte> reader, out ushort value) =>
-            reader.TryRead(sizeof(ushort), BinaryPrimitives.TryReadUInt16LittleEndian, out value);
-
-        public static bool TryReadUInt32LittleEndian(ref this SequenceReader<byte> reader, out uint value) =>
-            reader.TryRead(sizeof(uint), BinaryPrimitives.TryReadUInt32LittleEndian, out value);
-
-        public static bool TryReadUInt64LittleEndian(ref this SequenceReader<byte> reader, out ulong value) =>
-            reader.TryRead(sizeof(ulong), BinaryPrimitives.TryReadUInt64LittleEndian, out value);
-
-        public static bool TryReadUInt160(this ref SequenceReader<byte> reader, out UInt160 value) =>
-            reader.TryRead(UInt160.Size, UInt160.TryRead, out value);
-
-        public static bool TryReadUInt256(this ref SequenceReader<byte> reader, out UInt256 value) =>
-            reader.TryRead(UInt256.Size, UInt256.TryRead, out value);
     }
 }

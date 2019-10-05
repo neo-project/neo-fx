@@ -213,17 +213,17 @@ namespace NeoFx.RocksDb
 
         private static bool TryReadBlockState(ReadOnlyMemory<byte> memory, out (long systemFee, BlockHeader header, ReadOnlyMemory<UInt256> hashes) value)
         {
-            var reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(memory));
+            //var reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(memory));
 
-            if (TryReadStateVersion(ref reader, 0)
-                && reader.TryReadInt64LittleEndian(out var systemFee)
-                && BlockHeader.TryRead(ref reader, out var header)
-                && reader.TryReadVarArray<UInt256>(SequenceReaderExtensions.TryReadUInt256, out var hashes))
-            {
-                Debug.Assert(reader.Remaining == 0);
-                value = (systemFee, header, hashes);
-                return true;
-            }
+            //if (TryReadStateVersion(ref reader, 0)
+            //    && reader.TryReadInt64LittleEndian(out var systemFee)
+            //    && reader.TryRead(out BlockHeader header)
+            //    && reader.TryReadVarArray<UInt256>(SequenceReaderExtensions.TryReadUInt256, out var hashes))
+            //{
+            //    Debug.Assert(reader.Remaining == 0);
+            //    value = (systemFee, header, hashes);
+            //    return true;
+            //}
 
             value = default;
             return false;
@@ -231,16 +231,16 @@ namespace NeoFx.RocksDb
 
         private static bool TryReadTransactionState(ReadOnlyMemory<byte> memory, out (uint blockIndex, Transaction tx) value)
         {
-            var reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(memory));
+            //var reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(memory));
 
-            if (TryReadStateVersion(ref reader, 0)
-                && reader.TryReadUInt32LittleEndian(out var blockIndex)
-                && Transaction.TryRead(ref reader, out var tx))
-            {
-                Debug.Assert(reader.Remaining == 0);
-                value = (blockIndex, tx);
-                return true;
-            }
+            //if (TryReadStateVersion(ref reader, 0)
+            //    && reader.TryReadUInt32LittleEndian(out var blockIndex)
+            //    && Transaction.TryRead(ref reader, out var tx))
+            //{
+            //    Debug.Assert(reader.Remaining == 0);
+            //    value = (blockIndex, tx);
+            //    return true;
+            //}
 
             value = default;
             return false;
