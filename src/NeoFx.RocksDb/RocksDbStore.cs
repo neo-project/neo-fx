@@ -235,7 +235,7 @@ namespace NeoFx.RocksDb
 
             if (TryReadStateVersion(ref reader, 0)
                 && reader.TryRead(out uint blockIndex)
-                && Transaction.TryRead(ref reader, out var tx))
+                && reader.TryRead(out Transaction tx))
             {
                 Debug.Assert(reader.Remaining == 0);
                 value = (blockIndex, tx);

@@ -25,20 +25,5 @@ namespace NeoFx.Models
             Field = field;
             Value = value;
         }
-
-        public static bool TryRead(ref SequenceReader<byte> reader, out StateDescriptor descriptor)
-        {
-            if (reader.TryRead(out var type)
-                && reader.TryReadVarArray(out var key)
-                && reader.TryReadVarString(out var field)
-                && reader.TryReadVarArray(out var value))
-            {
-                descriptor = new StateDescriptor((StateType)type, key, field, value);
-                return true;
-            }
-
-            descriptor = default;
-            return false;
-        }
     }
 }

@@ -46,13 +46,6 @@ namespace NeoFx
             return false;
         }
 
-        public static bool TryRead<T>(ref this SequenceReader<byte> reader, TryConvert<T> tryConvert, out T value)
-            where T : unmanaged
-        {
-            var size = System.Runtime.InteropServices.Marshal.SizeOf<T>();
-            return TryRead<T>(ref reader, size, tryConvert, out value);
-        }
-
         public static bool TryReadVarInt(ref this SequenceReader<byte> reader, out ulong value)
         {
             if (reader.TryRead(out byte b))

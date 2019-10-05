@@ -70,15 +70,11 @@ namespace StorageExperimentation
             {
                 if (storage.TryGetBlock(i, out var block))
                 {
+                    Console.WriteLine($"{i}\t\t{block.Timestamp}");
                     for (var j = 0; j < block.Transactions.Length; j++)
                     {
-                        if (block.Transactions.Span[j].Attributes.Length > 0)
-                        {
-                            Console.WriteLine($"{i} {j}");
-
-                        }
+                        Console.WriteLine($"  {block.Transactions.Span[j].Type}");
                     }
-
                 }
             }
 
