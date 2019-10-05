@@ -12,12 +12,11 @@ namespace NeoFx
 
         public static bool TryRead<T>(ref this SequenceReader<byte> reader, int size, TryConvert<T> tryConvert, [MaybeNull] out T value)
         {
-            var span = reader.UnreadSpan;
-            if (span.Length >= size)
+            bool TryConvert(ref SequenceReader<byte> _reader, ReadOnlySpan<byte> _span, out T _value)
             {
-                if (tryConvert(span.Slice(0, size), out value))
+                if (tryConvert(_span.Slice(0, size), out _value))
                 {
-                    reader.Advance(size);
+                    _reader.Advance(size);
                     return true;
                 }
                 else
@@ -26,17 +25,18 @@ namespace NeoFx
                 }
             }
 
-            Span<byte> buffer = stackalloc byte[size];
-            if (reader.TryCopyTo(buffer))
+            var span = reader.UnreadSpan;
+            if (span.Length >= size)
             {
-                if (tryConvert(buffer, out value))
+                return TryConvert(ref reader, span.Slice(0, size), out value);
+            }
+
+            using (var memoryBlock = MemoryPool<byte>.Shared.Rent(size))
+            {
+                var memory = memoryBlock.Memory.Slice(0, size);
+                if (reader.TryCopyTo(memory.Span))
                 {
-                    reader.Advance(size);
-                    return true;
-                }
-                else
-                {
-                    return false;
+                    return TryConvert(ref reader, memory.Span, out value);
                 }
             }
 
@@ -44,6 +44,13 @@ namespace NeoFx
             value = default;
 #pragma warning restore CS8653 // A default expression introduces a null value for a type parameter.
             return false;
+        }
+
+        public static bool TryRead<T>(ref this SequenceReader<byte> reader, TryConvert<T> tryConvert, out T value)
+            where T : unmanaged
+        {
+            var size = System.Runtime.InteropServices.Marshal.SizeOf<T>();
+            return TryRead<T>(ref reader, size, tryConvert, out value);
         }
 
         public static bool TryReadVarInt(ref this SequenceReader<byte> reader, out ulong value)
@@ -96,7 +103,10 @@ namespace NeoFx
             return false;
         }
 
-        public static bool TryReadVarArray(ref this SequenceReader<byte> reader, out ReadOnlyMemory<byte> value)
+        public static bool TryReadVarArray(ref this SequenceReader<byte> reader, out ReadOnlyMemory<byte> value) =>
+            reader.TryReadVarArray(0x1000000, out value);
+
+        public static bool TryReadVarArray(ref this SequenceReader<byte> reader, int max, out ReadOnlyMemory<byte> value)
         {
             if (reader.TryReadVarInt(out var count))
             {

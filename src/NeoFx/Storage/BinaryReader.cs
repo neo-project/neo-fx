@@ -10,46 +10,46 @@ namespace NeoFx.Storage
     public static class BinaryReader
     {
         public static bool TryRead(ref this SequenceReader<byte> reader, out short value) =>
-            reader.TryRead(sizeof(short), BinaryPrimitives.TryReadInt16LittleEndian, out value);
+            reader.TryRead(BinaryPrimitives.TryReadInt16LittleEndian, out value);
 
         public static bool TryRead(ref this SequenceReader<byte> reader, out int value) =>
-            reader.TryRead(sizeof(int), BinaryPrimitives.TryReadInt32LittleEndian, out value);
+            reader.TryRead(BinaryPrimitives.TryReadInt32LittleEndian, out value);
 
         public static bool TryRead(ref this SequenceReader<byte> reader, out long value) =>
-            reader.TryRead(sizeof(long), BinaryPrimitives.TryReadInt64LittleEndian, out value);
+            reader.TryRead(BinaryPrimitives.TryReadInt64LittleEndian, out value);
 
         public static bool TryRead(ref this SequenceReader<byte> reader, out ushort value) =>
-            reader.TryRead(sizeof(ushort), BinaryPrimitives.TryReadUInt16LittleEndian, out value);
+            reader.TryRead(BinaryPrimitives.TryReadUInt16LittleEndian, out value);
 
         public static bool TryRead(ref this SequenceReader<byte> reader, out uint value) =>
-            reader.TryRead(sizeof(uint), BinaryPrimitives.TryReadUInt32LittleEndian, out value);
+            reader.TryRead(BinaryPrimitives.TryReadUInt32LittleEndian, out value);
 
         public static bool TryRead(ref this SequenceReader<byte> reader, out ulong value) =>
-            reader.TryRead(sizeof(ulong), BinaryPrimitives.TryReadUInt64LittleEndian, out value);
+            reader.TryRead(BinaryPrimitives.TryReadUInt64LittleEndian, out value);
 
         public static bool TryReadBigEndian(ref this SequenceReader<byte> reader, out short value) =>
-            reader.TryRead(sizeof(short), BinaryPrimitives.TryReadInt16BigEndian, out value);
+            reader.TryRead(BinaryPrimitives.TryReadInt16BigEndian, out value);
 
         public static bool TryReadBigEndian(ref this SequenceReader<byte> reader, out int value) =>
-            reader.TryRead(sizeof(int), BinaryPrimitives.TryReadInt32BigEndian, out value);
+            reader.TryRead(BinaryPrimitives.TryReadInt32BigEndian, out value);
 
         public static bool TryReadBigEndian(ref this SequenceReader<byte> reader, out long value) =>
-            reader.TryRead(sizeof(long), BinaryPrimitives.TryReadInt64BigEndian, out value);
+            reader.TryRead(BinaryPrimitives.TryReadInt64BigEndian, out value);
 
         public static bool TryReadBigEndian(ref this SequenceReader<byte> reader, out ushort value) =>
-            reader.TryRead(sizeof(ushort), BinaryPrimitives.TryReadUInt16BigEndian, out value);
+            reader.TryRead(BinaryPrimitives.TryReadUInt16BigEndian, out value);
 
         public static bool TryReadBigEndian(ref this SequenceReader<byte> reader, out uint value) =>
-            reader.TryRead(sizeof(uint), BinaryPrimitives.TryReadUInt32BigEndian, out value);
+            reader.TryRead(BinaryPrimitives.TryReadUInt32BigEndian, out value);
 
         public static bool TryReadBigEndian(ref this SequenceReader<byte> reader, out ulong value) =>
-            reader.TryRead(sizeof(ulong), BinaryPrimitives.TryReadUInt64BigEndian, out value);
+            reader.TryRead(BinaryPrimitives.TryReadUInt64BigEndian, out value);
 
         public static bool TryRead(ref this SequenceReader<byte> reader, out UInt160 value) =>
-            reader.TryRead(UInt160.Size, UInt160.TryRead, out value);
+            reader.TryRead(UInt160.TryRead, out value);
 
         public static bool TryRead(ref this SequenceReader<byte> reader, out UInt256 value) =>
-            reader.TryRead(UInt256.Size, UInt256.TryRead, out value);
+            reader.TryRead(UInt256.TryRead, out value);
 
         public static bool TryRead(ref this SequenceReader<byte> reader, out Witness value)
         {
@@ -102,7 +102,15 @@ namespace NeoFx.Storage
                     case var _ when usage >= TransactionAttribute.UsageType.Remark:
                         return reader.TryReadVarArray(out value); // max == 65535
                     case TransactionAttribute.UsageType.DescriptionUrl:
-                        return reader.TryReadVarArray(out value); // max = 255
+                        {
+                            if (reader.TryRead(out byte length)
+                                && reader.TryReadByteArray(length, out var data))
+                            {
+                                value = data;
+                                return true;
+                            }
+                        }
+                        break;
                 }
 
                 value = default;
