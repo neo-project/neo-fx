@@ -1,4 +1,6 @@
-﻿using System;
+﻿using NeoFx.Models;
+using NeoFx.Storage;
+using System;
 using System.Buffers;
 using System.Buffers.Binary;
 using System.Diagnostics;
@@ -72,6 +74,44 @@ namespace NeoFx
             if (data.Length != 21)
                 throw new FormatException();
             return new UInt160(data.AsSpan().Slice(1));
+        }
+
+        public static bool TryHash256(ReadOnlySpan<byte> message, Span<byte> hash)
+        {
+            Span<byte> tempBuffer = stackalloc byte[32];
+            if (_sha256.Value.TryComputeHash(message, tempBuffer, out var written1)
+                && _sha256.Value.TryComputeHash(tempBuffer, hash, out var written2))
+            {
+                Debug.Assert(written1 == 32 && written2 == 32);
+
+                return true;
+            }
+
+            return false;
+        }
+
+        public static bool TryHash(Transaction tx, out UInt256 hash)
+        {
+            using (var memBlock = MemoryPool<byte>.Shared.Rent(2048))
+            {
+                var writer = new SpanWriter<byte>(memBlock.Memory.Span);
+                Span<byte> hashBuffer = stackalloc byte[32];
+
+                if (writer.TryWrite((byte)tx.Type)
+                    && writer.TryWrite(tx.Version)
+                    && writer.TryWrite(tx.TransactionData.Span)
+                    && writer.TryWriteVarArray(tx.Attributes, BinaryWriter.TryWrite)
+                    && writer.TryWriteVarArray(tx.Inputs, BinaryWriter.TryWrite)
+                    && writer.TryWriteVarArray(tx.Outputs, BinaryWriter.TryWrite)
+                    && TryHash256(writer.Contents, hashBuffer))
+                {
+                    hash = new UInt256(hashBuffer);
+                    return true;
+                }
+            }
+
+            hash = default;
+            return false;
         }
     }
 }

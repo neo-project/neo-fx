@@ -88,6 +88,43 @@ namespace NeoFx.RocksDb
             }
         }
 
+        private static bool TryGetRegisterTxAssetType(ReadOnlyMemory<byte> memory, out AssetType assetType)
+        {
+            if (memory.Length >= 1)
+            {
+                assetType = (AssetType)memory.Span[0];
+                return true;
+            }
+
+            assetType = default;
+            return false;
+        }
+
+        private UInt256 GetTokenHash(AssetType assetType)
+        {
+            if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
+
+            if (TryGetBlock(blockIndex[0], out var _, out var hashes))
+            {
+                for (var i = 0; i < hashes.Length; i++)
+                {
+                    if (TryGetTransaction(hashes.Span[i], out var _, out var tx) 
+                        && tx.Type == TransactionType.Register
+                        && TryGetRegisterTxAssetType(tx.TransactionData, out var txAssetType)
+                        && txAssetType == assetType)
+                    {
+                        return hashes.Span[i];
+                    }
+                }
+            }
+
+            throw new Exception();
+        }
+
+        public UInt256 GoverningTokenHash => GetTokenHash(AssetType.GoverningToken);
+
+        public UInt256 UtilityTokenHash => GetTokenHash(AssetType.UtilityToken);
+
         public bool TryGetBlock(in UInt256 key, out Block block)
         {
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
@@ -111,6 +148,34 @@ namespace NeoFx.RocksDb
 
             block = default;
             return false;
+        }
+
+        public bool TryGetBlock(in UInt256 key, out BlockHeader header, out ReadOnlyMemory<UInt256> hashes)
+        {
+            if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
+
+            if (db.TryGet(BLOCK_FAMILY, key, out (long systemFee, BlockHeader header, ReadOnlyMemory<UInt256> hashes) value, UInt256.Size, 2048, TryWriteUInt256Key, TryReadBlockState))
+            {
+                header = value.header;
+                hashes = value.hashes;
+                return true;
+            }
+
+            header = default;
+            hashes = default;
+            return false;
+        }
+
+        public UInt256 GetBlockHash(uint index)
+        {
+            if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
+
+            if (index < blockIndex.Count)
+            {
+                return blockIndex[(int)index];
+            }
+
+            return default;
         }
 
         public bool TryGetBlock(uint index, out Block block)
@@ -140,6 +205,31 @@ namespace NeoFx.RocksDb
             index = default;
             tx = default;
             return false;
+        }
+
+        public ReadOnlyMemory<byte> GetTransactionData(in UInt256 key)
+        {
+            if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
+
+            var keyBuffer = ArrayPool<byte>.Shared.Rent(UInt256.Size);
+
+            try
+            {
+                if (TryWriteUInt256Key(key, keyBuffer))
+                {
+                    var valueBuffer = db.Get(keyBuffer, UInt256.Size, db.GetColumnFamily(TX_FAMILY));
+                    if (valueBuffer != null)
+                    {
+                        return valueBuffer.AsMemory().Slice(5);
+                    }
+                }
+
+                return default;
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(keyBuffer);
+            }
         }
 
         public bool TryGetStorage(in StorageKey key, out StorageItem item)

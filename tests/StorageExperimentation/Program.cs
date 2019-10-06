@@ -66,17 +66,38 @@ namespace StorageExperimentation
         {
             using var storage = new RocksDbStore(path);
 
-            for (uint i = 0; i < storage.Height; i++)
+            Console.WriteLine($"NEO: {storage.GoverningTokenHash}");
+            Console.WriteLine($"GAS: {storage.UtilityTokenHash}");
+
+            var genesisHash = storage.GetBlockHash(0);
+            if (storage.TryGetBlock(genesisHash, out BlockHeader _, out var hashes))
             {
-                if (storage.TryGetBlock(i, out var block))
+                for (int i = 0; i < hashes.Length; i++)
                 {
-                    Console.WriteLine($"{i}\t\t{block.Timestamp}");
-                    for (var j = 0; j < block.Transactions.Length; j++)
+                    if (storage.TryGetTransaction(hashes.Span[i], out var _, out var tx)
+                        && Utility.TryHash(tx, out var newhash))
                     {
-                        Console.WriteLine($"  {block.Transactions.Span[j].Type}");
+                        Console.WriteLine(tx.Type);
+                        Console.WriteLine(hashes.Span[i]);
+                        Console.WriteLine(newhash);
                     }
                 }
             }
+
+
+
+
+            //for (uint i = 0; i < storage.Height; i++)
+            //{
+            //    if (storage.TryGetBlock(i, out var block))
+            //    {
+            //        Console.WriteLine($"{i}\t\t{block.Timestamp}");
+            //        for (var j = 0; j < block.Transactions.Length; j++)
+            //        {
+            //            Console.WriteLine($"  {block.Transactions.Span[j].Type}");
+            //        }
+            //    }
+            //}
 
             //if (storage.TryGetBlock(0, out var block))
             //{
