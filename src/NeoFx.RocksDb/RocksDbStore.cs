@@ -52,6 +52,8 @@ namespace NeoFx.RocksDb
 
         private readonly RocksDb db;
         private readonly IList<UInt256> blockIndex;
+        private readonly Lazy<UInt256> governingTokenHash;
+        private readonly Lazy<UInt256> utilityTokenHash;
 
         public RocksDbStore(string path)
         {
@@ -64,6 +66,9 @@ namespace NeoFx.RocksDb
                 .OrderBy(t => t.blockState.header.Index)
                 .Select(t => t.key)
                 .ToList();
+
+            governingTokenHash = new Lazy<UInt256>(() => GetTokenHash(AssetType.GoverningToken));
+            utilityTokenHash = new Lazy<UInt256>(() => GetTokenHash(AssetType.UtilityToken));
         }
 
         private bool objectDisposed = false;
@@ -88,18 +93,6 @@ namespace NeoFx.RocksDb
             }
         }
 
-        private static bool TryGetRegisterTxAssetType(ReadOnlyMemory<byte> memory, out AssetType assetType)
-        {
-            if (memory.Length >= 1)
-            {
-                assetType = (AssetType)memory.Span[0];
-                return true;
-            }
-
-            assetType = default;
-            return false;
-        }
-
         private UInt256 GetTokenHash(AssetType assetType)
         {
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
@@ -110,8 +103,8 @@ namespace NeoFx.RocksDb
                 {
                     if (TryGetTransaction(hashes.Span[i], out var _, out var tx) 
                         && tx.Type == TransactionType.Register
-                        && TryGetRegisterTxAssetType(tx.TransactionData, out var txAssetType)
-                        && txAssetType == assetType)
+                        && tx.TransactionData.Length >= 1
+                        && (AssetType)tx.TransactionData.Span[0] == assetType)
                     {
                         return hashes.Span[i];
                     }
@@ -121,9 +114,9 @@ namespace NeoFx.RocksDb
             throw new Exception();
         }
 
-        public UInt256 GoverningTokenHash => GetTokenHash(AssetType.GoverningToken);
+        public UInt256 GoverningTokenHash => governingTokenHash.Value;
 
-        public UInt256 UtilityTokenHash => GetTokenHash(AssetType.UtilityToken);
+        public UInt256 UtilityTokenHash => utilityTokenHash.Value;
 
         public bool TryGetBlock(in UInt256 key, out Block block)
         {
