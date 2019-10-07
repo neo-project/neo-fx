@@ -82,7 +82,6 @@ namespace NeoFx.Storage
             }
             return false;
         }
-
         
         public static bool TryWriteVarInt(this Span<byte> span, int value, out int bytesWritten)
         {
@@ -183,16 +182,29 @@ namespace NeoFx.Storage
 
         public static bool TryWrite(ref SpanWriter<byte> writer, in TransactionAttribute value)
         {
+
             return false;
         }
 
         public static bool TryWrite(ref SpanWriter<byte> writer, in CoinReference value)
         {
+            if (value.TryWriteBytes(writer.Span))
+            {
+                writer.Advance(CoinReference.Size);
+                return true;
+            }
+
             return false;
         }
 
         public static bool TryWrite(ref SpanWriter<byte> writer, in TransactionOutput value)
         {
+            if (value.TryWriteBytes(writer.Span))
+            {
+                writer.Advance(TransactionOutput.Size);
+                return true;
+            }
+
             return false;
         }
     }

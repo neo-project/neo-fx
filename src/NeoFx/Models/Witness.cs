@@ -10,7 +10,7 @@ namespace NeoFx.Models
         public readonly ReadOnlyMemory<byte> InvocationScript;
         public readonly ReadOnlyMemory<byte> VerificationScript;
 
-        public readonly int Size => InvocationScript.Length + VerificationScript.Length;
+        public readonly int Size => InvocationScript.GetVarSize() + VerificationScript.GetVarSize();
 
         public Witness(ReadOnlyMemory<byte> invocationScript, ReadOnlyMemory<byte> verificationScript)
         {

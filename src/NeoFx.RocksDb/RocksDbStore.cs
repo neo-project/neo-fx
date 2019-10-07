@@ -20,13 +20,10 @@ namespace NeoFx.RocksDb
     {
         public static RocksDbStore OpenCheckpoint(string checkpointPath, string? folder = null)
         {
-            folder ??= System.IO.Path.Combine(folder, $"RocksDbStore.{System.IO.Path.GetRandomFileName()}");
+            folder ??= System.IO.Path.Combine(folder ?? System.IO.Path.GetTempPath(), $"RocksDbStore.{System.IO.Path.GetRandomFileName()}");
 
             if (!System.IO.File.Exists(checkpointPath))
                 throw new ArgumentException(nameof(checkpointPath));
-
-            if (!System.IO.Directory.Exists(folder))
-                throw new ArgumentException(nameof(folder));
 
             if (System.IO.Directory.Exists(folder))
             {

@@ -49,6 +49,21 @@ namespace NeoFx
             return GetVarSize((ulong)size) + size;
         }
 
+        public static int GetVarSize<T>(this ReadOnlyMemory<T> memory, Func<T, int> getSize)
+        {
+            return memory.Span.GetVarSize(getSize);
+        }
+
+        public static int GetVarSize<T>(this ReadOnlySpan<T> span, Func<T, int> getSize)
+        {
+            int size = 0;
+            for (int i = 0; i < span.Length; i++)
+            {
+                size += getSize(span[i]);
+            }
+            return GetVarSize((ulong)span.Length) + size;
+        }
+
         public static byte[] Base58CheckDecode(this string input)
         {
             var buffer = SimpleBase.Base58.Bitcoin.Decode(input);
@@ -97,7 +112,7 @@ namespace NeoFx
 
         public static bool TryHash(Transaction tx, out UInt256 hash)
         {
-            using (var memBlock = MemoryPool<byte>.Shared.Rent(2048))
+            using (var memBlock = MemoryPool<byte>.Shared.Rent(tx.Size))
             {
                 var writer = new SpanWriter<byte>(memBlock.Memory.Span);
                 Span<byte> hashBuffer = stackalloc byte[32];
