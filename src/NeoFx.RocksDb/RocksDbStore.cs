@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using NeoFx.Storage;
+using System.Diagnostics.CodeAnalysis;
 
 namespace NeoFx.RocksDb
 {
@@ -17,6 +18,26 @@ namespace NeoFx.RocksDb
 
     public sealed class RocksDbStore : IDisposable, IBlockchainStorage
     {
+        public static RocksDbStore OpenCheckpoint(string checkpointPath, string? folder = null)
+        {
+            folder ??= System.IO.Path.Combine(folder, $"RocksDbStore.{System.IO.Path.GetRandomFileName()}");
+
+            if (!System.IO.File.Exists(checkpointPath))
+                throw new ArgumentException(nameof(checkpointPath));
+
+            if (!System.IO.Directory.Exists(folder))
+                throw new ArgumentException(nameof(folder));
+
+            if (System.IO.Directory.Exists(folder))
+            {
+                System.IO.Directory.Delete(folder, true);
+            }
+
+            System.IO.Compression.ZipFile.ExtractToDirectory(checkpointPath, folder);
+
+            return new RocksDbStore(folder);
+        }
+
         #region Column Family Constants
         private const string BLOCK_FAMILY = "data:block";
         private const string TX_FAMILY = "data:transaction";

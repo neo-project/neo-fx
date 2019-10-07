@@ -35,6 +35,11 @@ namespace NeoFx
 
         public static int GetVarSize(this ReadOnlyMemory<byte> value)
         {
+            return value.Span.GetVarSize();
+        }
+
+        public static int GetVarSize(this ReadOnlySpan<byte> value)
+        {
             return GetVarSize((ulong)value.Length) + value.Length;
         }
 
