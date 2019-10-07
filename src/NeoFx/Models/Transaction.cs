@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Buffers;
+using System.Buffers.Binary;
+using NeoFx.Storage;
 
 namespace NeoFx.Models
 {
@@ -27,10 +29,16 @@ namespace NeoFx.Models
         public static ReadOnlyMemory<byte> InvocationTxData(ReadOnlySpan<byte> script, long /*fixed8*/ gas)
         {
             var size = script.GetVarSize() + sizeof(long);
-
             var buffer = new byte[size];
 
-            return buffer;
+            if (buffer.AsSpan().TryWriteVarInt(script.Length, out var scriptLengthWritten)
+                && script.TryCopyTo(buffer.AsSpan().Slice(scriptLengthWritten))
+                && BinaryPrimitives.TryWriteInt64LittleEndian(buffer.AsSpan().Slice(scriptLengthWritten + script.Length), gas))
+            {
+                return buffer;
+            }
+
+            throw new Exception();
         }
     }
 }

@@ -83,6 +83,52 @@ namespace NeoFx.Storage
             return false;
         }
 
+        
+        public static bool TryWriteVarInt(this Span<byte> span, int value, out int bytesWritten)
+        {
+            Debug.Assert(value >= 0);
+            return span.TryWriteVarInt((ulong)value, out bytesWritten);
+        }
+
+        public static bool TryWriteVarInt(this Span<byte> span, ulong value, out int bytesWritten)
+        {
+            if (value < 0xfd && span.Length >= 1)
+            {
+                span[0] = (byte)value;
+                bytesWritten = 1;
+                return true;
+            }
+
+            if (value < 0xffff
+                && span.Length >= 3
+                && BinaryPrimitives.TryWriteUInt16LittleEndian(span.Slice(1, 2), (ushort)value))
+            {
+                span[0] = 0xfd;
+                bytesWritten = 3;
+                return true;
+            }
+
+            if (value < 0xffffffff
+                && span.Length >= 5
+                && BinaryPrimitives.TryWriteUInt32LittleEndian(span.Slice(1, 4), (uint)value))
+            {
+                span[0] = 0xfe;
+                bytesWritten = 5;
+                return true;
+            }
+
+            if (span.Length >= 9
+                && BinaryPrimitives.TryWriteUInt64LittleEndian(span.Slice(1, 4), value))
+            {
+                span[0] = 0xfe;
+                bytesWritten = 9;
+                return true;
+            }
+
+            bytesWritten = default;
+            return false;
+        }
+
         public static bool TryWriteVarInt(ref this SpanWriter<byte> writer, int value)
         {
             Debug.Assert(value >= 0);
@@ -91,25 +137,12 @@ namespace NeoFx.Storage
 
         public static bool TryWriteVarInt(ref this SpanWriter<byte> writer, ulong value)
         {
-            if (value < 0xfd)
+            if (writer.Span.TryWriteVarInt(value, out var bytesWritten))
             {
-                return writer.TryWrite((byte)value);
+                writer.Advance(bytesWritten);
+                return true;
             }
-
-            if (value < 0xffff)
-            {
-                return writer.TryWrite(0xfd)
-                    && writer.TryWrite((ushort)value);
-            }
-
-            if (value < 0xffffffff)
-            {
-                return writer.TryWrite(0xfe)
-                    && writer.TryWrite((uint)value);
-            }
-
-            return writer.TryWrite(0xff)
-                && writer.TryWrite(value);
+            return false;
         }
 
         public static bool TryWriteVarArray(ref this SpanWriter<byte> writer, ReadOnlyMemory<byte> memory)
