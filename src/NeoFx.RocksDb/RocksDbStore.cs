@@ -319,7 +319,7 @@ namespace NeoFx.RocksDb
             if (TryReadStateVersion(ref reader, 0)
                 && reader.TryRead(out long systemFee)
                 && reader.TryRead(out BlockHeader header)
-                && reader.TryReadVarArray<UInt256>(BinaryReader.TryRead, out var hashes))
+                && reader.TryReadVarArray<UInt256>(BinaryFormat.TryRead, out var hashes))
             {
                 Debug.Assert(reader.Remaining == 0);
                 value = (systemFee, header, hashes);

@@ -8,7 +8,7 @@ using System.Text;
 
 namespace NeoFx.Storage
 {
-    public static class BinaryReader
+    public static partial class BinaryFormat
     {
         public static bool TryRead(ref this SequenceReader<byte> reader, out short value) =>
             reader.TryRead(sizeof(short), BinaryPrimitives.TryReadInt16LittleEndian, out value);
@@ -170,7 +170,7 @@ namespace NeoFx.Storage
             descriptor = default;
             return false;
         }
-        
+
         public static bool TryRead(ref this SequenceReader<byte> reader, out RegisterTransactionData data)
         {
             if (reader.TryRead(out byte assetType)
@@ -205,7 +205,7 @@ namespace NeoFx.Storage
                         {
                             if (reader.TryReadVarInt(out var count))
                             {
-                                size = ((int)count * CoinReference.Size) + Utility.GetVarSize(count);
+                                size = ((int)count * CoinReferenceSize) + Utility.GetVarSize(count);
                                 return true;
                             }
                         }
@@ -248,7 +248,7 @@ namespace NeoFx.Storage
                         // public StateDescriptor[] Descriptors;
                         {
                             var startRemaining = reader.Remaining;
-                            if (reader.TryReadVarArray<StateDescriptor>(BinaryReader.TryRead, out var _))
+                            if (reader.TryReadVarArray<StateDescriptor>(BinaryFormat.TryRead, out var _))
                             {
                                 Debug.Assert((startRemaining - reader.Remaining) <= int.MaxValue);
                                 size = (int)(startRemaining - reader.Remaining);

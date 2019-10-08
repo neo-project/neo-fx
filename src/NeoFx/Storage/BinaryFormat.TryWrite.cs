@@ -29,8 +29,23 @@ namespace NeoFx.Storage
         }
     }
 
-    public static class BinaryWriter
+    public static partial class BinaryFormat
     {
+        public static bool TryWriteBytes(this CoinReference input, Span<byte> span)
+        {
+            return span.Length >= CoinReferenceSize
+                && input.PrevHash.TryWriteBytes(span)
+                && BinaryPrimitives.TryWriteUInt16LittleEndian(span.Slice(UInt256.Size), input.PrevIndex);
+        }
+
+        public static bool TryWriteBytes(this TransactionOutput output, Span<byte> span)
+        {
+            return span.Length >= TransactionOutputSize
+                && output.AssetId.TryWriteBytes(span)
+                && BinaryPrimitives.TryWriteInt64LittleEndian(span.Slice(UInt256.Size), output.Value)
+                && output.ScriptHash.TryWriteBytes(span.Slice(UInt256.Size + sizeof(long)));
+        }
+
         public static bool TryWrite(ref this SpanWriter<byte> writer, byte value)
         {
             if (writer.Length > 0)
@@ -190,7 +205,7 @@ namespace NeoFx.Storage
         {
             if (value.TryWriteBytes(writer.Span))
             {
-                writer.Advance(CoinReference.Size);
+                writer.Advance(CoinReferenceSize);
                 return true;
             }
 
@@ -201,7 +216,7 @@ namespace NeoFx.Storage
         {
             if (value.TryWriteBytes(writer.Span))
             {
-                writer.Advance(TransactionOutput.Size);
+                writer.Advance(TransactionOutputSize);
                 return true;
             }
 

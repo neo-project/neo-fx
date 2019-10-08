@@ -34,14 +34,10 @@ namespace NeoFx
         }
 
         public static int GetVarSize(this ReadOnlyMemory<byte> value)
-        {
-            return value.Span.GetVarSize();
-        }
+            => value.Span.GetVarSize();
 
         public static int GetVarSize(this ReadOnlySpan<byte> value)
-        {
-            return GetVarSize((ulong)value.Length) + value.Length;
-        }
+            => GetVarSize((ulong)value.Length) + value.Length;
 
         public static int GetVarSize(this string value)
         {
@@ -50,9 +46,7 @@ namespace NeoFx
         }
 
         public static int GetVarSize<T>(this ReadOnlyMemory<T> memory, Func<T, int> getSize)
-        {
-            return memory.Span.GetVarSize(getSize);
-        }
+            => memory.Span.GetVarSize(getSize);
 
         public static int GetVarSize<T>(this ReadOnlySpan<T> span, Func<T, int> getSize)
         {
@@ -63,6 +57,12 @@ namespace NeoFx
             }
             return GetVarSize((ulong)span.Length) + size;
         }
+
+        public static int GetVarSize<T>(this ReadOnlyMemory<T> memory, int size)
+            => memory.Span.GetVarSize(size);
+
+        public static int GetVarSize<T>(this ReadOnlySpan<T> span, int size)
+            => GetVarSize((ulong)span.Length) + (span.Length * size);
 
         public static byte[] Base58CheckDecode(this string input)
         {
@@ -112,7 +112,7 @@ namespace NeoFx
 
         public static bool TryHash(Transaction tx, out UInt256 hash)
         {
-            using (var memBlock = MemoryPool<byte>.Shared.Rent(tx.Size))
+            using (var memBlock = MemoryPool<byte>.Shared.Rent(tx.GetSize()))
             {
                 var writer = new SpanWriter<byte>(memBlock.Memory.Span);
                 Span<byte> hashBuffer = stackalloc byte[32];
@@ -120,9 +120,9 @@ namespace NeoFx
                 if (writer.TryWrite((byte)tx.Type)
                     && writer.TryWrite(tx.Version)
                     && writer.TryWrite(tx.TransactionData.Span)
-                    && writer.TryWriteVarArray(tx.Attributes, BinaryWriter.TryWrite)
-                    && writer.TryWriteVarArray(tx.Inputs, BinaryWriter.TryWrite)
-                    && writer.TryWriteVarArray(tx.Outputs, BinaryWriter.TryWrite)
+                    && writer.TryWriteVarArray(tx.Attributes, BinaryFormat.TryWrite)
+                    && writer.TryWriteVarArray(tx.Inputs, BinaryFormat.TryWrite)
+                    && writer.TryWriteVarArray(tx.Outputs, BinaryFormat.TryWrite)
                     && TryHash256(writer.Contents, hashBuffer))
                 {
                     hash = new UInt256(hashBuffer);
