@@ -12,7 +12,7 @@ namespace NeoFx
     public static class Utility
     {
         private static readonly Lazy<SHA256> _sha256 = new Lazy<SHA256>(() => SHA256.Create());
-        private static readonly Lazy<RIPEMD160Managed> _ripemd160 = new Lazy<RIPEMD160Managed>(() => new RIPEMD160Managed());
+        private static readonly Lazy<RIPEMD160> _ripemd160 = new Lazy<RIPEMD160>(() => RIPEMD160.Create());
 
         public static int GetVarSize(ulong value)
         {
@@ -104,35 +104,21 @@ namespace NeoFx
                 && _sha256.Value.TryComputeHash(tempBuffer, hash, out var written2))
             {
                 Debug.Assert(written1 == 32 && written2 == 32);
-
                 return true;
             }
-
             return false;
         }
 
         public static bool TryHash160(ReadOnlySpan<byte> message, Span<byte> hash)
         {
-            // TODO: Update this implementation to use spans and avoid TryCopyTo once
-            //       there's a netstandard2.1 version of RIPEMD160
-            var buffer = ArrayPool<byte>.Shared.Rent(32);
-            try
+            Span<byte> tempBuffer = stackalloc byte[32];
+            if (_sha256.Value.TryComputeHash(message, tempBuffer, out var written1)
+                && _ripemd160.Value.TryComputeHash(tempBuffer, hash, out var written2))
             {
-                if (_sha256.Value.TryComputeHash(message, buffer.AsSpan().Slice(0, 32), out var written1))
-                {
-                    Debug.Assert(written1 == 32);
-                    var hashArray = _ripemd160.Value.ComputeHash(buffer, 0, 32);
-                    Debug.Assert(hashArray.Length == 20);
-
-                    return hashArray.AsSpan().TryCopyTo(hash);
-                }
-
-                return false;
+                Debug.Assert(written1 == 32 && written2 == 20);
+                return true;
             }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(buffer);
-            }
+            return false;
         }
 
         public static bool TryHash(Transaction tx, out UInt256 hash)

@@ -19,6 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="DevHawk.RIPEMD160" Version="2.0.4" />
     <PackageReference Include="SimpleBase" Version="1.8.0" />
   </ItemGroup>
 
