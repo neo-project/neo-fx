@@ -64,6 +64,23 @@ namespace NeoFx.Models
             throw new Exception();
         }
 
+        public DeployedContract(ReadOnlyMemory<byte> script, ReadOnlyMemory<byte> parameterList, byte returnType, byte contractProperties, string name, string codeVersion, string author, string email, string description)
+            : this(script, default, (ParameterType)returnType, (PropertyState)contractProperties, name, codeVersion, author, email, description)
+        {
+            if (parameterList.Length > 0)
+            {
+                // TODO: There's probably a faster way to do this by somehow casting the ReadOnlyMemory<byte> object
+                //       to a ReadOnlyMemory<ParameterType>. Find it later.
+                Span<ParameterType> buffer = stackalloc ParameterType[parameterList.Length];
+                for (int i = 0; i < parameterList.Length; i++)
+                {
+                    buffer[i] = (ParameterType)parameterList.Span[i];
+                }
+
+                ParameterList = buffer.ToArray();
+            }
+        }
+
         public DeployedContract(ReadOnlyMemory<byte> script, ReadOnlyMemory<ParameterType> parameterList, ParameterType returnType, PropertyState contractProperties, string name, string codeVersion, string author, string email, string description)
         {
             Script = script;

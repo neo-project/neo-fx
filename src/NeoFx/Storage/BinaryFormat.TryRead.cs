@@ -379,5 +379,34 @@ namespace NeoFx.Storage
             value = default;
             return false;
         }
+        
+        public static bool TryRead(ref this SequenceReader<byte> reader, out DeployedContract value)
+        {
+            if (reader.TryReadVarByteArray(out var script)
+                && reader.TryReadVarByteArray(out var parameterTypes)
+                && reader.TryRead(out byte returnType)
+                && reader.TryRead(out byte propertyState)
+                && reader.TryReadVarString(out var name)
+                && reader.TryReadVarString(out var version)
+                && reader.TryReadVarString(out var author)
+                && reader.TryReadVarString(out var email)
+                && reader.TryReadVarString(out var description))
+            {
+                value = new DeployedContract(
+                    script,
+                    parameterTypes,
+                    returnType,
+                    propertyState,
+                    name,
+                    version,
+                    author,
+                    email,
+                    description);
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
     }
 }

@@ -386,16 +386,16 @@ namespace NeoFx.RocksDb
 
         private static bool TryReadContractState(ReadOnlyMemory<byte> memory, out DeployedContract value)
         {
-            //var reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(memory));
+            var reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(memory));
 
-            //if (TryReadStateVersion(ref reader, 0)
-            //    && StorageItem.TryRead(ref reader, out var item))
-            //{
-            //    Debug.Assert(reader.Remaining == 0);
+            if (TryReadStateVersion(ref reader, 0)
+                && reader.TryRead(out DeployedContract contract))
+            {
+                Debug.Assert(reader.Remaining == 0);
 
-            //    value = item;
-            //    return true;
-            //}
+                value = contract;
+                return true;
+            }
 
             value = default;
             return false;
