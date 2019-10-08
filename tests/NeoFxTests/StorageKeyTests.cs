@@ -1,5 +1,6 @@
 ﻿using FluentAssertions;
 using NeoFx;
+using NeoFx.Models;
 using NeoFx.Storage;
 using System;
 using System.Collections.Generic;
@@ -25,14 +26,13 @@ namespace NeoFxTests
             key1.ScriptHash.Should().Be(scriptHash);
             key1.Key.Span.SequenceEqual(keyBuffer).Should().BeTrue();
 
-            var writeBuffer = new byte[key1.Size];
-            key1.TryWrite(writeBuffer).Should().BeTrue();
+            var writeBuffer = new byte[key1.GetSize()];
+            key1.TryWriteBytes(writeBuffer).Should().BeTrue();
 
-            StorageKey.TryRead(writeBuffer, out var key2).Should().BeTrue();
+            BinaryFormat.TryReadBytes(writeBuffer, out var key2).Should().BeTrue();
             key2.ScriptHash.Should().Be(scriptHash);
             key2.Key.Span.SequenceEqual(keyBuffer).Should().BeTrue();
         }
-
 
         [Fact]
         public void Test_storage_key_5()

@@ -46,6 +46,34 @@ namespace NeoFx.Storage
                 && output.ScriptHash.TryWriteBytes(span.Slice(UInt256.Size + sizeof(long)));
         }
 
+        public static bool TryWriteBytes(this StorageKey key, Span<byte> span)
+        {
+            if (span.Length >= key.GetSize() && key.ScriptHash.TryWriteBytes(span))
+            {
+                span = span.Slice(UInt160.Size);
+                var keySpan = key.Key.Span;
+
+                while (keySpan.Length >= StorageKeyBlockSize)
+                {
+                    keySpan.Slice(0, StorageKeyBlockSize).CopyTo(span);
+                    span[StorageKeyBlockSize] = 0;
+
+                    keySpan = keySpan.Slice(StorageKeyBlockSize);
+                    span = span.Slice(StorageKeyBlockSize + 1);
+                }
+
+                Debug.Assert(span.Length == StorageKeyBlockSize + 1);
+
+                keySpan.CopyTo(span);
+                span.Slice(keySpan.Length).Clear();
+                span[StorageKeyBlockSize] = (byte)(StorageKeyBlockSize - keySpan.Length);
+
+                return true;
+            }
+
+            return false;
+        }
+
         public static bool TryWrite(ref this SpanWriter<byte> writer, byte value)
         {
             if (writer.Length > 0)

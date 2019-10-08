@@ -11,7 +11,8 @@ namespace NeoFx
 {
     public static class Utility
     {
-        private static Lazy<SHA256> _sha256 = new Lazy<SHA256>(() => SHA256.Create());
+        private static readonly Lazy<SHA256> _sha256 = new Lazy<SHA256>(() => SHA256.Create());
+        private static readonly Lazy<RIPEMD160Managed> _ripemd160 = new Lazy<RIPEMD160Managed>(() => new RIPEMD160Managed());
 
         public static int GetVarSize(ulong value)
         {
@@ -103,6 +104,20 @@ namespace NeoFx
                 && _sha256.Value.TryComputeHash(tempBuffer, hash, out var written2))
             {
                 Debug.Assert(written1 == 32 && written2 == 32);
+
+                return true;
+            }
+
+            return false;
+        }
+
+        public static bool TryHash160(ReadOnlySpan<byte> message, Span<byte> hash)
+        {
+            Span<byte> tempBuffer = stackalloc byte[32];
+            if (_sha256.Value.TryComputeHash(message, tempBuffer, out var written1)
+                && _ripemd160.Value.TryComputeHash(tempBuffer, hash, out var written2))
+            {
+                Debug.Assert(written1 == 32 && written2 == 20);
 
                 return true;
             }

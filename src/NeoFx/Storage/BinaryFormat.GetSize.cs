@@ -9,6 +9,8 @@ namespace NeoFx.Storage
     {
         public const int CoinReferenceSize = sizeof(ushort) + UInt256.Size;
         public const int TransactionOutputSize = sizeof(long) + UInt256.Size + UInt160.Size;
+        public const int StorageKeyBlockSize = 16;
+
         public static int GetSize(this TransactionAttribute attribute)
             => attribute.Data.GetVarSize() + 1;
 
@@ -27,5 +29,9 @@ namespace NeoFx.Storage
             + tx.Outputs.GetVarSize(TransactionOutputSize)
             + tx.Attributes.GetVarSize(a => a.GetSize())
             + tx.Witnesses.GetVarSize(w => w.GetSize());
+
+        public static int GetSize(this StorageKey key)
+            => UInt160.Size + (((key.Key.Length / StorageKeyBlockSize) + 1) * (StorageKeyBlockSize + 1));
+
     }
 }

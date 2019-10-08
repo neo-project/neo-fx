@@ -249,7 +249,7 @@ namespace NeoFx.RocksDb
 
             static bool TryWriteKey(in StorageKey key, Span<byte> span)
             {
-                return key.TryWrite(span);
+                return key.TryWriteBytes(span);
             }
 
             if (db.TryGet(STORAGE_FAMILY, key, out StorageItem value, UInt256.Size, 2048, TryWriteKey, TryReadStorageItem))
@@ -275,7 +275,7 @@ namespace NeoFx.RocksDb
                 iterator.Seek(keyPrefix);
                 while (iterator.Valid())
                 {
-                    var keyReadResult = StorageKey.TryRead(iterator.Key(), out var key);
+                    var keyReadResult = BinaryFormat.TryReadBytes(iterator.Key(), out StorageKey key);
                     var valueReadResult = TryReadStorageItem(iterator.Value(), out var value);
 
                     Debug.Assert(keyReadResult);
@@ -287,6 +287,20 @@ namespace NeoFx.RocksDb
             }
 
             return EnumerateStorage(db, scriptHash);
+        }
+
+        public bool TryGetContract(in UInt160 key, out DeployedContract value)
+        {
+            if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
+
+            if (db.TryGet(CONTRACT_FAMILY, key, out DeployedContract contract, UInt160.Size, 2048, TryWriteUInt160Key, TryReadContractState))
+            {
+                value = contract;
+                return true;
+            }
+
+            value = default;
+            return false;
         }
 
         private static bool TryReadStateVersion(ref SequenceReader<byte> reader, byte expectedVersion)
@@ -309,6 +323,12 @@ namespace NeoFx.RocksDb
         private static bool TryWriteUInt256Key(in UInt256 key, Span<byte> span)
         {
             Debug.Assert(span.Length == UInt256.Size);
+            return key.TryWriteBytes(span);
+        }
+
+        private static bool TryWriteUInt160Key(in UInt160 key, Span<byte> span)
+        {
+            Debug.Assert(span.Length == UInt160.Size);
             return key.TryWriteBytes(span);
         }
 
@@ -352,13 +372,30 @@ namespace NeoFx.RocksDb
             var reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(memory));
 
             if (TryReadStateVersion(ref reader, 0)
-                && StorageItem.TryRead(ref reader, out var item))
+                && reader.TryRead(out StorageItem item))
             {
                 Debug.Assert(reader.Remaining == 0);
 
                 value = item;
                 return true;
             }
+
+            value = default;
+            return false;
+        }
+
+        private static bool TryReadContractState(ReadOnlyMemory<byte> memory, out DeployedContract value)
+        {
+            //var reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(memory));
+
+            //if (TryReadStateVersion(ref reader, 0)
+            //    && StorageItem.TryRead(ref reader, out var item))
+            //{
+            //    Debug.Assert(reader.Remaining == 0);
+
+            //    value = item;
+            //    return true;
+            //}
 
             value = default;
             return false;

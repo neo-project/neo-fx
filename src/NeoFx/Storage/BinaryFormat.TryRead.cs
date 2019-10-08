@@ -10,6 +10,85 @@ namespace NeoFx.Storage
 {
     public static partial class BinaryFormat
     {
+        // StorageKey.Key uses an atypical storage pattern relative to other models in NEO.
+        // The byte array is written in blocks of 16 bytes followed by a byte indicating how many
+        // bytes of the previous block were padding. Only the last block of 16 is allowed to have
+        // padding read blocks of 16 (plus 1 padding indication byte) until padding indication byte
+        // is greater than zero.
+
+        public static bool TryReadBytes(ReadOnlyMemory<byte> memory, out StorageKey value)
+        {
+            if (UInt160.TryRead(memory.Span, out var scriptHash))
+            {
+                memory = memory.Slice(UInt160.Size);
+
+                Debug.Assert((memory.Length % (StorageKeyBlockSize + 1)) == 0);
+
+                var memoryBlocks = new List<ReadOnlyMemory<byte>>(memory.Length / (StorageKeyBlockSize + 1));
+
+                while (true)
+                {
+                    if (memory.Length < StorageKeyBlockSize + 1)
+                    {
+                        value = default;
+                        return false;
+                    }
+
+                    var padding = memory.Span[StorageKeyBlockSize];
+                    if (padding > 0)
+                    {
+                        Debug.Assert(memory.Length == StorageKeyBlockSize + 1);
+                        if (padding < StorageKeyBlockSize)
+                        {
+                            memoryBlocks.Add(memory.Slice(0, StorageKeyBlockSize - padding));
+                        }
+                        break;
+                    }
+                    else
+                    {
+                        memoryBlocks.Add(memory.Slice(0, StorageKeyBlockSize));
+                        memory = memory.Slice(StorageKeyBlockSize + 1);
+                    }
+                }
+
+                Debug.Assert(memoryBlocks.Count > 0);
+
+                // if there is only a single memory block, pass it directly to the storage key ctor
+                if (memoryBlocks.Count == 1)
+                {
+                    value = new StorageKey(scriptHash, memoryBlocks[0]);
+                    return true;
+                }
+
+                Debug.Assert(memoryBlocks.Count > 1);
+
+                // if there is more than one memory block, make a pass thru the list to calculate the 
+                // total size of the buffer.
+                var size = 0;
+                for (int i = 0; i < memoryBlocks.Count; i++)
+                {
+                    size += memoryBlocks[i].Length;
+                }
+
+                // after calculating the size of the buffer, make a second pass thru the list copying
+                // the contents of each memory block into the single contigious buffer.
+                var buffer = new byte[size];
+                var position = 0;
+                for (int i = 0; i < memoryBlocks.Count; i++)
+                {
+                    var block = memoryBlocks[i];
+                    block.CopyTo(buffer.AsMemory().Slice(position, block.Length));
+                    position += block.Length;
+                }
+
+                value = new StorageKey(scriptHash, buffer);
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
+
         public static bool TryRead(ref this SequenceReader<byte> reader, out short value) =>
             reader.TryRead(sizeof(short), BinaryPrimitives.TryReadInt16LittleEndian, out value);
 
@@ -285,6 +364,19 @@ namespace NeoFx.Storage
             }
 
             tx = default;
+            return false;
+        }
+
+        public static bool TryRead(ref this SequenceReader<byte> reader, out StorageItem value)
+        {
+            if (reader.TryReadVarByteArray(out var _value)
+                && reader.TryRead(out var isConstant))
+            {
+                value = new StorageItem(_value, isConstant != 0);
+                return true;
+            }
+
+            value = default;
             return false;
         }
     }
