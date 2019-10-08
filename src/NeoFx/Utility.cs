@@ -113,16 +113,26 @@ namespace NeoFx
 
         public static bool TryHash160(ReadOnlySpan<byte> message, Span<byte> hash)
         {
-            Span<byte> tempBuffer = stackalloc byte[32];
-            if (_sha256.Value.TryComputeHash(message, tempBuffer, out var written1)
-                && _ripemd160.Value.TryComputeHash(tempBuffer, hash, out var written2))
+            // TODO: Update this implementation to use spans and avoid TryCopyTo once
+            //       there's a netstandard2.1 version of RIPEMD160
+            var buffer = ArrayPool<byte>.Shared.Rent(32);
+            try
             {
-                Debug.Assert(written1 == 32 && written2 == 20);
+                if (_sha256.Value.TryComputeHash(message, buffer.AsSpan().Slice(0, 32), out var written1))
+                {
+                    Debug.Assert(written1 == 32);
+                    var hashArray = _ripemd160.Value.ComputeHash(buffer, 0, 32);
+                    Debug.Assert(hashArray.Length == 20);
 
-                return true;
+                    return hashArray.AsSpan().TryCopyTo(hash);
+                }
+
+                return false;
             }
-
-            return false;
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buffer);
+            }
         }
 
         public static bool TryHash(Transaction tx, out UInt256 hash)
