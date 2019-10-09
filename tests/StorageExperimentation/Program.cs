@@ -69,8 +69,9 @@ namespace StorageExperimentation
             Console.WriteLine($"NEO: {storage.GoverningTokenHash}");
             Console.WriteLine($"GAS: {storage.UtilityTokenHash}");
 
-            var genesisHash = storage.GetBlockHash(0);
-            if (storage.TryGetBlock(genesisHash, out BlockHeader _, out var hashes))
+
+            if (storage.TryGetBlockHash(0, out var genesisHash)
+                && storage.TryGetBlock(genesisHash, out BlockHeader _, out var hashes))
             {
                 for (int i = 0; i < hashes.Length; i++)
                 {

@@ -15,12 +15,6 @@ namespace NeoFx.Models
         public readonly ReadOnlyMemory<TransactionOutput> Outputs;
         public readonly ReadOnlyMemory<Witness> Witnesses;
 
-        //public int Size => 2 + TransactionData.GetVarSize()
-        //    + (Inputs.Length * CoinReference.Size)
-        //    + (Outputs.Length * TransactionOutput.Size)
-        //    + Attributes.GetVarSize(a => a.Size)
-        //    + Witnesses.GetVarSize(w => w.Size);
-
         public Transaction(TransactionType type, byte version, ReadOnlyMemory<byte> transactionData, ReadOnlyMemory<TransactionAttribute> attributes = default, ReadOnlyMemory<CoinReference> inputs = default, ReadOnlyMemory<TransactionOutput> outputs = default, ReadOnlyMemory<Witness> witnesses = default)
         {
             Type = type;
