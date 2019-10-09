@@ -6,7 +6,7 @@ namespace NeoFx.Models
 {
     public readonly struct Block
     {
-        private readonly BlockHeader Header;
+        public readonly BlockHeader Header;
         public readonly ReadOnlyMemory<Transaction> Transactions;
 
         public readonly uint Version => Header.Version;
