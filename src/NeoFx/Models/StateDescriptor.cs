@@ -16,8 +16,6 @@ namespace NeoFx.Models
         public readonly string Field;
         public readonly ReadOnlyMemory<byte> Value;
 
-        //public readonly int Size => 1 + Key.GetVarSize() + Field.GetVarSize() + Value.GetVarSize();
-
         public StateDescriptor(StateType type, ReadOnlyMemory<byte> key, string field, ReadOnlyMemory<byte> value)
         {
             Type = type;

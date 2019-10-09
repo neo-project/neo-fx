@@ -58,8 +58,6 @@ namespace NeoFx.Models
         public readonly UsageType Usage;
         public readonly ReadOnlyMemory<byte> Data;
 
-        //public readonly int Size => Data.GetVarSize() + 1;
-
         public TransactionAttribute(UsageType usage, ReadOnlyMemory<byte> data)
         {
             Usage = usage;
