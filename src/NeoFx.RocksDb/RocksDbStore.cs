@@ -177,16 +177,18 @@ namespace NeoFx.RocksDb
             return false;
         }
 
-        public UInt256 GetBlockHash(uint index)
+        public bool TryGetBlockHash(uint index, out UInt256 hash)
         {
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
             if (index < blockIndex.Count)
             {
-                return blockIndex[(int)index];
+                hash = blockIndex[(int)index];
+                return true;
             }
 
-            return default;
+            hash = default;
+            return true;
         }
 
         public bool TryGetBlock(uint index, out Block block)
