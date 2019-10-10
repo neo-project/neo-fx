@@ -14,6 +14,7 @@ namespace NeoFx
     {
         private static readonly Lazy<SHA256> _sha256 = new Lazy<SHA256>(() => SHA256.Create());
         private static readonly Lazy<RIPEMD160> _ripemd160 = new Lazy<RIPEMD160>(() => RIPEMD160.Create());
+        private static readonly Lazy<Random> _random = new Lazy<Random>(() => new Random());
 
         public static int GetVarSize(ulong value)
         {
@@ -146,12 +147,13 @@ namespace NeoFx
             return false;
         }
 
-        static bool TestBit(this BigInteger bigInteger, int index)
+        #region Helper Functions for TryDecompressPoint
+        private static bool TestBit(this BigInteger bigInteger, int index)
         {
             return (bigInteger & (BigInteger.One << index)) > BigInteger.Zero;
         }
 
-        static BigInteger Mod(this BigInteger x, BigInteger y)
+        private static BigInteger Mod(this BigInteger x, BigInteger y)
         {
             x %= y;
             if (x.Sign < 0)
@@ -159,47 +161,74 @@ namespace NeoFx
             return x;
         }
 
-        private static int BitLen(int w)
+        private static int GetBitLength(this BigInteger bigInt)
         {
-            return (w < 1 << 15 ? (w < 1 << 7
-                ? (w < 1 << 3 ? (w < 1 << 1
-                ? (w < 1 << 0 ? (w < 0 ? 32 : 0) : 1)
-                : (w < 1 << 2 ? 2 : 3)) : (w < 1 << 5
-                ? (w < 1 << 4 ? 4 : 5)
-                : (w < 1 << 6 ? 6 : 7)))
-                : (w < 1 << 11
-                ? (w < 1 << 9 ? (w < 1 << 8 ? 8 : 9) : (w < 1 << 10 ? 10 : 11))
-                : (w < 1 << 13 ? (w < 1 << 12 ? 12 : 13) : (w < 1 << 14 ? 14 : 15)))) : (w < 1 << 23 ? (w < 1 << 19
-                ? (w < 1 << 17 ? (w < 1 << 16 ? 16 : 17) : (w < 1 << 18 ? 18 : 19))
-                : (w < 1 << 21 ? (w < 1 << 20 ? 20 : 21) : (w < 1 << 22 ? 22 : 23))) : (w < 1 << 27
-                ? (w < 1 << 25 ? (w < 1 << 24 ? 24 : 25) : (w < 1 << 26 ? 26 : 27))
-                : (w < 1 << 29 ? (w < 1 << 28 ? 28 : 29) : (w < 1 << 30 ? 30 : 31)))));
+            Span<byte> buffer = stackalloc byte[bigInt.GetByteCount()];
+            if (bigInt.TryWriteBytes(buffer, out var written))
+            {
+                Debug.Assert(written <= buffer.Length);
+                return GetBigIntegerBitLength(buffer, bigInt.Sign);
+            }
+
+            throw new ArgumentException(nameof(bigInt));
         }
 
-        internal static int GetBitLength(this BigInteger i)
+        private static int GetBigIntegerBitLength(Span<byte> b, int sign)
         {
-            byte[] b = i.ToByteArray();
-            return (b.Length - 1) * 8 + BitLen(i.Sign > 0 ? b[b.Length - 1] : 255 - b[b.Length - 1]);
+            static int BitLen(int w)
+            {
+                return (w < 1 << 15 ? (w < 1 << 7
+                    ? (w < 1 << 3 ? (w < 1 << 1
+                    ? (w < 1 << 0 ? (w < 0 ? 32 : 0) : 1)
+                    : (w < 1 << 2 ? 2 : 3)) : (w < 1 << 5
+                    ? (w < 1 << 4 ? 4 : 5)
+                    : (w < 1 << 6 ? 6 : 7)))
+                    : (w < 1 << 11
+                    ? (w < 1 << 9 ? (w < 1 << 8 ? 8 : 9) : (w < 1 << 10 ? 10 : 11))
+                    : (w < 1 << 13 ? (w < 1 << 12 ? 12 : 13) : (w < 1 << 14 ? 14 : 15)))) : (w < 1 << 23 ? (w < 1 << 19
+                    ? (w < 1 << 17 ? (w < 1 << 16 ? 16 : 17) : (w < 1 << 18 ? 18 : 19))
+                    : (w < 1 << 21 ? (w < 1 << 20 ? 20 : 21) : (w < 1 << 22 ? 22 : 23))) : (w < 1 << 27
+                    ? (w < 1 << 25 ? (w < 1 << 24 ? 24 : 25) : (w < 1 << 26 ? 26 : 27))
+                    : (w < 1 << 29 ? (w < 1 << 28 ? 28 : 29) : (w < 1 << 30 ? 30 : 31)))));
+            }
+
+            return ((b.Length - 1) * 8) + BitLen(sign > 0 ? b[b.Length - 1] : 255 - b[b.Length - 1]);
         }
 
-        internal static int GetLowestSetBit(this BigInteger i)
+        private static (BigInteger U, BigInteger V) FastLucasSequence(BigInteger p, BigInteger P, BigInteger Q, BigInteger k)
         {
-            if (i.Sign == 0)
-                return -1;
-            byte[] b = i.ToByteArray();
-            int w = 0;
-            while (b[w] == 0)
-                w++;
-            for (int x = 0; x < 8; x++)
-                if ((b[w] & 1 << x) > 0)
-                    return x + w * 8;
-            throw new Exception();
-        }
+            static (int bitLength, int lowestBitSet) GetBitLengthAndLowestSetBit(BigInteger bigInt)
+            {
+                Span<byte> buffer = stackalloc byte[bigInt.GetByteCount()];
+                if (bigInt.TryWriteBytes(buffer, out var written))
+                {
+                    Debug.Assert(written <= buffer.Length);
+                    var bitLength = GetBigIntegerBitLength(buffer, bigInt.Sign);
 
-        private static BigInteger[] FastLucasSequence(BigInteger p, BigInteger P, BigInteger Q, BigInteger k)
-        {
-            int n = k.GetBitLength();
-            int s = k.GetLowestSetBit();
+                    if (bigInt.Sign == 0)
+                    {
+                        return (bitLength, -1);
+                    }
+
+                    int w = 0;
+                    while (buffer[w] == 0)
+                    {
+                        w++;
+                    }
+
+                    for (int x = 0; x < 8; x++)
+                    {
+                        if ((buffer[w] & 1 << x) > 0)
+                        {
+                            return (bitLength, x + (w * 8));
+                        }
+                    }
+                }
+
+                throw new ArgumentException(nameof(bigInt));
+            }
+
+            var (n, s) = GetBitLengthAndLowestSetBit(k);
 
             Debug.Assert(k.TestBit(s));
 
@@ -217,22 +246,22 @@ namespace NeoFx
                 {
                     Qh = (Ql * Q).Mod(p);
                     Uh = (Uh * Vh).Mod(p);
-                    Vl = (Vh * Vl - P * Ql).Mod(p);
+                    Vl = ((Vh * Vl) - (P * Ql)).Mod(p);
                     Vh = ((Vh * Vh) - (Qh << 1)).Mod(p);
                 }
                 else
                 {
                     Qh = Ql;
                     Uh = (Uh * Vl - Ql).Mod(p);
-                    Vh = (Vh * Vl - P * Ql).Mod(p);
+                    Vh = (Vh * Vl - (P * Ql)).Mod(p);
                     Vl = ((Vl * Vl) - (Ql << 1)).Mod(p);
                 }
             }
 
             Ql = (Ql * Qh).Mod(p);
             Qh = (Ql * Q).Mod(p);
-            Uh = (Uh * Vl - Ql).Mod(p);
-            Vl = (Vh * Vl - P * Ql).Mod(p);
+            Uh = ((Uh * Vl) - Ql).Mod(p);
+            Vl = ((Vh * Vl) - (P * Ql)).Mod(p);
             Ql = (Ql * Qh).Mod(p);
 
             for (int j = 1; j <= s; ++j)
@@ -242,25 +271,25 @@ namespace NeoFx
                 Ql = (Ql * Ql).Mod(p);
             }
 
-            return new BigInteger[] { Uh, Vl };
+            return (Uh, Vl);
         }
 
-        internal static BigInteger NextBigInteger(this Random rand, int sizeInBits)
+        private static BigInteger NextBigInteger(int sizeInBits)
         {
             if (sizeInBits < 0)
                 throw new ArgumentException("sizeInBits must be non-negative");
             if (sizeInBits == 0)
                 return 0;
-            byte[] b = new byte[sizeInBits / 8 + 1];
-            rand.NextBytes(b);
+            Span<byte> span = stackalloc byte[(sizeInBits / 8) + 1];
+            _random.Value.NextBytes(span);
             if (sizeInBits % 8 == 0)
-                b[b.Length - 1] = 0;
+                span[span.Length - 1] = 0;
             else
-                b[b.Length - 1] &= (byte)((1 << sizeInBits % 8) - 1);
-            return new BigInteger(b);
+                span[span.Length - 1] &= (byte)((1 << sizeInBits % 8) - 1);
+            return new BigInteger(span);
         }
 
-        static bool TrySqrt(BigInteger value, BigInteger q, out BigInteger result)
+        private static bool TrySqrt(BigInteger value, BigInteger q, out BigInteger result)
         {
             static bool TryCheckSqrt(BigInteger z, BigInteger q, BigInteger value, out BigInteger result)
             {
@@ -288,25 +317,25 @@ namespace NeoFx
             {
                 result = default;
                 return false;
-
             }
+
             BigInteger u = qMinusOne >> 2;
             BigInteger k = (u << 1) + 1;
             BigInteger Q = value;
-            BigInteger fourQ = Mod((Q << 2), q);
+            BigInteger fourQ = Mod(Q << 2, q);
             BigInteger U, V;
+            var qBitLength = q.GetBitLength();
+
             do
             {
-                Random rand = new Random();
                 BigInteger P;
                 do
                 {
-                    P = rand.NextBigInteger(q.GetBitLength());
+                    P = NextBigInteger(qBitLength);
                 }
-                while (P >= q || BigInteger.ModPow(P * P - fourQ, legendreExponent, q) != qMinusOne);
-                BigInteger[] resultprime = FastLucasSequence(q, P, Q, k);
-                U = resultprime[0];
-                V = resultprime[1];
+                while (P >= q || BigInteger.ModPow((P * P) - fourQ, legendreExponent, q) != qMinusOne);
+
+                (U, V) = FastLucasSequence(q, P, Q, k);
                 if (Mod(V * V, q) == fourQ)
                 {
                     if (V.TestBit(0))
@@ -324,7 +353,6 @@ namespace NeoFx
 
             result = default;
             return false;
-
         }
 
         private static bool TryToByteArray(this BigInteger bigInteger, int expectedLength, [NotNullWhen(true)] out byte[]? buffer)
@@ -343,6 +371,7 @@ namespace NeoFx
             buffer = null;
             return false;
         }
+        #endregion
 
         private static bool TryDecompressPoint(ReadOnlySpan<byte> xSpan, int yTilde, int expectedLength, ECCurve curve, out ECPoint point)
         {
@@ -389,6 +418,9 @@ namespace NeoFx
 
             switch (span[0])
             {
+                case 0x00:
+                    point = new ECPoint();
+                    return true;
                 case 0x02:
                 case 0x03:
                     Debug.Assert(span.Length == expectedLength + 1);
@@ -408,6 +440,39 @@ namespace NeoFx
                     point = default;
                     return false;
             }
+        }
+
+        public static bool TryEncodePoint(this ECPoint point, Span<byte> span, bool compressed, out int bytesWritten)
+        {
+            if (point.X == null
+                && point.Y == null
+                && span.Length >= 1)
+            {
+                span[0] = 0;
+                bytesWritten = 1;
+                return true;
+            }
+            else if (compressed
+                && span.Length >= 33
+                && point.X.AsSpan().TryCopyTo(span.Slice(1, 32)))
+            {
+                var y = new BigInteger(point.Y, true, true);
+                span[0] = y.IsEven ? (byte)0x02 : (byte)0x03;
+                bytesWritten = 33;
+                return true;
+            }
+            else if (compressed
+                && span.Length >= 65
+                && point.X.AsSpan().TryCopyTo(span.Slice(1, 32))
+                && point.Y.AsSpan().TryCopyTo(span.Slice(33, 32)))
+            {
+                span[0] = 0x04;
+                bytesWritten = 65;
+                return true;
+            }
+
+            bytesWritten = default;
+            return false;
         }
     }
 }
