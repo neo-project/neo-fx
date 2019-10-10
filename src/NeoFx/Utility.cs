@@ -406,7 +406,7 @@ namespace NeoFx
             return false;
         }
 
-        public static bool TryDecodePoint(ReadOnlySpan<byte> span, ECCurve curve, out ECPoint point)
+        internal static bool TryDecodePoint(ReadOnlySpan<byte> span, ECCurve curve, out ECPoint point)
         {
             if (!curve.IsExplicit && curve.IsNamed)
             {
@@ -442,7 +442,7 @@ namespace NeoFx
             }
         }
 
-        public static bool TryEncodePoint(this ECPoint point, Span<byte> span, bool compressed, out int bytesWritten)
+        internal static bool TryEncodePoint(this ECPoint point, Span<byte> span, bool compressed, out int bytesWritten)
         {
             if (point.X == null
                 && point.Y == null

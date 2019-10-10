@@ -318,6 +318,33 @@ namespace NeoFx.RocksDb
             value = default;
             return false;
         }
+        public bool TryGetAccount(in UInt160 key, out Account value)
+        {
+            if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
+
+            if (db.TryGet(ACCOUNT_FAMILY, key, out Account account, UInt160.Size, 2048, TryWriteUInt160Key, TryReadAccountState))
+            {
+                value = account;
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
+
+        public bool TryGetAsset(in UInt256 key, out Asset value)
+        {
+            if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
+
+            if (db.TryGet(ASSET_FAMILY, key, out Asset asset, UInt256.Size, 2048, TryWriteUInt256Key, TryReadAssetState))
+            {
+                value = asset;
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
 
         private static bool TryReadStateVersion(ref SequenceReader<byte> reader, byte expectedVersion)
         {
@@ -410,6 +437,40 @@ namespace NeoFx.RocksDb
                 Debug.Assert(reader.Remaining == 0);
 
                 value = contract;
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
+
+        private bool TryReadAccountState(ReadOnlyMemory<byte> memory, out Account value)
+        {
+            var reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(memory));
+
+            if (TryReadStateVersion(ref reader, 0)
+                && reader.TryRead(out Account account))
+            {
+                Debug.Assert(reader.Remaining == 0);
+
+                value = account;
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
+
+        private bool TryReadAssetState(ReadOnlyMemory<byte> memory, out Asset value)
+        {
+            var reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(memory));
+
+            if (TryReadStateVersion(ref reader, 0)
+                && reader.TryRead(out Asset asset))
+            {
+                Debug.Assert(reader.Remaining == 0);
+
+                value = asset;
                 return true;
             }
 

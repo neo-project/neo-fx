@@ -10,14 +10,16 @@ namespace NeoFx.Storage
         uint Height { get; }
         public UInt256 GoverningTokenHash { get; }
         public UInt256 UtilityTokenHash { get; }
-        bool TryGetBlock(in UInt256 key, out Block block);
-        bool TryGetBlock(uint index, out Block block);
-        bool TryGetBlock(in UInt256 key, out BlockHeader header, out ReadOnlyMemory<UInt256> hashes);
-        bool TryGetBlockHash(uint index, out UInt256 hash);
-        bool TryGetTransaction(in UInt256 key, out uint index, out Transaction tx);
-        bool TryGetStorage(in StorageKey key, out StorageItem item);
-        bool TryGetContract(in UInt160 key, out DeployedContract value);
-        bool TryGetUnspentCoins(in UInt256 key, out ReadOnlyMemory<CoinState> coins);
         IEnumerable<(ReadOnlyMemory<byte> key, StorageItem item)> EnumerateStorage(in UInt160 scriptHash);
+        bool TryGetAccount(in UInt160 key, out Account value);
+        bool TryGetAsset(in UInt256 key, out Asset value);
+        bool TryGetBlock(in UInt256 key, out Block value);
+        bool TryGetBlock(uint index, out Block value);
+        bool TryGetBlock(in UInt256 key, out BlockHeader header, out ReadOnlyMemory<UInt256> hashes);
+        bool TryGetBlockHash(uint index, out UInt256 value);
+        bool TryGetContract(in UInt160 key, out DeployedContract value);
+        bool TryGetStorage(in StorageKey key, out StorageItem value);
+        bool TryGetTransaction(in UInt256 key, out uint index, out Transaction tx);
+        bool TryGetUnspentCoins(in UInt256 key, out ReadOnlyMemory<CoinState> value);
     }
 }

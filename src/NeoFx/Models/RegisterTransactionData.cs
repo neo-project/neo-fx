@@ -10,10 +10,10 @@ namespace NeoFx.Models
         public readonly string Name;
         public readonly Fixed8 Amount;
         public readonly byte Precision;
-        public readonly /*ECPoint*/ byte Owner;
+        public readonly EncodedPublicKey Owner;
         public readonly UInt160 Admin;
 
-        public RegisterTransactionData(AssetType assetType, string name, Fixed8 amount, byte precision, byte owner, UInt160 admin)
+        public RegisterTransactionData(AssetType assetType, string name, Fixed8 amount, byte precision, EncodedPublicKey owner, UInt160 admin)
         {
             AssetType = assetType;
             Name = name;

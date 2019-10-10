@@ -56,7 +56,7 @@ namespace NeoFxTests
 
 
         [Fact]
-        public void test()
+        public void CompareFxToNeo()
         {
             var buffer = new byte[testValues[0].Length / 2];
             foreach (var test in testValues)
@@ -73,5 +73,20 @@ namespace NeoFxTests
             }
         }
 
+        [Fact]
+        public void RoundTrip()
+        {
+            var buffer = new byte[testValues[0].Length / 2];
+            var newBuffer = new byte[testValues[0].Length / 2];
+            foreach (var test in testValues)
+            {
+                TryHexToBytes(test, buffer).Should().BeTrue();
+
+                NeoFx.Utility.TryDecodePoint(buffer, ECCurve.NamedCurves.nistP256, out var fxPoint).Should().BeTrue();
+                NeoFx.Utility.TryEncodePoint(fxPoint, newBuffer, true, out var bytesWritten).Should().BeTrue();
+                bytesWritten.Should().Be(newBuffer.Length);
+                buffer.AsSpan().SequenceEqual(newBuffer).Should().BeTrue();
+            }
+        }
     }
 }

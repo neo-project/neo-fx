@@ -3,6 +3,7 @@ using System;
 using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Text;
 
@@ -133,6 +134,45 @@ namespace NeoFx.Storage
 
         public static bool TryRead(ref this SequenceReader<byte> reader, out Fixed8 value) =>
             reader.TryRead(Fixed8.Size, Fixed8.TryRead, out value);
+        
+        public static bool TryRead(ref this SequenceReader<byte> reader, out EncodedPublicKey value)
+        {
+            // note, reader parameter here is purposefully *NOT* ref. TryGetEncodedPublicKeySize needs a copy it can modify
+            static bool TryGetEncodedPublicKeySize(SequenceReader<byte> reader, out int size)
+            {
+                if (reader.TryRead(out byte type))
+                {
+                    switch (type)
+                    {
+                        case 0x00:
+                            size = 1;
+                            return true;
+                        case 0x02:
+                        case 0x03:
+                            size = 33;
+                            return true;
+                        case 0x04:
+                        case 0x06:
+                        case 0x07:
+                            size = 65;
+                            return true;
+                    }
+                }
+
+                size = default;
+                return false;
+            }
+
+            if (TryGetEncodedPublicKeySize(reader, out var size)
+                && reader.TryReadByteArray(size, out var array))
+            {
+                value = new EncodedPublicKey(array);
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
 
         public static bool TryRead(ref this SequenceReader<byte> reader, out Witness value)
         {
@@ -259,7 +299,7 @@ namespace NeoFx.Storage
                 && reader.TryReadVarString(1024, out var name)
                 && reader.TryRead(out Fixed8 amount)
                 && reader.TryRead(out byte precision)
-                && reader.TryRead(out byte owner) && owner == 0
+                && reader.TryRead(out EncodedPublicKey owner) 
                 && reader.TryRead(out UInt160 admin))
             {
                 data = new RegisterTransactionData((AssetType)assetType, name, amount, precision, owner, admin);
@@ -417,6 +457,76 @@ namespace NeoFx.Storage
             if (reader.TryRead(out byte coinState))
             {
                 value = (CoinState)coinState;
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
+
+        public static bool TryRead(ref this SequenceReader<byte> reader, out Account value)
+        {
+            if (reader.TryRead(out UInt160 scriptHash)
+                && reader.TryRead(out byte isFrozen)
+                && reader.TryReadVarArray(TryRead, out ReadOnlyMemory<EncodedPublicKey> votes)
+                && reader.TryReadVarInt(out var balancesCount))
+            {
+                Debug.Assert(balancesCount < int.MaxValue);
+
+                var builder = ImmutableDictionary.CreateBuilder<UInt256, Fixed8>();
+                for (var i = 0; i < (int)balancesCount; i++)
+                {
+                    if (reader.TryRead(out UInt256 assetId)
+                        && reader.TryRead(out Fixed8 amount))
+                    {
+                        builder.Add(assetId, amount);
+                    }
+                    else
+                    {
+                        value = default;
+                        return false;
+                    }
+                }
+
+                value = new Account(scriptHash, isFrozen != 0, votes, builder.ToImmutable());
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
+
+        public static bool TryRead(ref this SequenceReader<byte> reader, out Asset value)
+        {
+            if (reader.TryRead(out UInt256 assetId)
+                && reader.TryRead(out byte assetType)
+                && reader.TryReadVarString(out var name)
+                && reader.TryRead(out Fixed8 amount)
+                && reader.TryRead(out Fixed8 available)
+                && reader.TryRead(out byte precision)
+                && reader.TryRead(out byte _) // feeMode
+                && reader.TryRead(out Fixed8 fee)
+                && reader.TryRead(out UInt160 feeAddress)
+                && reader.TryRead(out EncodedPublicKey owner)
+                && reader.TryRead(out UInt160 admin)
+                && reader.TryRead(out UInt160 issuer)
+                && reader.TryRead(out uint expiration)
+                && reader.TryRead(out byte isFrozen))
+            {
+                value = new Asset(
+                    assetId: assetId,
+                    assetType: (AssetType)assetType,
+                    name: name,
+                    amount: amount,
+                    available: available,
+                    precision: precision,
+                    fee: fee,
+                    feeAddress: feeAddress,
+                    owner: owner,
+                    admin: admin,
+                    issuer: issuer,
+                    expiration: expiration,
+                    isFrozen: isFrozen != 0);
                 return true;
             }
 
