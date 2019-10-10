@@ -21,5 +21,6 @@ namespace NeoFx.Storage
         bool TryGetStorage(in StorageKey key, out StorageItem value);
         bool TryGetTransaction(in UInt256 key, out uint index, out Transaction tx);
         bool TryGetUnspentCoins(in UInt256 key, out ReadOnlyMemory<CoinState> value);
+        bool TryGetValidator(in EncodedPublicKey key, out Validator value);
     }
 }

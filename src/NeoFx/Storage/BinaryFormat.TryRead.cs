@@ -464,6 +464,19 @@ namespace NeoFx.Storage
             return false;
         }
 
+        public static bool TryRead(ref this SequenceReader<byte> reader, out Validator value)
+        {
+            if (reader.TryRead(out EncodedPublicKey publicKey)
+                && reader.TryRead(out byte registered)
+                && reader.TryRead(out Fixed8 votes))
+            {
+                value = new Validator(publicKey, registered != 0, votes);
+                return true;
+            }
+            value = default;
+            return false;
+        }
+
         public static bool TryRead(ref this SequenceReader<byte> reader, out Account value)
         {
             if (reader.TryRead(out UInt160 scriptHash)
