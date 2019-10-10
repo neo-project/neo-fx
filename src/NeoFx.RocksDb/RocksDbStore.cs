@@ -305,6 +305,20 @@ namespace NeoFx.RocksDb
             return false;
         }
 
+        public bool TryGetUnspentCoins(in UInt256 key, out ReadOnlyMemory<CoinState> value)
+        {
+            if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
+
+            if (db.TryGet(UNSPENT_COIN_FAMILY, key, out ReadOnlyMemory<CoinState> coins, UInt256.Size, 2048, TryWriteUInt256Key, TryReadUnspentCoinsState))
+            {
+                value = coins;
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
+
         private static bool TryReadStateVersion(ref SequenceReader<byte> reader, byte expectedVersion)
         {
             if (reader.TryPeek(out var value) && value == expectedVersion)
@@ -396,6 +410,23 @@ namespace NeoFx.RocksDb
                 Debug.Assert(reader.Remaining == 0);
 
                 value = contract;
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
+
+        private bool TryReadUnspentCoinsState(ReadOnlyMemory<byte> memory, out ReadOnlyMemory<CoinState> value)
+        {
+            var reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(memory));
+
+            if (TryReadStateVersion(ref reader, 0)
+                && reader.TryReadVarArray(BinaryFormat.TryRead, out ReadOnlyMemory<CoinState> coins))
+            {
+                Debug.Assert(reader.Remaining == 0);
+
+                value = coins;
                 return true;
             }
 

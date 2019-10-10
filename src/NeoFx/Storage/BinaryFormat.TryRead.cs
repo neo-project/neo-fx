@@ -131,6 +131,9 @@ namespace NeoFx.Storage
         public static bool TryRead(ref this SequenceReader<byte> reader, out UInt256 value) =>
             reader.TryRead(UInt256.Size, UInt256.TryRead, out value);
 
+        public static bool TryRead(ref this SequenceReader<byte> reader, out Fixed8 value) =>
+            reader.TryRead(Fixed8.Size, Fixed8.TryRead, out value);
+
         public static bool TryRead(ref this SequenceReader<byte> reader, out Witness value)
         {
             if (reader.TryReadVarByteArray(65536, out ReadOnlyMemory<byte> invocationScript)
@@ -224,7 +227,7 @@ namespace NeoFx.Storage
         public static bool TryRead(ref this SequenceReader<byte> reader, out TransactionOutput value)
         {
             if (reader.TryRead(out UInt256 assetId)
-               && reader.TryRead(out long outputValue)
+               && reader.TryRead(out Fixed8 outputValue)
                && reader.TryRead(out UInt160 scriptHash))
             {
                 value = new TransactionOutput(assetId, outputValue, scriptHash);
@@ -254,7 +257,7 @@ namespace NeoFx.Storage
         {
             if (reader.TryRead(out byte assetType)
                 && reader.TryReadVarString(1024, out var name)
-                && reader.TryRead(out long amount)
+                && reader.TryRead(out Fixed8 amount)
                 && reader.TryRead(out byte precision)
                 && reader.TryRead(out byte owner) && owner == 0
                 && reader.TryRead(out UInt160 admin))
@@ -402,6 +405,18 @@ namespace NeoFx.Storage
                     author,
                     email,
                     description);
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
+
+        public static bool TryRead(ref this SequenceReader<byte> reader, out CoinState value)
+        {
+            if (reader.TryRead(out byte coinState))
+            {
+                value = (CoinState)coinState;
                 return true;
             }
 

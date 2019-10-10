@@ -17,6 +17,7 @@ namespace NeoFx.Storage
         bool TryGetTransaction(in UInt256 key, out uint index, out Transaction tx);
         bool TryGetStorage(in StorageKey key, out StorageItem item);
         bool TryGetContract(in UInt160 key, out DeployedContract value);
+        bool TryGetUnspentCoins(in UInt256 key, out ReadOnlyMemory<CoinState> coins);
         IEnumerable<(ReadOnlyMemory<byte> key, StorageItem item)> EnumerateStorage(in UInt160 scriptHash);
     }
 }

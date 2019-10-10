@@ -42,8 +42,8 @@ namespace NeoFx.Storage
         {
             return span.Length >= TransactionOutputSize
                 && output.AssetId.TryWrite(span)
-                && BinaryPrimitives.TryWriteInt64LittleEndian(span.Slice(UInt256.Size), output.Value)
-                && output.ScriptHash.TryWrite(span.Slice(UInt256.Size + sizeof(long)));
+                && output.Value.TryWrite(span.Slice(UInt256.Size))
+                && output.ScriptHash.TryWrite(span.Slice(UInt256.Size + Fixed8.Size));
         }
 
         public static bool TryWriteBytes(this StorageKey key, Span<byte> span)
