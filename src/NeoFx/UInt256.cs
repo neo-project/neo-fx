@@ -50,7 +50,7 @@ namespace NeoFx
             return false;
         }
 
-        public bool TryWriteBytes(Span<byte> buffer)
+        public bool TryWrite(Span<byte> buffer)
         {
             return buffer.Length >= Size
                 && BinaryPrimitives.TryWriteUInt64LittleEndian(buffer, data1)

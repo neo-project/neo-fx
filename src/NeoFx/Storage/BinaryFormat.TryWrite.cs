@@ -34,21 +34,21 @@ namespace NeoFx.Storage
         public static bool TryWriteBytes(this CoinReference input, Span<byte> span)
         {
             return span.Length >= CoinReferenceSize
-                && input.PrevHash.TryWriteBytes(span)
+                && input.PrevHash.TryWrite(span)
                 && BinaryPrimitives.TryWriteUInt16LittleEndian(span.Slice(UInt256.Size), input.PrevIndex);
         }
 
         public static bool TryWriteBytes(this TransactionOutput output, Span<byte> span)
         {
             return span.Length >= TransactionOutputSize
-                && output.AssetId.TryWriteBytes(span)
+                && output.AssetId.TryWrite(span)
                 && BinaryPrimitives.TryWriteInt64LittleEndian(span.Slice(UInt256.Size), output.Value)
-                && output.ScriptHash.TryWriteBytes(span.Slice(UInt256.Size + sizeof(long)));
+                && output.ScriptHash.TryWrite(span.Slice(UInt256.Size + sizeof(long)));
         }
 
         public static bool TryWriteBytes(this StorageKey key, Span<byte> span)
         {
-            if (span.Length >= key.GetSize() && key.ScriptHash.TryWriteBytes(span))
+            if (span.Length >= key.GetSize() && key.ScriptHash.TryWrite(span))
             {
                 span = span.Slice(UInt160.Size);
                 var keySpan = key.Key.Span;

@@ -226,7 +226,7 @@ namespace StorageExperimentation
 
         private static bool TryWriteUInt256(in UInt256 key, Span<byte> span)
         {
-            return key.TryWriteBytes(span);
+            return key.TryWrite(span);
         }
     }
 }
