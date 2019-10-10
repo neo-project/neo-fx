@@ -119,7 +119,7 @@ namespace NeoFx.RocksDb
             {
                 for (var i = 0; i < hashes.Length; i++)
                 {
-                    if (TryGetTransaction(hashes.Span[i], out var _, out var tx) 
+                    if (TryGetTransaction(hashes.Span[i], out var _, out var tx)
                         && tx.Type == TransactionType.Register
                         && tx.TransactionData.Length >= 1
                         && (AssetType)tx.TransactionData.Span[0] == assetType)

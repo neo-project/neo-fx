@@ -14,7 +14,7 @@ using System.Linq;
 namespace StorageExperimentation
 {
     internal static class Extensions
-    { 
+    {
         public static T Deserialize<T>(this byte[] array) where T : Neo.IO.ISerializable, new()
         {
             return Neo.IO.Helper.AsSerializable<T>(array);
@@ -27,7 +27,7 @@ namespace StorageExperimentation
         private static void Main()
         {
             var cpArchivePath = @"C:\Users\harry\Source\neo\seattle\express\src\neo-express\cp2.neo-express-checkpoint";
-                //Path.GetFullPath("./cp1.neo-express-checkpoint");
+            //Path.GetFullPath("./cp1.neo-express-checkpoint");
 
             if (!File.Exists(cpArchivePath))
             {

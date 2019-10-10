@@ -379,7 +379,7 @@ namespace NeoFx.Storage
             value = default;
             return false;
         }
-        
+
         public static bool TryRead(ref this SequenceReader<byte> reader, out DeployedContract value)
         {
             if (reader.TryReadVarByteArray(out var script)

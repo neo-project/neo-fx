@@ -125,7 +125,7 @@ namespace NeoFx.Storage
             }
             return false;
         }
-        
+
         public static bool TryWriteVarInt(this Span<byte> span, int value, out int bytesWritten)
         {
             Debug.Assert(value >= 0);
@@ -204,7 +204,7 @@ namespace NeoFx.Storage
         {
             return TryWriteVarArray(ref writer, memory.Span, tryWriteItem);
         }
-            
+
         public static bool TryWriteVarArray<T>(ref this SpanWriter<byte> writer, ReadOnlySpan<T> span, TryWriteItem<T> tryWriteItem)
         {
             if (writer.TryWriteVarInt(span.Length))
