@@ -339,31 +339,6 @@ namespace NeoFx.RocksDb
             throw new Exception();
         }
 
-        public ReadOnlyMemory<byte> GetTransactionData(in UInt256 key)
-        {
-            if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
-
-            var keyBuffer = ArrayPool<byte>.Shared.Rent(UInt256.Size);
-
-            try
-            {
-                if (TryWriteUInt256Key(key, keyBuffer))
-                {
-                    var valueBuffer = db.Get(keyBuffer, UInt256.Size, db.GetColumnFamily(TX_FAMILY));
-                    if (valueBuffer != null)
-                    {
-                        return valueBuffer.AsMemory().Slice(5);
-                    }
-                }
-
-                return default;
-            }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(keyBuffer);
-            }
-        }
-
         private static bool TryReadStateVersion(ref SequenceReader<byte> reader, byte expectedVersion)
         {
             if (reader.TryPeek(out var value) && value == expectedVersion)
