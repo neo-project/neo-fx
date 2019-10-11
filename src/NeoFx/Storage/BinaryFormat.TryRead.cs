@@ -293,23 +293,6 @@ namespace NeoFx.Storage
             return false;
         }
 
-        public static bool TryRead(ref this SequenceReader<byte> reader, out RegisterTransactionData data)
-        {
-            if (reader.TryRead(out byte assetType)
-                && reader.TryReadVarString(1024, out var name)
-                && reader.TryRead(out Fixed8 amount)
-                && reader.TryRead(out byte precision)
-                && reader.TryRead(out EncodedPublicKey owner)
-                && reader.TryRead(out UInt160 admin))
-            {
-                data = new RegisterTransactionData((AssetType)assetType, name, amount, precision, owner, admin);
-                return true;
-            }
-
-            data = default;
-            return false;
-        }
-
         public static bool TryRead(ref this SequenceReader<byte> reader, out Transaction tx)
         {
             // note, reader parameter here is purposefully *NOT* ref. TryGetTransactionDataSize needs a 
@@ -544,6 +527,36 @@ namespace NeoFx.Storage
             }
 
             value = default;
+            return false;
+        }
+
+        public static bool TryReadInvocationData(in Transaction tx, out ReadOnlyMemory<byte> script, out Fixed8 gas)
+        {
+            static bool TryReadGas(ref SequenceReader<byte> reader, byte version, out Fixed8 gas)
+            {
+                if (version >= 1)
+                {
+                    return reader.TryRead(out gas);
+                }
+
+                gas = Fixed8.Zero;
+                return true;
+            }
+
+            if (tx.Version <= 1 && tx.Type == TransactionType.Invocation)
+            {
+                var reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(tx.TransactionData));
+
+                if (reader.TryReadVarByteArray(65536, out script)
+                    && script.Length > 0
+                    && TryReadGas(ref reader, tx.Version, out gas))
+                {
+                    return true;
+                }
+            }
+
+            script = default;
+            gas = default;
             return false;
         }
     }
