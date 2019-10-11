@@ -19,5 +19,10 @@ namespace NeoFx.Models
             Votes = votes;
             Balances = balances;
         }
+
+        public Account(UInt160 scriptHash)
+            : this(scriptHash, false, default, ImmutableDictionary<UInt256, Fixed8>.Empty)
+        {
+        }
     }
 }

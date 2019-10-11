@@ -123,20 +123,32 @@ namespace NeoFx
             return false;
         }
 
-        public static bool TryHash(Transaction tx, out UInt256 hash)
+        public static bool TryWriteHashData(in Transaction tx, Span<byte> span, out int bytesWritten)
+        {
+            var writer = new SpanWriter<byte>(span);
+            if (writer.TryWrite((byte)tx.Type)
+                && writer.TryWrite(tx.Version)
+                && writer.TryWrite(tx.TransactionData.Span)
+                && writer.TryWriteVarArray(tx.Attributes, BinaryFormat.TryWrite)
+                && writer.TryWriteVarArray(tx.Inputs, BinaryFormat.TryWrite)
+                && writer.TryWriteVarArray(tx.Outputs, BinaryFormat.TryWrite))
+            {
+                bytesWritten = writer.Contents.Length;
+                return true;
+            }
+
+            bytesWritten = default;
+            return false;
+        }
+
+        public static bool TryHash(in Transaction tx, out UInt256 hash)
         {
             using (var memBlock = MemoryPool<byte>.Shared.Rent(tx.GetSize()))
             {
-                var writer = new SpanWriter<byte>(memBlock.Memory.Span);
                 Span<byte> hashBuffer = stackalloc byte[32];
 
-                if (writer.TryWrite((byte)tx.Type)
-                    && writer.TryWrite(tx.Version)
-                    && writer.TryWrite(tx.TransactionData.Span)
-                    && writer.TryWriteVarArray(tx.Attributes, BinaryFormat.TryWrite)
-                    && writer.TryWriteVarArray(tx.Inputs, BinaryFormat.TryWrite)
-                    && writer.TryWriteVarArray(tx.Outputs, BinaryFormat.TryWrite)
-                    && TryHash256(writer.Contents, hashBuffer))
+                if (TryWriteHashData(tx, memBlock.Memory.Span, out var bytesWritten)
+                    && TryHash256(memBlock.Memory.Span.Slice(0, bytesWritten), hashBuffer))
                 {
                     hash = new UInt256(hashBuffer);
                     return true;
