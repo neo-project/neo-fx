@@ -19,9 +19,29 @@ namespace NeoFx
 
         private readonly long value;
 
-        public Fixed8(long value)
+        private Fixed8(long value)
         {
             this.value = value;
+        }
+
+        public long AsRawValue() => value;
+
+        public static Fixed8 Create(long value)
+        {
+            return new Fixed8(checked(value * D));
+        }
+
+        public static Fixed8 Create(decimal value)
+        {
+            value *= D;
+            if (value < long.MinValue || value > long.MaxValue)
+                throw new OverflowException();
+            return new Fixed8((long)value);
+        }
+
+        public static Fixed8 FromRawValue(long value)
+        {
+            return new Fixed8(value);
         }
 
         public static bool TryRead(ReadOnlySpan<byte> buffer, out Fixed8 result)
@@ -39,14 +59,6 @@ namespace NeoFx
         public bool TryWrite(Span<byte> buffer)
         {
             return BinaryPrimitives.TryWriteInt64LittleEndian(buffer, value);
-        }
-
-        public static Fixed8 FromDecimal(decimal value)
-        {
-            value *= D;
-            if (value < long.MinValue || value > long.MaxValue)
-                throw new OverflowException();
-            return new Fixed8((long)value);
         }
 
         public Fixed8 Abs()
@@ -100,7 +112,7 @@ namespace NeoFx
         {
             if (decimal.TryParse(@string, NumberStyles.Float, CultureInfo.InvariantCulture, out var @decimal))
             {
-                result = FromDecimal(@decimal);
+                result = Create(@decimal);
                 return true;
             }
 

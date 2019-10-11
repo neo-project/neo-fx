@@ -134,7 +134,7 @@ namespace NeoFx.Storage
 
         public static bool TryRead(ref this SequenceReader<byte> reader, out Fixed8 value) =>
             reader.TryRead(Fixed8.Size, Fixed8.TryRead, out value);
-        
+
         public static bool TryRead(ref this SequenceReader<byte> reader, out EncodedPublicKey value)
         {
             // note, reader parameter here is purposefully *NOT* ref. TryGetEncodedPublicKeySize needs a copy it can modify
@@ -299,7 +299,7 @@ namespace NeoFx.Storage
                 && reader.TryReadVarString(1024, out var name)
                 && reader.TryRead(out Fixed8 amount)
                 && reader.TryRead(out byte precision)
-                && reader.TryRead(out EncodedPublicKey owner) 
+                && reader.TryRead(out EncodedPublicKey owner)
                 && reader.TryRead(out UInt160 admin))
             {
                 data = new RegisterTransactionData((AssetType)assetType, name, amount, precision, owner, admin);
