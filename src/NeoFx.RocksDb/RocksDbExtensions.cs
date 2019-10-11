@@ -67,6 +67,26 @@ namespace NeoFx.RocksDb
         }
 
 
+        public static bool TryGet<TValue>(
+            this RocksDb db,
+            string columnFamily,
+            byte key,
+            [MaybeNull] out TValue value,
+            int valueSize,
+            TryRead<TValue> tryReadValue)
+        {
+            var keyBuffer = ArrayPool<byte>.Shared.Rent(1);
+            try
+            {
+                keyBuffer[0] = key;
+                return db.TryGet(columnFamily, keyBuffer, 1, out value, valueSize, tryReadValue);
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(keyBuffer);
+            }
+        }
+
         public static bool TryGet<TKey, TValue>(
             this RocksDb db,
             string columnFamily,

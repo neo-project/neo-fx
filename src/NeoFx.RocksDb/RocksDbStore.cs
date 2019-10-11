@@ -172,41 +172,41 @@ namespace NeoFx.RocksDb
             return false;
         }
 
-        public bool TryGetBlock(in UInt256 key, out Block block)
+        public bool TryGetBlock(in UInt256 key, out Block value)
         {
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
-            if (db.TryGet(BLOCK_FAMILY, key, out (long systemFee, BlockHeader header, ReadOnlyMemory<UInt256> hashes) value, UInt256.Size, 2048, TryWriteUInt256Key, TryReadBlockState))
+            if (db.TryGet(BLOCK_FAMILY, key, out (long systemFee, BlockHeader header, ReadOnlyMemory<UInt256> hashes) blockState, UInt256.Size, 2048, TryWriteUInt256Key, TryReadBlockState))
             {
-                var hashes = value.hashes.Span;
+                var hashes = blockState.hashes.Span;
                 var transactions = new Transaction[hashes.Length];
                 for (int i = 0; i < hashes.Length; i++)
                 {
                     if (!TryGetTransaction(hashes[i], out var _, out transactions[i]))
                     {
-                        block = default;
+                        value = default;
                         return false;
                     }
                 }
 
-                block = new Block(value.header, transactions);
+                value = new Block(blockState.header, transactions);
                 return true;
             }
 
-            block = default;
+            value = default;
             return false;
         }
 
-        public bool TryGetBlock(uint index, out Block block)
+        public bool TryGetBlock(uint index, out Block value)
         {
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
             if (index < blockIndex.Count)
             {
-                return TryGetBlock(blockIndex[(int)index], out block);
+                return TryGetBlock(blockIndex[(int)index], out value);
             }
 
-            block = default;
+            value = default;
             return false;
         }
 
@@ -226,17 +226,17 @@ namespace NeoFx.RocksDb
             return false;
         }
 
-        public bool TryGetBlockHash(uint index, out UInt256 hash)
+        public bool TryGetBlockHash(uint index, out UInt256 value)
         {
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
             if (index < blockIndex.Count)
             {
-                hash = blockIndex[(int)index];
+                value = blockIndex[(int)index];
                 return true;
             }
 
-            hash = default;
+            value = default;
             return true;
         }
 
@@ -254,7 +254,20 @@ namespace NeoFx.RocksDb
             return false;
         }
 
-        public bool TryGetStorage(in StorageKey key, out StorageItem item)
+        public bool TryGetCurrentBlockHash(out UInt256 value)
+        {
+            if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
+
+            if (db.TryGet(METADATA_FAMILY, CURRENT_BLOCK_KEY, out (UInt256 hash, uint index) currentBlock, UInt256.Size + sizeof(uint), TryReadHashIndexState))
+            {
+                value = currentBlock.hash;
+                return true;
+            }
+            value = currentBlock.hash;
+            return true;
+        }
+
+        public bool TryGetStorage(in StorageKey key, out StorageItem value)
         {
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
@@ -263,29 +276,29 @@ namespace NeoFx.RocksDb
                 return key.TryWriteBytes(span);
             }
 
-            if (db.TryGet(STORAGE_FAMILY, key, out StorageItem value, UInt256.Size, 2048, TryWriteKey, TryReadStorageItem))
+            if (db.TryGet(STORAGE_FAMILY, key, out StorageItem item, UInt256.Size, 2048, TryWriteKey, TryReadStorageItem))
             {
-                item = value;
+                value = item;
                 return true;
             }
 
-            item = default;
+            value = default;
             return false;
         }
 
-        public bool TryGetTransaction(in UInt256 key, out uint index, out Transaction tx)
+        public bool TryGetTransaction(in UInt256 key, out uint index, out Transaction value)
         {
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
-            if (db.TryGet(TX_FAMILY, key, out (uint blockIndex, Transaction tx) value, UInt256.Size, 2048, TryWriteUInt256Key, TryReadTransactionState))
+            if (db.TryGet(TX_FAMILY, key, out (uint blockIndex, Transaction tx) txState, UInt256.Size, 2048, TryWriteUInt256Key, TryReadTransactionState))
             {
-                index = value.blockIndex;
-                tx = value.tx;
+                index = txState.blockIndex;
+                value = txState.tx;
                 return true;
             }
 
             index = default;
-            tx = default;
+            value = default;
             return false;
         }
 
@@ -336,7 +349,7 @@ namespace NeoFx.RocksDb
                 }
             }
 
-            throw new Exception();
+            throw new InvalidOperationException();
         }
 
         private static bool TryReadStateVersion(ref SequenceReader<byte> reader, byte expectedVersion)
@@ -436,6 +449,23 @@ namespace NeoFx.RocksDb
                 Debug.Assert(reader.Remaining == 0);
 
                 value = contract;
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
+
+        private static bool TryReadHashIndexState(ReadOnlyMemory<byte> memory, out (UInt256 hash, uint index) value)
+        {
+            var reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(memory));
+            if (TryReadStateVersion(ref reader, 0)
+                && reader.TryRead(out UInt256 hash)
+                && reader.TryRead(out uint index))
+            {
+                Debug.Assert(reader.Remaining == 0);
+
+                value = (hash, index);
                 return true;
             }
 

@@ -18,6 +18,7 @@ namespace NeoFx.Storage
         bool TryGetBlock(in UInt256 key, out BlockHeader header, out ReadOnlyMemory<UInt256> hashes);
         bool TryGetBlockHash(uint index, out UInt256 value);
         bool TryGetContract(in UInt160 key, out DeployedContract value);
+        bool TryGetCurrentBlockHash(out UInt256 value);
         bool TryGetStorage(in StorageKey key, out StorageItem value);
         bool TryGetTransaction(in UInt256 key, out uint index, out Transaction tx);
         bool TryGetUnspentCoins(in UInt256 key, out ReadOnlyMemory<CoinState> value);
