@@ -310,7 +310,7 @@ namespace NeoFx.Storage
                         {
                             if (reader.TryReadVarInt(out var count))
                             {
-                                size = ((int)count * CoinReferenceSize) + Utility.GetVarSize(count);
+                                size = ((int)count * CoinReferenceSize) + VarSizeHelpers.GetVarSize(count);
                                 return true;
                             }
                         }
@@ -321,7 +321,7 @@ namespace NeoFx.Storage
                         {
                             if (reader.TryReadVarInt(65536, out var scriptSize))
                             {
-                                size = (int)scriptSize + Utility.GetVarSize(scriptSize) + sizeof(long);
+                                size = (int)scriptSize + VarSizeHelpers.GetVarSize(scriptSize) + sizeof(long);
                                 return true;
                             }
                         }

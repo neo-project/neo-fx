@@ -76,7 +76,7 @@ namespace StorageExperimentation
                 for (int i = 0; i < hashes.Length; i++)
                 {
                     if (storage.TryGetTransaction(hashes.Span[i], out var _, out var tx)
-                        && Utility.TryHash(tx, out var newhash))
+                        && Helpers.TryHash(tx, out var newhash))
                     {
                         Console.WriteLine(tx.Type);
                         Console.WriteLine(hashes.Span[i]);

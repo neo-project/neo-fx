@@ -25,13 +25,13 @@ namespace NeoFx
 
         public bool TryDecode(ECCurve curve, out ECPoint point)
         {
-            return Utility.TryDecodePoint(Key.Span, curve, out point);
+            return curve.TryDecodePoint(Key.Span, out point);
         }
 
         public static bool TryEncode(ECPoint point, bool compressed, out EncodedPublicKey value)
         {
             var buffer = new byte[65];
-            if (Utility.TryEncodePoint(point, buffer, compressed, out var written))
+            if (point.TryEncodePoint(buffer, compressed, out var written))
             {
                 Debug.Assert(written < buffer.Length);
                 value = new EncodedPublicKey(buffer.AsMemory().Slice(0, written));

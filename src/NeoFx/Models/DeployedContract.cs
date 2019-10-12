@@ -56,7 +56,7 @@ namespace NeoFx.Models
         private static UInt160 CalculateScriptHash(ReadOnlyMemory<byte> script)
         {
             Span<byte> buffer = stackalloc byte[20];
-            if (Utility.TryHash160(script.Span, buffer))
+            if (Helpers.TryHash160(script.Span, buffer))
             {
                 return new UInt160(buffer);
             }

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using Xunit;
+using NeoFx;
 
 namespace NeoFxTests
 {
@@ -59,6 +60,7 @@ namespace NeoFxTests
         public void CompareFxToNeo()
         {
             var buffer = new byte[testValues[0].Length / 2];
+            var curve = ECCurve.NamedCurves.nistP256.GetExplicit();
             foreach (var test in testValues)
             {
                 TryHexToBytes(test, buffer).Should().BeTrue();
@@ -66,7 +68,7 @@ namespace NeoFxTests
                 var neoPoint = Neo.Cryptography.ECC.ECPoint.DecodePoint(buffer, Neo.Cryptography.ECC.ECCurve.Secp256r1);
                 var neoPublicKey = neoPoint.EncodePoint(false).AsSpan().Slice(1);
 
-                NeoFx.Utility.TryDecodePoint(buffer, ECCurve.NamedCurves.nistP256, out var fxPoint).Should().BeTrue();
+                curve.TryDecodePoint(buffer, out var fxPoint).Should().BeTrue();
 
                 neoPublicKey.Slice(0, 32).SequenceEqual(fxPoint.X).Should().BeTrue();
                 neoPublicKey.Slice(32, 32).SequenceEqual(fxPoint.Y).Should().BeTrue();
@@ -78,12 +80,14 @@ namespace NeoFxTests
         {
             var buffer = new byte[testValues[0].Length / 2];
             var newBuffer = new byte[testValues[0].Length / 2];
+            var curve = ECCurve.NamedCurves.nistP256.GetExplicit();
+
             foreach (var test in testValues)
             {
                 TryHexToBytes(test, buffer).Should().BeTrue();
 
-                NeoFx.Utility.TryDecodePoint(buffer, ECCurve.NamedCurves.nistP256, out var fxPoint).Should().BeTrue();
-                NeoFx.Utility.TryEncodePoint(fxPoint, newBuffer, true, out var bytesWritten).Should().BeTrue();
+                curve.TryDecodePoint(buffer, out var fxPoint).Should().BeTrue();
+                fxPoint.TryEncodePoint(newBuffer, true, out var bytesWritten).Should().BeTrue();
                 bytesWritten.Should().Be(newBuffer.Length);
                 buffer.AsSpan().SequenceEqual(newBuffer).Should().BeTrue();
             }

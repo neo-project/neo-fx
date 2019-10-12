@@ -6,7 +6,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace NeoFx
 {
-    public static class SequenceReaderExtensions
+    public static class SequenceReaderHelpers
     {
         public delegate bool TryConvert<T>(ReadOnlySpan<byte> span, out T value);
 

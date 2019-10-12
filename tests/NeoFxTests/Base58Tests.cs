@@ -18,7 +18,7 @@ namespace NeoFxTests
         {
             var @string = "AXaXZjZGA3qhQRTCsyG5uFKr9HeShgVhTF";
             var expected = Neo.Cryptography.Helper.Base58CheckDecode(@string);
-            var actual = Utility.Base58CheckDecode(@string);
+            var actual = Helpers.Base58CheckDecode(@string);
 
             actual.AsSpan().SequenceEqual(expected).Should().BeTrue();
         }
