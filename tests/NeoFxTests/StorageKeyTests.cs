@@ -15,7 +15,7 @@ namespace NeoFxTests
         {
             var r = new Random();
 
-            Span<byte> scriptHashSpan = stackalloc byte[20];
+            Span<byte> scriptHashSpan = stackalloc byte[HashHelpers.Hash160Size];
             r.NextBytes(scriptHashSpan);
             UInt160 scriptHash = new UInt160(scriptHashSpan);
 

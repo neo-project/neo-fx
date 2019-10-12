@@ -4,11 +4,15 @@ using System;
 using System.Buffers;
 using System.Diagnostics;
 using System.Security.Cryptography;
+using System.Text;
 
 namespace NeoFx
 {
-    public static class Helpers
+    public static class HashHelpers
     {
+        public const int Hash256Size = 32;
+        public const int Hash160Size = 20;
+
         private static readonly Lazy<SHA256> _sha256 = new Lazy<SHA256>(() => SHA256.Create());
         private static readonly Lazy<RIPEMD160> _ripemd160 = new Lazy<RIPEMD160>(() => RIPEMD160.Create());
 
@@ -17,12 +21,12 @@ namespace NeoFx
             var buffer = SimpleBase.Base58.Bitcoin.Decode(input);
             if (buffer.Length < 4) throw new FormatException();
 
-            Span<byte> checksumPrime = stackalloc byte[32];
+            Span<byte> checksumPrime = stackalloc byte[Hash256Size];
             if (_sha256.Value.TryComputeHash(buffer.Slice(0, buffer.Length - 4), checksumPrime, out var written))
             {
                 Debug.Assert(written == 32);
 
-                Span<byte> checksum = stackalloc byte[32];
+                Span<byte> checksum = stackalloc byte[Hash256Size];
                 if (_sha256.Value.TryComputeHash(checksumPrime, checksum, out written))
                 {
                     Debug.Assert(written == 32);
@@ -46,7 +50,7 @@ namespace NeoFx
 
         public static bool TryHash256(ReadOnlySpan<byte> message, Span<byte> hash)
         {
-            Span<byte> tempBuffer = stackalloc byte[32];
+            Span<byte> tempBuffer = stackalloc byte[Hash256Size];
             if (_sha256.Value.TryComputeHash(message, tempBuffer, out var written1)
                 && _sha256.Value.TryComputeHash(tempBuffer, hash, out var written2))
             {
@@ -58,7 +62,7 @@ namespace NeoFx
 
         public static bool TryHash160(ReadOnlySpan<byte> message, Span<byte> hash)
         {
-            Span<byte> tempBuffer = stackalloc byte[32];
+            Span<byte> tempBuffer = stackalloc byte[Hash256Size];
             if (_sha256.Value.TryComputeHash(message, tempBuffer, out var written1)
                 && _ripemd160.Value.TryComputeHash(tempBuffer, hash, out var written2))
             {
@@ -90,7 +94,7 @@ namespace NeoFx
         {
             using (var memBlock = MemoryPool<byte>.Shared.Rent(tx.GetSize()))
             {
-                Span<byte> hashBuffer = stackalloc byte[32];
+                Span<byte> hashBuffer = stackalloc byte[Hash256Size];
 
                 if (TryWriteHashData(tx, memBlock.Memory.Span, out var bytesWritten)
                     && TryHash256(memBlock.Memory.Span.Slice(0, bytesWritten), hashBuffer))
@@ -101,6 +105,24 @@ namespace NeoFx
             }
 
             hash = default;
+            return false;
+        }
+
+        public static bool TryInteropMethodHash(string methodName, out uint value)
+        {
+            Span<byte> asciiMethodName = stackalloc byte[(Encoding.ASCII.GetByteCount(methodName))];
+            var getBytesWritten = Encoding.ASCII.GetBytes(methodName, asciiMethodName);
+            Debug.Assert(getBytesWritten == asciiMethodName.Length);
+
+            Span<byte> hashBuffer = stackalloc byte[Hash256Size];
+            if (_sha256.Value.TryComputeHash(asciiMethodName, hashBuffer, out var hashBytesWritten))
+            {
+                Debug.Assert(hashBytesWritten == hashBuffer.Length);
+                value = BitConverter.ToUInt32(hashBuffer.Slice(0, sizeof(uint)));
+                return true;
+            }
+
+            value = default;
             return false;
         }
     }
