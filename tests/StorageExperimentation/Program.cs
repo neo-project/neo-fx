@@ -176,7 +176,7 @@ namespace StorageExperimentation
             RocksDb db,
             string columnFamily,
             TKey key,
-            [MaybeNull] out TValue value,
+            [MaybeNullWhen(false)] out TValue value,
             int keySize,
             int valueSize,
             TryWriteKey<TKey> tryWriteKey,
@@ -196,9 +196,7 @@ namespace StorageExperimentation
                     }
                 }
 
-#pragma warning disable CS8653 // A default expression introduces a null value for a type parameter.
-                value = default;
-#pragma warning restore CS8653 // A default expression introduces a null value for a type parameter.
+                value = default!;
                 return false;
             }
             finally

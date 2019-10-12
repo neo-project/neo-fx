@@ -10,7 +10,11 @@ namespace NeoFx
     {
         public delegate bool TryConvert<T>(ReadOnlySpan<byte> span, out T value);
 
-        public static bool TryRead<T>(ref this SequenceReader<byte> reader, int size, TryConvert<T> tryConvert, [MaybeNull] out T value)
+        public static bool TryRead<T>(
+            ref this SequenceReader<byte> reader,
+            int size,
+            TryConvert<T> tryConvert,
+            [MaybeNullWhen(false)] out T value)
         {
             bool TryConvert(ref SequenceReader<byte> _reader, ReadOnlySpan<byte> _span, out T _value)
             {
@@ -40,9 +44,7 @@ namespace NeoFx
                 }
             }
 
-#pragma warning disable CS8653 // A default expression introduces a null value for a type parameter.
-            value = default;
-#pragma warning restore CS8653 // A default expression introduces a null value for a type parameter.
+            value = default!;
             return false;
         }
 

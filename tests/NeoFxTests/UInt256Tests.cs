@@ -53,9 +53,7 @@ namespace NeoFxTests
             var a = new UInt256(
                 0x0807060504030201, 0x100f0e0d0c0b0a09,
                 0x1817161514131211, 0x201f1e1d1c1b1a19);
-#pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
-            a.Equals(null).Should().BeFalse();
-#pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
+            a.Equals(null!).Should().BeFalse();
         }
 
         [Fact]

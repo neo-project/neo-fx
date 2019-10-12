@@ -40,7 +40,7 @@ namespace NeoFx.RocksDb
             string columnFamily,
             byte[] keyBuffer,
             int keySize,
-            [MaybeNull] out TValue value,
+            [MaybeNullWhen(false)] out TValue value,
             int valueSize,
             TryRead<TValue> tryReadValue)
         {
@@ -55,9 +55,7 @@ namespace NeoFx.RocksDb
                     return tryReadValue(valueBuffer.AsMemory().Slice(0, (int)count), out value);
                 }
 
-#pragma warning disable CS8653 // A default expression introduces a null value for a type parameter.
-                value = default;
-#pragma warning restore CS8653 // A default expression introduces a null value for a type parameter.
+                value = default!;
                 return false;
             }
             finally
@@ -71,7 +69,7 @@ namespace NeoFx.RocksDb
             this RocksDb db,
             string columnFamily,
             byte key,
-            [MaybeNull] out TValue value,
+            [MaybeNullWhen(false)] out TValue value,
             int valueSize,
             TryRead<TValue> tryReadValue)
         {
@@ -91,7 +89,7 @@ namespace NeoFx.RocksDb
             this RocksDb db,
             string columnFamily,
             TKey key,
-            [MaybeNull] out TValue value,
+            [MaybeNullWhen(false)] out TValue value,
             int keySize,
             int valueSize,
             TryWriteKey<TKey> tryWriteKey,
@@ -105,9 +103,7 @@ namespace NeoFx.RocksDb
                     return db.TryGet(columnFamily, keyBuffer, keySize, out value, valueSize, tryReadValue);
                 }
 
-#pragma warning disable CS8653 // A default expression introduces a null value for a type parameter.
-                value = default;
-#pragma warning restore CS8653 // A default expression introduces a null value for a type parameter.
+                value = default!;
                 return false;
             }
             finally

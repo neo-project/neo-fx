@@ -47,9 +47,7 @@ namespace NeoFxTests
         public void Can_be_not_equal_to_null_of_same_type()
         {
             var a = new UInt160(0x0807060504030201, 0x100f0e0d0c0b0a09, 0x14131211);
-#pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
-            a.Equals(null).Should().BeFalse();
-#pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
+            a.Equals(null!).Should().BeFalse();
         }
 
         [Fact]
