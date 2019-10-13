@@ -18,9 +18,11 @@ namespace NeoFxTests
         {
             var @string = "AXaXZjZGA3qhQRTCsyG5uFKr9HeShgVhTF";
             var expected = Neo.Cryptography.Helper.Base58CheckDecode(@string);
-            var actual = HashHelpers.Base58CheckDecode(@string);
 
-            actual.AsSpan().SequenceEqual(expected).Should().BeTrue();
+            Span<byte> actual = stackalloc byte[HashHelpers.GetBase58CheckDecodeByteCount(@string)];
+            HashHelpers.TryBase58CheckDecode(@string, actual, out var written).Should().BeTrue();
+            written.Should().Be(actual.Length);
+            actual.SequenceEqual(expected).Should().BeTrue();
         }
 
         [Fact]
@@ -32,6 +34,5 @@ namespace NeoFxTests
             HashHelpers.TryInteropMethodHash(@string, out var actual).Should().BeTrue();
             actual.Should().Be(expected);
         }
-
     }
 }

@@ -16,36 +16,42 @@ namespace NeoFx
         private static readonly Lazy<SHA256> _sha256 = new Lazy<SHA256>(() => SHA256.Create());
         private static readonly Lazy<RIPEMD160> _ripemd160 = new Lazy<RIPEMD160>(() => RIPEMD160.Create());
 
-        public static byte[] Base58CheckDecode(this string input)
+        public static int GetBase58CheckDecodeByteCount(ReadOnlySpan<char> input)
         {
+            // TODO: rewrite this function when SimpleBase is updated
             var buffer = SimpleBase.Base58.Bitcoin.Decode(input);
             if (buffer.Length < 4) throw new FormatException();
+            return buffer.Length - 4;
+        }
 
-            Span<byte> checksumPrime = stackalloc byte[Hash256Size];
-            if (_sha256.Value.TryComputeHash(buffer.Slice(0, buffer.Length - 4), checksumPrime, out var written))
+        public static bool TryBase58CheckDecode(ReadOnlySpan<char> input, Span<byte> output, out int bytesWritten)
+        {
+            // TODO: rewrite this function when SimpleBase is updated
+            Span<byte> checksum = stackalloc byte[Hash256Size];
+            var buffer = SimpleBase.Base58.Bitcoin.Decode(input);
+            if (buffer.Length >= 4
+                && TryHash256(buffer.Slice(0, buffer.Length - 4), checksum)
+                && buffer.Slice(buffer.Length - 4).SequenceEqual(checksum.Slice(0, 4))
+                && buffer.Slice(0, buffer.Length - 4).TryCopyTo(output))
             {
-                Debug.Assert(written == 32);
-
-                Span<byte> checksum = stackalloc byte[Hash256Size];
-                if (_sha256.Value.TryComputeHash(checksumPrime, checksum, out written))
-                {
-                    Debug.Assert(written == 32);
-
-                    if (buffer.Slice(buffer.Length - 4).SequenceEqual(checksum.Slice(0, 4)))
-                    {
-                        return buffer.Slice(0, buffer.Length - 4).ToArray();
-                    }
-                }
+                bytesWritten = buffer.Length - 4;
+                return true;
             }
-            throw new FormatException();
+
+            bytesWritten = default;
+            return false;
         }
 
         public static UInt160 ToScriptHash(this string address)
         {
-            byte[] data = address.Base58CheckDecode();
-            if (data.Length != 21)
-                throw new FormatException();
-            return new UInt160(data.AsSpan().Slice(1));
+            Span<byte> buffer = stackalloc byte[21];
+            if (TryBase58CheckDecode(address, buffer, out var written)
+                && written == 21)
+            {
+                return new UInt160(buffer.Slice(1));
+            }
+
+            throw new ArgumentException(nameof(address));
         }
 
         public static bool TryHash256(ReadOnlySpan<byte> message, Span<byte> hash)
