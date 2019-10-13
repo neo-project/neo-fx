@@ -120,6 +120,11 @@ namespace NeoFx
             var getBytesWritten = Encoding.ASCII.GetBytes(methodName, asciiMethodName);
             Debug.Assert(getBytesWritten == asciiMethodName.Length);
 
+            return TryInteropMethodHash(asciiMethodName, out value);
+        }
+
+        public static bool TryInteropMethodHash(Span<byte> asciiMethodName, out uint value)
+        {
             Span<byte> hashBuffer = stackalloc byte[Hash256Size];
             if (_sha256.Value.TryComputeHash(asciiMethodName, hashBuffer, out var hashBytesWritten))
             {
