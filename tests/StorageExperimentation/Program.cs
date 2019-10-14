@@ -8,8 +8,11 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Drawing;
 using System.IO;
 using System.Linq;
+
+using Console = Colorful.Console;
 
 namespace StorageExperimentation
 {
@@ -69,25 +72,48 @@ namespace StorageExperimentation
             Console.WriteLine($"NEO: {storage.GoverningTokenHash}");
             Console.WriteLine($"GAS: {storage.UtilityTokenHash}");
 
+            int max = 0;
 
-            if (storage.TryGetBlockHash(0, out var genesisHash)
-                && storage.TryGetBlock(genesisHash, out BlockHeader _, out var hashes))
+            for (uint i = 0; i < storage.Height; i++)
             {
-                for (int i = 0; i < hashes.Length; i++)
+                if (storage.TryGetBlock(i, out var block))
                 {
-                    if (storage.TryGetTransaction(hashes.Span[i], out var _, out var tx))
+                    for (int j = 0; j < block.Transactions.Length; j++)
                     {
-                        Console.WriteLine(tx.GetType().FullName);
+                        max = Math.Max(max, block.Transactions.Span[j].GetSize());
                     }
-
-                    //    && HashHelpers.TryHash(tx, out var newhash))
+                    //Console.WriteLine($"{i}\t\t{block.Timestamp}");
+                    //for (var j = 0; j < block.Transactions.Length; j++)
                     //{
-                    //    Console.WriteLine(tx.Type);
-                    //    Console.WriteLine(hashes.Span[i]);
-                    //    Console.WriteLine(newhash);
+                    //    Console.WriteLine($"  {block.Transactions.Span[j].Type}");
                     //}
                 }
+                else
+                {
+                    Console.WriteLine($"TryGetBlock {i} failed", Color.Red);
+                }
             }
+
+            Console.WriteLine($"{max}", Color.Cyan);
+
+            //if (storage.TryGetBlockHash(0, out var genesisHash)
+            //    && storage.TryGetBlock(genesisHash, out BlockHeader _, out var hashes))
+            //{
+            //    for (int i = 0; i < hashes.Length; i++)
+            //    {
+            //        if (storage.TryGetTransaction(hashes.Span[i], out var _, out var tx))
+            //        {
+            //            Console.WriteLine(tx.GetType().FullName);
+            //        }
+
+            //        //    && HashHelpers.TryHash(tx, out var newhash))
+            //        //{
+            //        //    Console.WriteLine(tx.Type);
+            //        //    Console.WriteLine(hashes.Span[i]);
+            //        //    Console.WriteLine(newhash);
+            //        //}
+            //    }
+            //}
 
 
 
