@@ -277,10 +277,10 @@ namespace NeoFx.RocksDb
 
             static bool TryWriteKey(in StorageKey key, Span<byte> span)
             {
-                return key.TryWriteBytes(span);
+                return key.TryWrite(span, out var _);
             }
 
-            if (db.TryGet(STORAGE_FAMILY, key, out StorageItem item, UInt256.Size, 2048, TryWriteKey, TryReadStorageItem))
+            if (db.TryGet(STORAGE_FAMILY, key, out StorageItem item, key.GetSize(), 2048, TryWriteKey, TryReadStorageItem))
             {
                 value = item;
                 return true;

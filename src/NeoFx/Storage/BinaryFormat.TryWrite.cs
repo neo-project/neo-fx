@@ -24,9 +24,10 @@ namespace NeoFx.Storage
         //        && output.ScriptHash.TryWrite(span.Slice(UInt256.Size + Fixed8.Size));
         //}
 
-        public static bool TryWriteBytes(this StorageKey key, Span<byte> span)
+        public static bool TryWrite(this StorageKey key, Span<byte> span, out int bytesWritten)
         {
-            if (span.Length >= key.GetSize() && key.ScriptHash.TryWrite(span))
+            var keySize = key.GetSize();
+            if (span.Length >= keySize && key.ScriptHash.TryWrite(span))
             {
                 span = span.Slice(UInt160.Size);
                 var keySpan = key.Key.Span;
@@ -46,9 +47,11 @@ namespace NeoFx.Storage
                 span.Slice(keySpan.Length).Clear();
                 span[StorageKeyBlockSize] = (byte)(StorageKeyBlockSize - keySpan.Length);
 
+                bytesWritten = keySize;
                 return true;
             }
 
+            bytesWritten = default;
             return false;
         }
 
