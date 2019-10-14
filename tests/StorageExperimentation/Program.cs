@@ -26,7 +26,7 @@ namespace StorageExperimentation
 
         private static void Main()
         {
-            var cpArchivePath = @"C:\Users\harry\Source\neo\seattle\express\src\neo-express\cp2.neo-express-checkpoint";
+            var cpArchivePath = @"C:\Users\harry\Source\neo\seattle\express\src\neo-express\cponline.neo-express-checkpoint";
             //Path.GetFullPath("./cp1.neo-express-checkpoint");
 
             if (!File.Exists(cpArchivePath))
@@ -75,13 +75,17 @@ namespace StorageExperimentation
             {
                 for (int i = 0; i < hashes.Length; i++)
                 {
-                    if (storage.TryGetTransaction(hashes.Span[i], out var _, out var tx)
-                        && HashHelpers.TryHash(tx, out var newhash))
+                    if (storage.TryGetTransaction(hashes.Span[i], out var _, out var tx))
                     {
-                        Console.WriteLine(tx.Type);
-                        Console.WriteLine(hashes.Span[i]);
-                        Console.WriteLine(newhash);
+                        Console.WriteLine(tx.GetType().FullName);
                     }
+
+                    //    && HashHelpers.TryHash(tx, out var newhash))
+                    //{
+                    //    Console.WriteLine(tx.Type);
+                    //    Console.WriteLine(hashes.Span[i]);
+                    //    Console.WriteLine(newhash);
+                    //}
                 }
             }
 

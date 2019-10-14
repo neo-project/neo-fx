@@ -182,7 +182,11 @@ namespace NeoFx.RocksDb
                 var transactions = new Transaction[hashes.Length];
                 for (int i = 0; i < hashes.Length; i++)
                 {
-                    if (!TryGetTransaction(hashes[i], out var _, out transactions[i]))
+                    if (TryGetTransaction(hashes[i], out var _, out var tx))
+                    {
+                        transactions[i] = tx;
+                    }
+                    else
                     {
                         value = default;
                         return false;
@@ -286,7 +290,7 @@ namespace NeoFx.RocksDb
             return false;
         }
 
-        public bool TryGetTransaction(in UInt256 key, out uint index, out Transaction value)
+        public bool TryGetTransaction(in UInt256 key, out uint index, [NotNullWhen(true)] out Transaction? value)
         {
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
@@ -331,6 +335,20 @@ namespace NeoFx.RocksDb
         }
         #endregion
 
+        public IEnumerable<(UInt256 key, (long systemFee, BlockHeader header, ReadOnlyMemory<UInt256> hashes) blockState)> GetBlocks()
+        {
+            if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
+
+            return GetBlocks(db);
+        }
+
+        public IEnumerable<(UInt256 key, (uint blockIndex, Transaction tx) blockState)> GetTransactions()
+        {
+            if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
+
+            return GetTransactions(db);
+        }
+
         private UInt256 GetTokenHash(AssetType assetType)
         {
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
@@ -340,9 +358,8 @@ namespace NeoFx.RocksDb
                 for (var i = 0; i < hashes.Length; i++)
                 {
                     if (TryGetTransaction(hashes.Span[i], out var _, out var tx)
-                        && tx.Type == TransactionType.Register
-                        && tx.TransactionData.Length >= 1
-                        && (AssetType)tx.TransactionData.Span[0] == assetType)
+                        && tx is RegisterTransaction register
+                        && register.AssetType == assetType)
                     {
                         return hashes.Span[i];
                     }
@@ -496,7 +513,7 @@ namespace NeoFx.RocksDb
 
             if (TryReadStateVersion(ref reader, 0)
                 && reader.TryRead(out uint blockIndex)
-                && reader.TryRead(out Transaction tx))
+                && reader.TryRead(out Transaction? tx))
             {
                 Debug.Assert(reader.Remaining == 0);
                 value = (blockIndex, tx);
@@ -544,6 +561,11 @@ namespace NeoFx.RocksDb
         private static IEnumerable<(UInt256 key, (long systemFee, BlockHeader header, ReadOnlyMemory<UInt256> hashes) blockState)> GetBlocks(RocksDb db)
         {
             return db.Iterate<UInt256, (long, BlockHeader, ReadOnlyMemory<UInt256>)>(BLOCK_FAMILY, TryReadUInt256Key, TryReadBlockState);
+        }
+
+        private static IEnumerable<(UInt256 key, (uint blockIndex, Transaction tx) blockState)> GetTransactions(RocksDb db)
+        {
+            return db.Iterate<UInt256, (uint, Transaction)>(TX_FAMILY, TryReadUInt256Key, TryReadTransactionState);
         }
     }
 }

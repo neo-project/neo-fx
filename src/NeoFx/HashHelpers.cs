@@ -78,41 +78,41 @@ namespace NeoFx
             return false;
         }
 
-        public static bool TryWriteHashData(in Transaction tx, Span<byte> span, out int bytesWritten)
-        {
-            var writer = new SpanWriter<byte>(span);
-            if (writer.TryWrite((byte)tx.Type)
-                && writer.TryWrite(tx.Version)
-                && writer.TryWrite(tx.TransactionData.Span)
-                && writer.TryWriteVarArray(tx.Attributes, BinaryFormat.TryWrite)
-                && writer.TryWriteVarArray(tx.Inputs, BinaryFormat.TryWrite)
-                && writer.TryWriteVarArray(tx.Outputs, BinaryFormat.TryWrite))
-            {
-                bytesWritten = writer.Contents.Length;
-                return true;
-            }
+        //public static bool TryWriteHashData(in Transaction tx, Span<byte> span, out int bytesWritten)
+        //{
+        //    var writer = new SpanWriter<byte>(span);
+        //    if (writer.TryWrite((byte)tx.Type)
+        //        && writer.TryWrite(tx.Version)
+        //        && writer.TryWrite(tx.TransactionData.Span)
+        //        && writer.TryWriteVarArray(tx.Attributes, BinaryFormat.TryWrite)
+        //        && writer.TryWriteVarArray(tx.Inputs, BinaryFormat.TryWrite)
+        //        && writer.TryWriteVarArray(tx.Outputs, BinaryFormat.TryWrite))
+        //    {
+        //        bytesWritten = writer.Contents.Length;
+        //        return true;
+        //    }
 
-            bytesWritten = default;
-            return false;
-        }
+        //    bytesWritten = default;
+        //    return false;
+        //}
 
-        public static bool TryHash(in Transaction tx, out UInt256 hash)
-        {
-            using (var memBlock = MemoryPool<byte>.Shared.Rent(tx.GetSize()))
-            {
-                Span<byte> hashBuffer = stackalloc byte[Hash256Size];
+        //public static bool TryHash(in Transaction tx, out UInt256 hash)
+        //{
+        //    using (var memBlock = MemoryPool<byte>.Shared.Rent(tx.GetSize()))
+        //    {
+        //        Span<byte> hashBuffer = stackalloc byte[Hash256Size];
 
-                if (TryWriteHashData(tx, memBlock.Memory.Span, out var bytesWritten)
-                    && TryHash256(memBlock.Memory.Span.Slice(0, bytesWritten), hashBuffer))
-                {
-                    hash = new UInt256(hashBuffer);
-                    return true;
-                }
-            }
+        //        if (TryWriteHashData(tx, memBlock.Memory.Span, out var bytesWritten)
+        //            && TryHash256(memBlock.Memory.Span.Slice(0, bytesWritten), hashBuffer))
+        //        {
+        //            hash = new UInt256(hashBuffer);
+        //            return true;
+        //        }
+        //    }
 
-            hash = default;
-            return false;
-        }
+        //    hash = default;
+        //    return false;
+        //}
 
         public static bool TryInteropMethodHash(string methodName, out uint value)
         {

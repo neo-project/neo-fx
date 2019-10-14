@@ -1,6 +1,7 @@
 ﻿using NeoFx.Models;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 
 namespace NeoFx.Storage
@@ -20,7 +21,7 @@ namespace NeoFx.Storage
         bool TryGetContract(in UInt160 key, out DeployedContract value);
         bool TryGetCurrentBlockHash(out UInt256 value);
         bool TryGetStorage(in StorageKey key, out StorageItem value);
-        bool TryGetTransaction(in UInt256 key, out uint index, out Transaction tx);
+        bool TryGetTransaction(in UInt256 key, out uint index, [NotNullWhen(true)] out Transaction? value);
         bool TryGetUnspentCoins(in UInt256 key, out ReadOnlyMemory<CoinState> value);
         bool TryGetValidator(in EncodedPublicKey key, out Validator value);
     }
