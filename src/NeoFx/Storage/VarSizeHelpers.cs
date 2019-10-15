@@ -4,7 +4,7 @@ namespace NeoFx.Storage
 {
     public static class VarSizeHelpers
     {
-        private static int GetVarSize(ulong value)
+        public static int GetVarSize(ulong value)
         {
             if (value < 0xfd)
             {

@@ -74,6 +74,8 @@ namespace NeoFx.Storage
         public static void WriteVarString(this IBufferWriter<byte> writer, ReadOnlySpan<char> @string)
         {
             var length = System.Text.Encoding.UTF8.GetByteCount(@string);
+            writer.WriteVarInt(length);
+
             var span = writer.GetSpan(length);
             System.Text.Encoding.UTF8.GetBytes(@string, span);
             writer.Advance(length);

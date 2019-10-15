@@ -79,7 +79,10 @@ namespace NeoFx.Storage
         }
 
         public static void Write(this IBufferWriter<byte> buffer, uint value) 
-            => Write(buffer, sizeof(uint), span => BinaryPrimitives.WriteUInt32BigEndian(span, value));
+            => Write(buffer, sizeof(uint), span => BinaryPrimitives.WriteUInt32LittleEndian(span, value));
+
+        public static void Write(this IBufferWriter<byte> buffer, ushort value)
+            => Write(buffer, sizeof(ushort), span => BinaryPrimitives.WriteUInt16LittleEndian(span, value));
 
         public static void Write(this IBufferWriter<byte> buffer, byte value) 
             => Write(buffer, 1, span => span[0] = value);
