@@ -78,42 +78,30 @@ namespace NeoFx
             return false;
         }
 
-        //public static bool TryWriteHashData(in Transaction tx, Span<byte> span, out int bytesWritten)
-        //{
-        //    var writer = new SpanWriter<byte>(span);
-        //    if (writer.TryWrite((byte)tx.Type)
-        //        && writer.TryWrite(tx.Version)
-        //        && writer.TryWrite(tx.TransactionData.Span)
-        //        && writer.TryWriteVarArray(tx.Attributes, BinaryFormat.TryWrite)
-        //        && writer.TryWriteVarArray(tx.Inputs, BinaryFormat.TryWrite)
-        //        && writer.TryWriteVarArray(tx.Outputs, BinaryFormat.TryWrite))
-        //    {
-        //        bytesWritten = writer.Contents.Length;
-        //        return true;
-        //    }
+        public static void WriteHashData(in Transaction tx, IBufferWriter<byte> buffer)
+        {
+            buffer.WriteData(tx);
+            buffer.WriteVarArray(tx.Attributes.Span, BinaryFormat.Write);
+            buffer.WriteVarArray(tx.Inputs.Span, BinaryFormat.Write);
+            buffer.WriteVarArray(tx.Outputs.Span, BinaryFormat.Write);
+        }
 
-        //    bytesWritten = default;
-        //    return false;
-        //}
+        public static bool TryHash(in Transaction tx, out UInt256 hash)
+        {
+            var buffer = new ArrayBufferWriter<byte>(tx.GetSize());
+            WriteHashData(tx, buffer);
 
-        //public static bool TryHash(in Transaction tx, out UInt256 hash)
-        //{
-        //    using (var memBlock = MemoryPool<byte>.Shared.Rent(tx.GetSize()))
-        //    {
-        //        Span<byte> hashBuffer = stackalloc byte[Hash256Size];
+            Span<byte> hashBuffer = stackalloc byte[Hash256Size];
+            if (TryHash256(buffer.WrittenSpan, hashBuffer))
+            {
+                hash = new UInt256(hashBuffer);
+                return true;
+            }
 
-        //        if (TryWriteHashData(tx, memBlock.Memory.Span, out var bytesWritten)
-        //            && TryHash256(memBlock.Memory.Span.Slice(0, bytesWritten), hashBuffer))
-        //        {
-        //            hash = new UInt256(hashBuffer);
-        //            return true;
-        //        }
-        //    }
-
-        //    hash = default;
-        //    return false;
-        //}
-
+            hash = default;
+            return false;
+        }
+        
         public static bool TryInteropMethodHash(string methodName, out uint value)
         {
             Span<byte> asciiMethodName = stackalloc byte[(Encoding.ASCII.GetByteCount(methodName))];

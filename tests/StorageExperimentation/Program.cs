@@ -55,15 +55,15 @@ namespace StorageExperimentation
             RocksDBExperiment(cpTempPath);
         }
 
-        static void RunWithDB(string path, Action<RocksDb> action)
-        {
-            var options = new DbOptions()
-                .SetCreateIfMissing(false)
-                .SetCreateMissingColumnFamilies(false);
+        //static void RunWithDB(string path, Action<RocksDb> action)
+        //{
+        //    var options = new DbOptions()
+        //        .SetCreateIfMissing(false)
+        //        .SetCreateMissingColumnFamilies(false);
 
-            using var db = RocksDb.Open(options, path, ColumnFamilies);
-            action(db);
-        }
+        //    using var db = RocksDb.Open(options, path, ColumnFamilies);
+        //    action(db);
+        //}
 
         private static void RocksDBExperiment(string path)
         {
@@ -71,15 +71,28 @@ namespace StorageExperimentation
 
             for (uint i = 0; i < store.Height; i++)
             {
-                if (store.TryGetBlock(i, out var block))
+                if (store.TryGetBlockHash(i, out var blockHash)
+                    && store.TryGetBlock(blockHash, out var header, out var hashes))
                 {
-                    for (int j = 0; j < block.Transactions.Length; j++)
+                    for (int j = 0; j < hashes.Length; j++)
                     {
-                        Console.WriteLine(block.Transactions.Span[j].GetType().Name);
+                        if (store.TryGetTransaction(hashes.Span[j], out var _, out var tx)
+                            && HashHelpers.TryHash(tx, out var txHash))
+                        {
+                            Console.WriteLine($"{txHash.Equals(hashes.Span[j])} {txHash} {hashes.Span[j]}");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"TX {hashes.Span[j]}", Color.Red);
+                        }
                     }
                 }
+                else
+                {
+                    Console.WriteLine($"Block {i}", Color.Yellow);
+                }
             }
-            
+
             ;
         }
         private static void RocksDBExperimentxx(string path)

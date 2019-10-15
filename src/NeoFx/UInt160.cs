@@ -55,6 +55,12 @@ namespace NeoFx
                 && BinaryPrimitives.TryWriteUInt32LittleEndian(buffer.Slice(16), data3);
         }
 
+        public void Write(Span<byte> buffer)
+        {
+            if (!TryWrite(buffer))
+                throw new ArgumentException(nameof(buffer));
+        }
+
         public override string ToString()
         {
             return string.Create(2 + (Size * 2), this, (buffer, that) =>

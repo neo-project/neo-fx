@@ -45,7 +45,7 @@ namespace NeoFx.Storage
             throw new ArgumentException(nameof(publicKey));
         }
 
-        public static int GetTransactionDataSize(this Transaction tx)
+        public static int GetDataLength(this Transaction tx)
         {
             switch (tx)
             {
@@ -86,8 +86,39 @@ namespace NeoFx.Storage
             return 0;
         }
 
+        public static TransactionType GetTransactionType(this Transaction tx)
+        {
+            switch (tx)
+            {
+                case MinerTransaction _:
+                    return TransactionType.Miner;
+                case IssueTransaction _:
+                    return TransactionType.Issue;
+                case ContractTransaction _:
+                    return TransactionType.Contract;
+                case ClaimTransaction _:
+                    return TransactionType.Claim;
+#pragma warning disable CS0612 // Type or member is obsolete
+                case EnrollmentTransaction _:
+#pragma warning restore CS0612 // Type or member is obsolete
+                    return TransactionType.Enrollment;
+                case RegisterTransaction _:
+                    return TransactionType.Register;
+                case StateTransaction _:
+                    return TransactionType.State;
+#pragma warning disable CS0612 // Type or member is obsolete
+                case PublishTransaction _:
+#pragma warning restore CS0612 // Type or member is obsolete
+                    return TransactionType.Publish;
+                case InvocationTransaction _:
+                    return TransactionType.Invocation;
+            }
+
+            throw new ArgumentException(nameof(tx));
+        }
+
         public static int GetSize(this Transaction tx)
-            => 2 + tx.GetTransactionDataSize()
+            => 2 + tx.GetDataLength()
             + tx.Inputs.GetVarSize(CoinReferenceSize)
             + tx.Outputs.GetVarSize(TransactionOutputSize)
             + tx.Attributes.GetVarSize(a => a.GetSize())
