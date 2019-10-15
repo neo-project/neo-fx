@@ -1,18 +1,10 @@
-﻿using NeoFx.Models;
-using NeoFx.Storage;
-using System;
-using System.Buffers;
-using System.Buffers.Binary;
-using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
-using System.Numerics;
-using System.Security.Cryptography;
+﻿using System;
 
-namespace NeoFx
+namespace NeoFx.Storage
 {
     public static class VarSizeHelpers
     {
-        public static int GetVarSize(ulong value)
+        private static int GetVarSize(ulong value)
         {
             if (value < 0xfd)
             {
@@ -32,17 +24,20 @@ namespace NeoFx
             return sizeof(byte) + sizeof(ulong);
         }
 
+        public static int GetVarSize(this string value)
+            => GetVarSize(value.AsSpan());
+
+        public static int GetVarSize(this ReadOnlySpan<char> value)
+        {
+            int size = System.Text.Encoding.UTF8.GetByteCount(value);
+            return GetVarSize((ulong)size) + size;
+        }
+
         public static int GetVarSize(this ReadOnlyMemory<byte> value)
             => value.Span.GetVarSize();
 
         public static int GetVarSize(this ReadOnlySpan<byte> value)
             => GetVarSize((ulong)value.Length) + value.Length;
-
-        public static int GetVarSize(this string value)
-        {
-            int size = System.Text.Encoding.UTF8.GetByteCount(value);
-            return GetVarSize((ulong)size) + size;
-        }
 
         public static int GetVarSize<T>(this ReadOnlyMemory<T> memory, Func<T, int> getSize)
             => memory.Span.GetVarSize(getSize);

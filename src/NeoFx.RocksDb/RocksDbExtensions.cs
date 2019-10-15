@@ -111,5 +111,99 @@ namespace NeoFx.RocksDb
                 ArrayPool<byte>.Shared.Return(keyBuffer);
             }
         }
+
+
+        public static bool TryGet2<TKey>(this RocksDb db, TKey key, int keySize, TryWriteKey<TKey> tryWriteKey, byte[] value, RocksDbSharp.ColumnFamilyHandle columnFamily,  out long bytesWritten)
+        {
+            var keyBuffer = ArrayPool<byte>.Shared.Rent(keySize);
+
+            try
+            {
+                if (tryWriteKey(key, keyBuffer.AsSpan().Slice(0, keySize)))
+                {
+                    return TryGet2(db, keyBuffer, keySize, value, columnFamily, out bytesWritten);
+                }
+
+                bytesWritten = 0;
+                return false;
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(keyBuffer);
+            }
+        }
+
+        public static bool TryGet2(this RocksDb db, byte[] key, long keyLength, byte[] value, RocksDbSharp.ColumnFamilyHandle columnFamily, out long bytesWritten)
+        {
+            var readOptions = new RocksDbSharp.ReadOptions();
+            RocksDbSharp.Native.Instance.rocksdb_get_cf(db.Handle, readOptions.Handle, columnFamily.Handle,
+                key, (System.UIntPtr)keyLength, out var valueLength);
+            bytesWritten = db.Get(key, keyLength, value, 0, value.Length, columnFamily);
+            if (bytesWritten >= 0)
+            {
+                Debug.Assert(bytesWritten < value.LongLength);
+                return true;
+
+            }
+
+            return false;
+        }
+
+        public delegate (byte[] keyBuffer, int keySize) WriteKey3<TKey>(in TKey key, ArrayPool<byte> pool);
+
+        //public static bool TrySet3<TKey, TValue>(
+        //    this RocksDb db,
+        //    TKey key,
+        //    RocksDbSharp.ColumnFamilyHandle columnFamily,
+        //    WriteKey3<TKey> writeKey,
+        //    TryRead3<TValue> tryReadValue,
+        //    [MaybeNullWhen(false)] out TValue value)
+        //{
+        //    var (keyBuffer, keySize) = writeKey(key, ArrayPool<byte>.Shared);
+
+        //    try
+        //    {
+        //        return TryGet3(db, keyBuffer, keySize, columnFamily, tryReadValue, out value);
+        //    }
+        //    finally
+        //    {
+        //        ArrayPool<byte>.Shared.Return(keyBuffer);
+        //    }
+        //}
+
+public delegate bool TryReadFromSpan<TValue>(ReadOnlySpan<byte> span, out TValue value);
+
+public static unsafe bool TryGet3<T>(
+    this RocksDb db,
+    ReadOnlySpan<byte> key,
+    RocksDbSharp.ColumnFamilyHandle columnFamily,
+    TryReadFromSpan<T> tryReadValue,
+    [MaybeNullWhen(false)] out T value)
+{
+    var instance = RocksDbSharp.Native.Instance;
+    var readOptions = new RocksDbSharp.ReadOptions();
+
+    fixed (byte* pKey = key)
+    {
+        var pinnableSlice = instance.rocksdb_get_pinned_cf(db.Handle, readOptions.Handle, columnFamily.Handle, (IntPtr)pKey, (UIntPtr)key.Length);
+        var result = instance.rocksdb_pinnableslice_value(pinnableSlice, out var valueLength);
+
+        try
+        {
+            if (result != IntPtr.Zero)
+            {
+                var span = new ReadOnlySpan<byte>((byte*)result, (int)valueLength);
+                return tryReadValue(span, out value);
+            }
+
+            value = default!;
+            return false;
+        }
+        finally
+        {
+            instance.rocksdb_pinnableslice_destroy(pinnableSlice);
+        }
+    }
+}
     }
 }

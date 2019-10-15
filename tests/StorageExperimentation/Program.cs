@@ -52,7 +52,7 @@ namespace StorageExperimentation
             System.IO.Compression.ZipFile.ExtractToDirectory(cpArchivePath, cpTempPath);
             Console.WriteLine(cpTempPath);
 
-            RocksDbStoreTryGetBlockExperiment(cpTempPath);
+            RocksDBExperiment(cpTempPath);
         }
 
         static void RunWithDB(string path, Action<RocksDb> action)
@@ -64,6 +64,69 @@ namespace StorageExperimentation
             using var db = RocksDb.Open(options, path, ColumnFamilies);
             action(db);
         }
+
+        private static void RocksDBExperiment(string path)
+        {
+            var options = new DbOptions()
+                .SetCreateIfMissing(false)
+                .SetCreateMissingColumnFamilies(false);
+
+            using var db = RocksDb.Open(options, path, ColumnFamilies);
+
+            var blockIndex = GetBlocks(db)
+                .OrderBy(t => t.blockState.header.Index)
+                .Select(t => t.key)
+                .ToList();
+
+            Span<byte> keyBuffer = stackalloc byte[UInt256.Size];
+            if (blockIndex[0].TryWrite(keyBuffer)
+                && db.TryGet3<(long, BlockHeader, ReadOnlyMemory<UInt256>)>(keyBuffer, db.GetColumnFamily(BLOCK_FAMILY), TryReadBlockStateSpan, out var value))
+            {
+                Console.WriteLine(value.Item1);
+            }
+            else
+            {
+                throw new Exception();
+
+            }
+
+            ;
+        }
+
+        private static bool TryReadBlockStateSpan(ReadOnlySpan<byte> span, out (long systemFee, BlockHeader header, ReadOnlyMemory<UInt256> hashes) value)
+        {
+            return TryReadBlockState(span.ToArray().AsMemory(), out value);
+        }
+
+        private static IEnumerable<(UInt256 key, (long systemFee, BlockHeader header, ReadOnlyMemory<UInt256> hashes) blockState)> GetBlocks(RocksDb db)
+        {
+            return db.Iterate<UInt256, (long, BlockHeader, ReadOnlyMemory<UInt256>)>(BLOCK_FAMILY, TryReadUInt256Key, TryReadBlockState);
+        }
+
+        private static bool TryReadBlockState(ReadOnlyMemory<byte> memory, out (long systemFee, BlockHeader header, ReadOnlyMemory<UInt256> hashes) value)
+        {
+            //var reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(memory));
+
+            //if (TryReadStateVersion(ref reader, 0)
+            //    && reader.TryRead(out long systemFee)
+            //    && reader.TryRead(out BlockHeader header)
+            //    && reader.TryReadVarArray<UInt256>(BinaryFormat.TryRead, out var hashes))
+            //{
+            //    Debug.Assert(reader.Remaining == 0);
+            //    value = (systemFee, header, hashes);
+            //    return true;
+            //}
+
+            value = default;
+            return false;
+        }
+
+        private static bool TryReadUInt256Key(ReadOnlyMemory<byte> memory, out UInt256 key)
+        {
+            Debug.Assert(memory.Length == UInt256.Size);
+            return UInt256.TryRead(memory.Span, out key);
+        }
+
 
         private static void RocksDbStoreTryGetBlockExperiment(string path)
         {
