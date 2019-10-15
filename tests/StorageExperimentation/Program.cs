@@ -67,6 +67,23 @@ namespace StorageExperimentation
 
         private static void RocksDBExperiment(string path)
         {
+            using var store = new RocksDbStore(path);
+
+            for (uint i = 0; i < store.Height; i++)
+            {
+                if (store.TryGetBlock(i, out var block))
+                {
+                    for (int j = 0; j < block.Transactions.Length; j++)
+                    {
+                        Console.WriteLine(block.Transactions.Span[j].GetType().Name);
+                    }
+                }
+            }
+            
+            ;
+        }
+        private static void RocksDBExperimentxx(string path)
+        {
             var options = new DbOptions()
                 .SetCreateIfMissing(false)
                 .SetCreateMissingColumnFamilies(false);
@@ -80,7 +97,7 @@ namespace StorageExperimentation
 
             Span<byte> keyBuffer = stackalloc byte[UInt256.Size];
             if (blockIndex[0].TryWrite(keyBuffer)
-                && db.TryGet3<(long, BlockHeader, ReadOnlyMemory<UInt256>)>(keyBuffer, db.GetColumnFamily(BLOCK_FAMILY), TryReadBlockStateSpan, out var value))
+                && db.TryGet<(long, BlockHeader, ReadOnlyMemory<UInt256>)>(keyBuffer, db.GetColumnFamily(BLOCK_FAMILY), TryReadBlockStateSpan, out var value))
             {
                 Console.WriteLine(value.Item1);
             }
@@ -100,7 +117,8 @@ namespace StorageExperimentation
 
         private static IEnumerable<(UInt256 key, (long systemFee, BlockHeader header, ReadOnlyMemory<UInt256> hashes) blockState)> GetBlocks(RocksDb db)
         {
-            return db.Iterate<UInt256, (long, BlockHeader, ReadOnlyMemory<UInt256>)>(BLOCK_FAMILY, TryReadUInt256Key, TryReadBlockState);
+            return null!;
+            //return db.Iterate<UInt256, (long, BlockHeader, ReadOnlyMemory<UInt256>)>(BLOCK_FAMILY, TryReadUInt256Key, TryReadBlockState);
         }
 
         private static bool TryReadBlockState(ReadOnlyMemory<byte> memory, out (long systemFee, BlockHeader header, ReadOnlyMemory<UInt256> hashes) value)
