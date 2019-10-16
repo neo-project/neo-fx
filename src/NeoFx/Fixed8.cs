@@ -61,6 +61,12 @@ namespace NeoFx
             return BinaryPrimitives.TryWriteInt64LittleEndian(buffer, value);
         }
 
+        public void Write(Span<byte> buffer)
+        {
+            if (!TryWrite(buffer))
+                throw new ArgumentException(nameof(buffer));
+        }
+
         public Fixed8 Abs()
         {
             if (value >= 0) return this;

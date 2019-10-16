@@ -13,6 +13,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Colorful.Console" Version="1.2.9" />
     <PackageReference Include="murmurhash" Version="1.0.3" />
     <PackageReference Include="Neo" Version="2.10.3" />
     <PackageReference Include="RocksDbNative" Version="6.2.2" />

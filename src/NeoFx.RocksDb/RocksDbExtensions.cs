@@ -11,104 +11,79 @@ namespace NeoFx.RocksDb
 
     public static class RocksDbExtensions
     {
-        public delegate bool TryRead<T>(ReadOnlyMemory<byte> span, out T key);
-        public delegate bool TryWriteKey<TKey>(in TKey key, Span<byte> span);
+        public delegate bool TryRead<T>(ReadOnlySpan<byte> span, out T key);
+
+        private unsafe static bool TryConvert<T>(IntPtr intPtr, UIntPtr length, TryRead<T> tryReadValue,
+                                                 [MaybeNullWhen(false)] out T value)
+        {
+            if (intPtr != IntPtr.Zero)
+            {
+                var span = new ReadOnlySpan<byte>((byte*)intPtr, (int)length);
+                return tryReadValue(span, out value);
+            }
+
+            value = default!;
+            return false;
+        }
+
+        private static RocksDbSharp.Native Instance => RocksDbSharp.Native.Instance;
+        private static RocksDbSharp.ReadOptions DefaultReadOptions { get; } = new RocksDbSharp.ReadOptions();
+
+        public static bool TryGet<T>(
+            this RocksDb db,
+            ReadOnlySpan<byte> key,
+            RocksDbSharp.ColumnFamilyHandle columnFamily,
+            TryRead<T> tryReadValue,
+            [MaybeNullWhen(false)] out T value)
+        {
+            return TryGet(db, key, columnFamily, null, tryReadValue, out value);
+        }
+
+        public static unsafe bool TryGet<T>(
+            this RocksDb db,
+            ReadOnlySpan<byte> key,
+            RocksDbSharp.ColumnFamilyHandle columnFamily,
+            RocksDbSharp.ReadOptions? readOptions,
+            TryRead<T> tryReadValue,
+            [MaybeNullWhen(false)] out T value)
+        {
+            fixed (byte* keyPtr = key)
+            {
+                var pinnableSlice = Instance.rocksdb_get_pinned_cf(db.Handle, (readOptions ?? DefaultReadOptions).Handle,
+                    columnFamily.Handle, (IntPtr)keyPtr, (UIntPtr)key.Length);
+
+                try
+                {
+                    var valuePtr = Instance.rocksdb_pinnableslice_value(pinnableSlice, out var valueLength);
+                    return TryConvert(valuePtr, valueLength, tryReadValue, out value);
+                }
+                finally
+                { 
+                    Instance.rocksdb_pinnableslice_destroy(pinnableSlice);
+                }
+            }
+        }
 
         public static IEnumerable<(TKey key, TValue value)> Iterate<TKey, TValue>(
             this RocksDb db,
-            string columnFamily,
+            RocksDbSharp.ColumnFamilyHandle columnFamily,
             TryRead<TKey> tryReadKey,
             TryRead<TValue> tryReadValue)
         {
-            using var iterator = db.NewIterator(db.GetColumnFamily(columnFamily));
+            using var iterator = db.NewIterator(columnFamily);
             iterator.SeekToFirst();
             while (iterator.Valid())
             {
-                var keyReadResult = tryReadKey(iterator.Key(), out var key);
-                var valueReadResult = tryReadValue(iterator.Value(), out var value);
-
+                IntPtr keyPtr = Instance.rocksdb_iter_key(iterator.Handle, out UIntPtr keyLength);
+                var keyReadResult = TryConvert(keyPtr, keyLength, tryReadKey, out var key);
                 Debug.Assert(keyReadResult);
+
+                IntPtr valuePtr = Instance.rocksdb_iter_value(iterator.Handle, out UIntPtr valueLength);
+                var valueReadResult = TryConvert(valuePtr, valueLength, tryReadValue, out var value);
                 Debug.Assert(valueReadResult);
 
                 yield return (key, value);
                 iterator.Next();
-            }
-        }
-
-        public static bool TryGet<TValue>(
-            this RocksDb db,
-            string columnFamily,
-            byte[] keyBuffer,
-            int keySize,
-            [MaybeNullWhen(false)] out TValue value,
-            int valueSize,
-            TryRead<TValue> tryReadValue)
-        {
-            var valueBuffer = ArrayPool<byte>.Shared.Rent(valueSize);
-
-            try
-            {
-                var count = db.Get(keyBuffer, keySize, valueBuffer, 0, valueSize, db.GetColumnFamily(columnFamily));
-                if (count >= 0)
-                {
-                    Debug.Assert(count < valueSize);
-                    return tryReadValue(valueBuffer.AsMemory().Slice(0, (int)count), out value);
-                }
-
-                value = default!;
-                return false;
-            }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(valueBuffer);
-            }
-        }
-
-
-        public static bool TryGet<TValue>(
-            this RocksDb db,
-            string columnFamily,
-            byte key,
-            [MaybeNullWhen(false)] out TValue value,
-            int valueSize,
-            TryRead<TValue> tryReadValue)
-        {
-            var keyBuffer = ArrayPool<byte>.Shared.Rent(1);
-            try
-            {
-                keyBuffer[0] = key;
-                return db.TryGet(columnFamily, keyBuffer, 1, out value, valueSize, tryReadValue);
-            }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(keyBuffer);
-            }
-        }
-
-        public static bool TryGet<TKey, TValue>(
-            this RocksDb db,
-            string columnFamily,
-            TKey key,
-            [MaybeNullWhen(false)] out TValue value,
-            int keySize,
-            int valueSize,
-            TryWriteKey<TKey> tryWriteKey,
-            TryRead<TValue> tryReadValue)
-        {
-            var keyBuffer = ArrayPool<byte>.Shared.Rent(keySize);
-            try
-            {
-                if (tryWriteKey(key, keyBuffer.AsSpan().Slice(0, keySize)))
-                {
-                    return db.TryGet(columnFamily, keyBuffer, keySize, out value, valueSize, tryReadValue);
-                }
-
-                value = default!;
-                return false;
-            }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(keyBuffer);
             }
         }
     }

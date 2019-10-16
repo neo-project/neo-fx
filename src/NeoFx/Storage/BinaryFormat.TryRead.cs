@@ -5,81 +5,39 @@ using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
-using System.Text;
+using System.Diagnostics.CodeAnalysis;
 
 namespace NeoFx.Storage
 {
     public static partial class BinaryFormat
     {
-        // StorageKey.Key uses an atypical storage pattern relative to other models in NEO.
-        // The byte array is written in blocks of 16 bytes followed by a byte indicating how many
-        // bytes of the previous block were padding. Only the last block of 16 is allowed to have
-        // padding read blocks of 16 (plus 1 padding indication byte) until padding indication byte
-        // is greater than zero.
-
-        public static bool TryReadBytes(ReadOnlyMemory<byte> memory, out StorageKey value)
+        public static bool TryReadBytes(ReadOnlySpan<byte> span, out StorageKey value)
         {
-            if (UInt160.TryRead(memory.Span, out var scriptHash))
+            // StorageKey.Key uses an atypical storage pattern relative to other models in NEO.
+            // The byte array is written in blocks of 16 bytes followed by a byte indicating how many
+            // bytes of the previous block were padding. Only the last block of 16 is allowed to have
+            // padding. Read blocks of 16 (plus 1 padding indication byte) until padding indication byte
+            // is greater than zero.
+
+            if (UInt160.TryRead(span, out var scriptHash))
             {
-                memory = memory.Slice(UInt160.Size);
+                span = span.Slice(UInt160.Size);
+                var blockCount = span.Length / (StorageKeyBlockSize + 1);
 
-                Debug.Assert((memory.Length % (StorageKeyBlockSize + 1)) == 0);
+                Debug.Assert((span.Length % (StorageKeyBlockSize + 1)) == 0);
+                Debug.Assert(blockCount > 0);
 
-                var memoryBlocks = new List<ReadOnlyMemory<byte>>(memory.Length / (StorageKeyBlockSize + 1));
+                var padding = span[span.Length - 1];
+                var bufferSize = (blockCount * StorageKeyBlockSize) - padding;
+                var buffer = new byte[bufferSize];
 
-                while (true)
+                for (int i = 0; i < blockCount; i++)
                 {
-                    if (memory.Length < StorageKeyBlockSize + 1)
-                    {
-                        value = default;
-                        return false;
-                    }
-
-                    var padding = memory.Span[StorageKeyBlockSize];
-                    if (padding > 0)
-                    {
-                        Debug.Assert(memory.Length == StorageKeyBlockSize + 1);
-                        if (padding < StorageKeyBlockSize)
-                        {
-                            memoryBlocks.Add(memory.Slice(0, StorageKeyBlockSize - padding));
-                        }
-                        break;
-                    }
-                    else
-                    {
-                        memoryBlocks.Add(memory.Slice(0, StorageKeyBlockSize));
-                        memory = memory.Slice(StorageKeyBlockSize + 1);
-                    }
-                }
-
-                Debug.Assert(memoryBlocks.Count > 0);
-
-                // if there is only a single memory block, pass it directly to the storage key ctor
-                if (memoryBlocks.Count == 1)
-                {
-                    value = new StorageKey(scriptHash, memoryBlocks[0]);
-                    return true;
-                }
-
-                Debug.Assert(memoryBlocks.Count > 1);
-
-                // if there is more than one memory block, make a pass thru the list to calculate the 
-                // total size of the buffer.
-                var size = 0;
-                for (int i = 0; i < memoryBlocks.Count; i++)
-                {
-                    size += memoryBlocks[i].Length;
-                }
-
-                // after calculating the size of the buffer, make a second pass thru the list copying
-                // the contents of each memory block into the single contigious buffer.
-                var buffer = new byte[size];
-                var position = 0;
-                for (int i = 0; i < memoryBlocks.Count; i++)
-                {
-                    var block = memoryBlocks[i];
-                    block.CopyTo(buffer.AsMemory().Slice(position, block.Length));
-                    position += block.Length;
+                    var src = span.Slice(
+                        i * (StorageKeyBlockSize + 1),
+                        StorageKeyBlockSize - ((i == blockCount - 1) ? padding : 0));
+                    var dst = buffer.AsSpan().Slice(i * StorageKeyBlockSize);
+                    src.CopyTo(dst);
                 }
 
                 value = new StorageKey(scriptHash, buffer);
@@ -90,83 +48,53 @@ namespace NeoFx.Storage
             return false;
         }
 
-        public static bool TryRead(ref this SequenceReader<byte> reader, out short value) =>
+        public static bool TryRead(ref this SpanReader<byte> reader, out short value) =>
             reader.TryRead(sizeof(short), BinaryPrimitives.TryReadInt16LittleEndian, out value);
 
-        public static bool TryRead(ref this SequenceReader<byte> reader, out int value) =>
+        public static bool TryRead(ref this SpanReader<byte> reader, out int value) =>
             reader.TryRead(sizeof(int), BinaryPrimitives.TryReadInt32LittleEndian, out value);
 
-        public static bool TryRead(ref this SequenceReader<byte> reader, out long value) =>
+        public static bool TryRead(ref this SpanReader<byte> reader, out long value) =>
             reader.TryRead(sizeof(long), BinaryPrimitives.TryReadInt64LittleEndian, out value);
 
-        public static bool TryRead(ref this SequenceReader<byte> reader, out ushort value) =>
+        public static bool TryRead(ref this SpanReader<byte> reader, out ushort value) =>
             reader.TryRead(sizeof(ushort), BinaryPrimitives.TryReadUInt16LittleEndian, out value);
 
-        public static bool TryRead(ref this SequenceReader<byte> reader, out uint value) =>
+        public static bool TryRead(ref this SpanReader<byte> reader, out uint value) =>
             reader.TryRead(sizeof(uint), BinaryPrimitives.TryReadUInt32LittleEndian, out value);
 
-        public static bool TryRead(ref this SequenceReader<byte> reader, out ulong value) =>
+        public static bool TryRead(ref this SpanReader<byte> reader, out ulong value) =>
             reader.TryRead(sizeof(ulong), BinaryPrimitives.TryReadUInt64LittleEndian, out value);
 
-        public static bool TryReadBigEndian(ref this SequenceReader<byte> reader, out short value) =>
-            reader.TryRead(sizeof(short), BinaryPrimitives.TryReadInt16BigEndian, out value);
-
-        public static bool TryReadBigEndian(ref this SequenceReader<byte> reader, out int value) =>
-            reader.TryRead(sizeof(int), BinaryPrimitives.TryReadInt32BigEndian, out value);
-
-        public static bool TryReadBigEndian(ref this SequenceReader<byte> reader, out long value) =>
-            reader.TryRead(sizeof(long), BinaryPrimitives.TryReadInt64BigEndian, out value);
-
-        public static bool TryReadBigEndian(ref this SequenceReader<byte> reader, out ushort value) =>
-            reader.TryRead(sizeof(ushort), BinaryPrimitives.TryReadUInt16BigEndian, out value);
-
-        public static bool TryReadBigEndian(ref this SequenceReader<byte> reader, out uint value) =>
-            reader.TryRead(sizeof(uint), BinaryPrimitives.TryReadUInt32BigEndian, out value);
-
-        public static bool TryReadBigEndian(ref this SequenceReader<byte> reader, out ulong value) =>
-            reader.TryRead(sizeof(ulong), BinaryPrimitives.TryReadUInt64BigEndian, out value);
-
-        public static bool TryRead(ref this SequenceReader<byte> reader, out UInt160 value) =>
+        public static bool TryRead(ref this SpanReader<byte> reader, out UInt160 value) =>
             reader.TryRead(UInt160.Size, UInt160.TryRead, out value);
 
-        public static bool TryRead(ref this SequenceReader<byte> reader, out UInt256 value) =>
+        public static bool TryRead(ref this SpanReader<byte> reader, out UInt256 value) =>
             reader.TryRead(UInt256.Size, UInt256.TryRead, out value);
 
-        public static bool TryRead(ref this SequenceReader<byte> reader, out Fixed8 value) =>
+        public static bool TryRead(ref this SpanReader<byte> reader, out Fixed8 value) =>
             reader.TryRead(Fixed8.Size, Fixed8.TryRead, out value);
 
-        public static bool TryRead(ref this SequenceReader<byte> reader, out EncodedPublicKey value)
+        public static bool TryRead(ref this SpanReader<byte> reader, out EncodedPublicKey value)
         {
-            // note, reader parameter here is purposefully *NOT* ref. TryGetEncodedPublicKeySize needs a copy it can modify
-            static bool TryGetEncodedPublicKeySize(SequenceReader<byte> reader, out int size)
+            static bool TryGetBufferLength(byte type, out int length)
             {
-                if (reader.TryRead(out byte type))
+                length = type switch
                 {
-                    switch (type)
-                    {
-                        case 0x00:
-                            size = 1;
-                            return true;
-                        case 0x02:
-                        case 0x03:
-                            size = 33;
-                            return true;
-                        case 0x04:
-                        case 0x06:
-                        case 0x07:
-                            size = 65;
-                            return true;
-                    }
-                }
+                    0x00 => 1,
+                    var x when (0x02 <= x && x <= 0x03) => 33,
+                    var x when (0x04 <= x && x <= 0x06) => 65,
+                    _ => 0
+                };
 
-                size = default;
-                return false;
+                return length > 0;
             }
 
-            if (TryGetEncodedPublicKeySize(reader, out var size)
-                && reader.TryReadByteArray(size, out var array))
+            if (reader.TryPeek(out var type)
+                && TryGetBufferLength(type, out var length)
+                && reader.TryReadByteArray(length, out var key))
             {
-                value = new EncodedPublicKey(array);
+                value = new EncodedPublicKey(key);
                 return true;
             }
 
@@ -174,12 +102,12 @@ namespace NeoFx.Storage
             return false;
         }
 
-        public static bool TryRead(ref this SequenceReader<byte> reader, out Witness value)
+        public static bool TryRead(ref this SpanReader<byte> reader, out Witness value)
         {
-            if (reader.TryReadVarByteArray(65536, out ReadOnlyMemory<byte> invocationScript)
-                && reader.TryReadVarByteArray(65536, out ReadOnlyMemory<byte> verificationScript))
+            if (reader.TryReadVarArray(65536, out var invocation)
+                && reader.TryReadVarArray(65536, out var verification))
             {
-                value = new Witness(invocationScript, verificationScript);
+                value = new Witness(invocation, verification);
                 return true;
             }
 
@@ -187,7 +115,7 @@ namespace NeoFx.Storage
             return false;
         }
 
-        public static bool TryRead(ref this SequenceReader<byte> reader, out BlockHeader value)
+        public static bool TryRead(ref this SpanReader<byte> reader, out BlockHeader value)
         {
             if (reader.TryRead(out uint version)
                 && reader.TryRead(out UInt256 prevHash)
@@ -207,39 +135,53 @@ namespace NeoFx.Storage
             return false;
         }
 
-        public static bool TryRead(ref SequenceReader<byte> reader, out TransactionAttribute value)
+        private static bool TryReadAttributeData(ref SpanReader<byte> reader, TransactionAttribute.UsageType usage, [NotNullWhen(true)] out byte[]? value)
         {
-            static bool TryReadAttributeData(ref SequenceReader<byte> reader, TransactionAttribute.UsageType usage, out ReadOnlyMemory<byte> value)
+            switch (usage)
             {
-                switch (usage)
-                {
-                    case TransactionAttribute.UsageType.ContractHash:
-                    case TransactionAttribute.UsageType.Vote:
-                    case TransactionAttribute.UsageType.ECDH02:
-                    case TransactionAttribute.UsageType.ECDH03:
-                    case var _ when usage >= TransactionAttribute.UsageType.Hash1 && usage <= TransactionAttribute.UsageType.Hash15:
-                        return reader.TryReadByteArray(32, out value);
-                    case TransactionAttribute.UsageType.Script:
-                        return reader.TryReadByteArray(20, out value);
-                    case TransactionAttribute.UsageType.Description:
-                    case var _ when usage >= TransactionAttribute.UsageType.Remark:
-                        return reader.TryReadVarByteArray(ushort.MaxValue, out value);
-                    case TransactionAttribute.UsageType.DescriptionUrl:
+                case TransactionAttribute.UsageType.ContractHash:
+                case TransactionAttribute.UsageType.Vote:
+                case TransactionAttribute.UsageType.ECDH02:
+                case TransactionAttribute.UsageType.ECDH03:
+                case var _ when usage >= TransactionAttribute.UsageType.Hash1 && usage <= TransactionAttribute.UsageType.Hash15:
+                    {
+                        if (reader.TryReadByteArray(32, out var buffer))
                         {
-                            if (reader.TryRead(out byte length)
-                                && reader.TryReadByteArray(length, out var data))
-                            {
-                                value = data;
-                                return true;
-                            }
+                            value = buffer;
+                            return true;
                         }
-                        break;
-                }
-
-                value = default;
-                return false;
+                    }
+                    break;
+                case TransactionAttribute.UsageType.Script:
+                    {
+                        if (reader.TryReadByteArray(20, out var buffer))
+                        {
+                            value = buffer;
+                            return true;
+                        }
+                    }
+                    break;
+                case TransactionAttribute.UsageType.Description:
+                case var _ when usage >= TransactionAttribute.UsageType.Remark:
+                    return reader.TryReadVarArray(ushort.MaxValue, out value);
+                case TransactionAttribute.UsageType.DescriptionUrl:
+                    {
+                        if (reader.TryRead(out byte length)
+                            && reader.TryReadByteArray(length, out var data))
+                        {
+                            value = data;
+                            return true;
+                        }
+                    }
+                    break;
             }
 
+            value = default;
+            return false;
+        }
+
+        public static bool TryRead(ref SpanReader<byte> reader, out TransactionAttribute value)
+        {
             if (reader.TryRead(out byte usage)
                 && TryReadAttributeData(ref reader, (TransactionAttribute.UsageType)usage, out var data))
             {
@@ -251,7 +193,7 @@ namespace NeoFx.Storage
             return false;
         }
 
-        public static bool TryRead(ref this SequenceReader<byte> reader, out CoinReference value)
+        public static bool TryRead(ref this SpanReader<byte> reader, out CoinReference value)
         {
             if (reader.TryRead(out UInt256 prevHash)
                 && reader.TryRead(out ushort prevIndex))
@@ -264,7 +206,7 @@ namespace NeoFx.Storage
             return false;
         }
 
-        public static bool TryRead(ref this SequenceReader<byte> reader, out TransactionOutput value)
+        public static bool TryRead(ref this SpanReader<byte> reader, out TransactionOutput value)
         {
             if (reader.TryRead(out UInt256 assetId)
                && reader.TryRead(out Fixed8 outputValue)
@@ -278,12 +220,12 @@ namespace NeoFx.Storage
             return false;
         }
 
-        public static bool TryRead(ref this SequenceReader<byte> reader, out StateDescriptor descriptor)
+        public static bool TryRead(ref this SpanReader<byte> reader, out StateDescriptor descriptor)
         {
             if (reader.TryRead(out var type)
-                && reader.TryReadVarByteArray(100, out var key)
+                && reader.TryReadVarArray(100, out var key)
                 && reader.TryReadVarString(32, out var field)
-                && reader.TryReadVarByteArray(65535, out var value))
+                && reader.TryReadVarArray(65535, out var value))
             {
                 descriptor = new StateDescriptor((StateDescriptor.StateType)type, key, field, value);
                 return true;
@@ -293,109 +235,288 @@ namespace NeoFx.Storage
             return false;
         }
 
-        public static bool TryRead(ref this SequenceReader<byte> reader, out Transaction tx)
+        public static bool TryRead(ref this SpanReader<byte> reader, byte version, [NotNullWhen(true)] out MinerTransaction? tx)
         {
-            // note, reader parameter here is purposefully *NOT* ref. TryGetTransactionDataSize needs a 
-            //       copy it can modify if it needs to
-            static bool TryGetTransactionDataSize(SequenceReader<byte> reader, TransactionType type, out int size)
-            {
-                switch (type)
-                {
-                    case TransactionType.Miner:
-                        // public uint Nonce;
-                        size = sizeof(uint);
-                        return true;
-                    case TransactionType.Claim:
-                        // public CoinReference[] Claims;
-                        {
-                            if (reader.TryReadVarInt(out var count))
-                            {
-                                size = ((int)count * CoinReferenceSize) + VarSizeHelpers.GetVarSize(count);
-                                return true;
-                            }
-                        }
-                        break;
-                    case TransactionType.Invocation:
-                        // public byte[] Script;
-                        // public Fixed8 Gas;
-                        {
-                            if (reader.TryReadVarInt(65536, out var scriptSize))
-                            {
-                                size = (int)scriptSize + VarSizeHelpers.GetVarSize(scriptSize) + sizeof(long);
-                                return true;
-                            }
-                        }
-                        break;
-                    case TransactionType.Register:
-                        //public AssetType AssetType;
-                        //public string Name;
-                        //public Fixed8 Amount;
-                        //public byte Precision;
-                        //public ECPoint Owner;
-                        //public UInt160 Admin;
-                        {
-                            reader.Advance(1); // assetType
-                            if (reader.TryReadVarString(1024, out var name))
-                            {
-                                reader.Advance(sizeof(long) + 1); // amount + precision
-                                if (reader.TryRead(out var ecPointType) && ecPointType == 0)
-                                {
-                                    size = 3 // assetType, precision, Owner
-                                        + sizeof(long) // amount
-                                        + UInt160.Size // admin
-                                        + name.GetVarSize();
-                                    return true;
-                                }
-                            }
-                        }
-                        break;
-                    case TransactionType.State:
-                        // public StateDescriptor[] Descriptors;
-                        {
-                            var startRemaining = reader.Remaining;
-                            if (reader.TryReadVarArray<StateDescriptor>(BinaryFormat.TryRead, out var _))
-                            {
-                                Debug.Assert((startRemaining - reader.Remaining) <= int.MaxValue);
-                                size = (int)(startRemaining - reader.Remaining);
-                                return true;
-                            }
-                        }
-                        break;
-                    // these transactions have no transaction type specific data
-                    case TransactionType.Contract:
-                    case TransactionType.Issue:
-                        size = 0;
-                        return true;
-                    // these transactions are obsolete so haven't been implemented yet
-                    case TransactionType.Enrollment:
-                    case TransactionType.Publish:
-                        break;
-                }
-
-                size = default;
-                return false;
-            }
-
-            if (reader.TryRead(out byte type)
-                && reader.TryRead(out byte version)
-                && TryGetTransactionDataSize(reader, (TransactionType)type, out int dataSize)
-                && reader.TryReadByteArray(dataSize, out var data)
+            if (reader.TryRead(out uint nonce)
                 && reader.TryReadVarArray<TransactionAttribute>(TryRead, out var attributes)
                 && reader.TryReadVarArray<CoinReference>(TryRead, out var inputs)
                 && reader.TryReadVarArray<TransactionOutput>(TryRead, out var outputs)
                 && reader.TryReadVarArray<Witness>(TryRead, out var witnesses))
             {
-                tx = new Transaction((TransactionType)type, version, data, attributes, inputs, outputs, witnesses);
+                tx = new MinerTransaction(nonce, version, attributes, inputs, outputs, witnesses);
                 return true;
             }
 
-            tx = default;
+            tx = null;
             return false;
         }
 
-        public static bool TryRead(ref this SequenceReader<byte> reader, out StorageItem value)
+        public static bool TryRead(ref this SpanReader<byte> reader, byte version, [NotNullWhen(true)] out IssueTransaction? tx)
         {
-            if (reader.TryReadVarByteArray(out var _value)
+            if (reader.TryReadVarArray<TransactionAttribute>(TryRead, out var attributes)
+                && reader.TryReadVarArray<CoinReference>(TryRead, out var inputs)
+                && reader.TryReadVarArray<TransactionOutput>(TryRead, out var outputs)
+                && reader.TryReadVarArray<Witness>(TryRead, out var witnesses))
+            {
+                tx = new IssueTransaction(version, attributes, inputs, outputs, witnesses);
+                return true;
+            }
+
+            tx = null;
+            return false;
+        }
+
+        public static bool TryRead(ref this SpanReader<byte> reader, byte version, [NotNullWhen(true)] out ClaimTransaction? tx)
+        {
+            if (reader.TryReadVarArray<CoinReference>(TryRead, out var claims)
+                && reader.TryReadVarArray<TransactionAttribute>(TryRead, out var attributes)
+                && reader.TryReadVarArray<CoinReference>(TryRead, out var inputs)
+                && reader.TryReadVarArray<TransactionOutput>(TryRead, out var outputs)
+                && reader.TryReadVarArray<Witness>(TryRead, out var witnesses))
+            {
+                tx = new ClaimTransaction(claims, version, attributes, inputs, outputs, witnesses);
+                return true;
+            }
+
+            tx = null;
+            return false;
+        }
+
+        public static bool TryRead(ref this SpanReader<byte> reader, byte version, [NotNullWhen(true)] out RegisterTransaction? tx)
+        {
+            if (reader.TryRead(out byte assetType)
+                && reader.TryReadVarString(1024, out var name)
+                && reader.TryRead(out Fixed8 amount)
+                && reader.TryRead(out byte precision)
+                && reader.TryRead(out EncodedPublicKey owner)
+                && reader.TryRead(out UInt160 admin)
+                && reader.TryReadVarArray<TransactionAttribute>(TryRead, out var attributes)
+                && reader.TryReadVarArray<CoinReference>(TryRead, out var inputs)
+                && reader.TryReadVarArray<TransactionOutput>(TryRead, out var outputs)
+                && reader.TryReadVarArray<Witness>(TryRead, out var witnesses))
+            {
+                tx = new RegisterTransaction((AssetType)assetType, name, amount, precision, owner, admin, version,
+                                             attributes, inputs, outputs, witnesses);
+                return true;
+            }
+
+            tx = null;
+            return false;
+        }
+
+        public static bool TryRead(ref this SpanReader<byte> reader, byte version, [NotNullWhen(true)] out ContractTransaction? tx)
+        {
+            if (reader.TryReadVarArray<TransactionAttribute>(TryRead, out var attributes)
+                && reader.TryReadVarArray<CoinReference>(TryRead, out var inputs)
+                && reader.TryReadVarArray<TransactionOutput>(TryRead, out var outputs)
+                && reader.TryReadVarArray<Witness>(TryRead, out var witnesses))
+            {
+                tx = new ContractTransaction(version, attributes, inputs, outputs, witnesses);
+                return true;
+            }
+
+            tx = null;
+            return false;
+        }
+
+        public static bool TryRead(ref this SpanReader<byte> reader, byte version, [NotNullWhen(true)] out InvocationTransaction? tx)
+        {
+            if (reader.TryReadVarArray(65536, out var script)
+                && reader.TryRead(out Fixed8 gas)
+                && reader.TryReadVarArray<TransactionAttribute>(TryRead, out var attributes)
+                && reader.TryReadVarArray<CoinReference>(TryRead, out var inputs)
+                && reader.TryReadVarArray<TransactionOutput>(TryRead, out var outputs)
+                && reader.TryReadVarArray<Witness>(TryRead, out var witnesses))
+            {
+                tx = new InvocationTransaction(script, gas, version, attributes, inputs, outputs, witnesses);
+                return true;
+            }
+
+            tx = null;
+            return false;
+        }
+
+        [Obsolete]
+        public static bool TryRead(ref this SpanReader<byte> reader, byte version, [NotNullWhen(true)] out EnrollmentTransaction? tx)
+        {
+            if (reader.TryRead(out EncodedPublicKey publicKey)
+                && reader.TryReadVarArray<TransactionAttribute>(TryRead, out var attributes)
+                && reader.TryReadVarArray<CoinReference>(TryRead, out var inputs)
+                && reader.TryReadVarArray<TransactionOutput>(TryRead, out var outputs)
+                && reader.TryReadVarArray<Witness>(TryRead, out var witnesses))
+            {
+                tx = new EnrollmentTransaction(publicKey, version, attributes, inputs, outputs, witnesses);
+                return true;
+            }
+
+            tx = null;
+            return false;
+        }
+
+        public static bool TryRead(ref this SpanReader<byte> reader, byte version, [NotNullWhen(true)] out StateTransaction? tx)
+        {
+            if (reader.TryReadVarArray<StateDescriptor>(TryRead, out var descriptors)
+                && reader.TryReadVarArray<TransactionAttribute>(TryRead, out var attributes)
+                && reader.TryReadVarArray<CoinReference>(TryRead, out var inputs)
+                && reader.TryReadVarArray<TransactionOutput>(TryRead, out var outputs)
+                && reader.TryReadVarArray<Witness>(TryRead, out var witnesses))
+            {
+                tx = new StateTransaction(descriptors, version, attributes, inputs, outputs, witnesses);
+                return true;
+            }
+
+            tx = null;
+            return false;
+        }
+
+        [Obsolete]
+        public static bool TryRead(ref this SpanReader<byte> reader, byte version, [NotNullWhen(true)] out PublishTransaction? tx)
+        {
+            static bool TryReadNeedStorage(ref SpanReader<byte> reader, byte version, out bool needStorage)
+            {
+                if (version < 1)
+                {
+                    needStorage = false;
+                    return true;
+                }
+
+                if (reader.TryRead(out var value))
+                {
+                    needStorage = value != 0;
+                    return true;
+                }
+
+                needStorage = default;
+                return false;
+            }
+
+            if (reader.TryReadVarArray(out var script)
+                && reader.TryReadVarArray(out var parameterList)
+                && reader.TryRead(out byte returnType)
+                && TryReadNeedStorage(ref reader, version, out var needStorage)
+                && reader.TryReadVarString(out var name)
+                && reader.TryReadVarString(out var codeVersion)
+                && reader.TryReadVarString(out var author)
+                && reader.TryReadVarString(out var email)
+                && reader.TryReadVarString(out var description)
+                && reader.TryReadVarArray<TransactionAttribute>(TryRead, out var attributes)
+                && reader.TryReadVarArray<CoinReference>(TryRead, out var inputs)
+                && reader.TryReadVarArray<TransactionOutput>(TryRead, out var outputs)
+                && reader.TryReadVarArray<Witness>(TryRead, out var witnesses))
+            {
+
+                tx = new PublishTransaction(script, ConvertContractParameterTypeMemory(parameterList),
+                                            (ContractParameterType)returnType, needStorage, name, codeVersion, author,
+                                            email, description, version, attributes, inputs, outputs, witnesses);
+                return true;
+            }
+
+            tx = null;
+            return false;
+        }
+
+        public static bool TryRead(ref this SpanReader<byte> reader, [NotNullWhen(true)] out Transaction? tx)
+        {
+            if (reader.TryRead(out byte type)
+                && reader.TryRead(out byte version))
+            {
+                switch ((TransactionType)type)
+                {
+                    case TransactionType.Miner:
+                        {
+                            if (reader.TryRead(version, out MinerTransaction? _tx))
+                            {
+                                tx = _tx;
+                                return true;
+                            }
+                        }
+                        break;
+                    case TransactionType.Issue:
+                        {
+                            if (reader.TryRead(version, out IssueTransaction? _tx))
+                            {
+                                tx = _tx;
+                                return true;
+                            }
+                        }
+                        break;
+                    case TransactionType.Claim:
+                        {
+                            if (reader.TryRead(version, out ClaimTransaction? _tx))
+                            {
+                                tx = _tx;
+                                return true;
+                            }
+                        }
+                        break;
+                    case TransactionType.Register:
+                        {
+                            if (reader.TryRead(version, out RegisterTransaction? _tx))
+                            {
+                                tx = _tx;
+                                return true;
+                            }
+                        }
+                        break;
+                    case TransactionType.Contract:
+                        {
+                            if (reader.TryRead(version, out ContractTransaction? _tx))
+                            {
+                                tx = _tx;
+                                return true;
+                            }
+                        }
+                        break;
+                    case TransactionType.Invocation:
+                        {
+                            if (reader.TryRead(version, out InvocationTransaction? _tx))
+                            {
+                                tx = _tx;
+                                return true;
+                            }
+                        }
+                        break;
+                    case TransactionType.State:
+                        {
+                            if (reader.TryRead(version, out StateTransaction? _tx))
+                            {
+                                tx = _tx;
+                                return true;
+                            }
+                        }
+                        break;
+                    case TransactionType.Enrollment:
+                        {
+#pragma warning disable CS0612 // Type or member is obsolete
+                            if (reader.TryRead(version, out EnrollmentTransaction? _tx))
+#pragma warning restore CS0612 // Type or member is obsolete
+                            {
+                                tx = _tx;
+                                return true;
+                            }
+                        }
+                        break;
+                    case TransactionType.Publish:
+                        {
+#pragma warning disable CS0612 // Type or member is obsolete
+                            if (reader.TryRead(version, out PublishTransaction? _tx))
+#pragma warning restore CS0612 // Type or member is obsolete
+                            {
+                                tx = _tx;
+                                return true;
+                            }
+                        }
+                        break;
+                }
+            }
+
+            tx = null;
+            return false;
+        }
+
+        public static bool TryRead(ref this SpanReader<byte> reader, out StorageItem value)
+        {
+            if (reader.TryReadVarArray(out var _value)
                 && reader.TryRead(out var isConstant))
             {
                 value = new StorageItem(_value, isConstant != 0);
@@ -406,10 +527,22 @@ namespace NeoFx.Storage
             return false;
         }
 
-        public static bool TryRead(ref this SequenceReader<byte> reader, out DeployedContract value)
+        private static ReadOnlyMemory<ContractParameterType> ConvertContractParameterTypeMemory(ReadOnlyMemory<byte> memory)
         {
-            if (reader.TryReadVarByteArray(out var script)
-                && reader.TryReadVarByteArray(out var parameterTypes)
+            // TODO: There's probably a faster way to do this by somehow casting the ReadOnlyMemory<byte> object
+            //       to a ReadOnlyMemory<ParameterType>. Find it later.
+            ContractParameterType[] buffer = new ContractParameterType[memory.Length];
+            for (int i = 0; i < memory.Length; i++)
+            {
+                buffer[i] = (ContractParameterType)memory.Span[i];
+            }
+            return buffer;
+        }
+
+        public static bool TryRead(ref this SpanReader<byte> reader, out DeployedContract value)
+        {
+            if (reader.TryReadVarArray(out var script)
+                && reader.TryReadVarArray(out var parameterTypes)
                 && reader.TryRead(out byte returnType)
                 && reader.TryRead(out byte propertyState)
                 && reader.TryReadVarString(out var name)
@@ -420,9 +553,9 @@ namespace NeoFx.Storage
             {
                 value = new DeployedContract(
                     script,
-                    parameterTypes,
-                    returnType,
-                    propertyState,
+                    ConvertContractParameterTypeMemory(parameterTypes),
+                    (ContractParameterType)returnType,
+                    (DeployedContract.PropertyState)propertyState,
                     name,
                     version,
                     author,
@@ -435,7 +568,7 @@ namespace NeoFx.Storage
             return false;
         }
 
-        public static bool TryRead(ref this SequenceReader<byte> reader, out CoinState value)
+        public static bool TryRead(ref this SpanReader<byte> reader, out CoinState value)
         {
             if (reader.TryRead(out byte coinState))
             {
@@ -447,7 +580,7 @@ namespace NeoFx.Storage
             return false;
         }
 
-        public static bool TryRead(ref this SequenceReader<byte> reader, out Validator value)
+        public static bool TryRead(ref this SpanReader<byte> reader, out Validator value)
         {
             if (reader.TryRead(out EncodedPublicKey publicKey)
                 && reader.TryRead(out byte registered)
@@ -460,11 +593,11 @@ namespace NeoFx.Storage
             return false;
         }
 
-        public static bool TryRead(ref this SequenceReader<byte> reader, out Account value)
+        public static bool TryRead(ref this SpanReader<byte> reader, out Account value)
         {
             if (reader.TryRead(out UInt160 scriptHash)
                 && reader.TryRead(out byte isFrozen)
-                && reader.TryReadVarArray(TryRead, out ReadOnlyMemory<EncodedPublicKey> votes)
+                && reader.TryReadVarArray<EncodedPublicKey>(TryRead, out var votes)
                 && reader.TryReadVarInt(out var balancesCount))
             {
                 Debug.Assert(balancesCount < int.MaxValue);
@@ -492,7 +625,7 @@ namespace NeoFx.Storage
             return false;
         }
 
-        public static bool TryRead(ref this SequenceReader<byte> reader, out Asset value)
+        public static bool TryRead(ref this SpanReader<byte> reader, out Asset value)
         {
             if (reader.TryRead(out UInt256 assetId)
                 && reader.TryRead(out byte assetType)
@@ -527,36 +660,6 @@ namespace NeoFx.Storage
             }
 
             value = default;
-            return false;
-        }
-
-        public static bool TryReadInvocationData(in Transaction tx, out ReadOnlyMemory<byte> script, out Fixed8 gas)
-        {
-            static bool TryReadGas(ref SequenceReader<byte> reader, byte version, out Fixed8 gas)
-            {
-                if (version >= 1)
-                {
-                    return reader.TryRead(out gas);
-                }
-
-                gas = Fixed8.Zero;
-                return true;
-            }
-
-            if (tx.Version <= 1 && tx.Type == TransactionType.Invocation)
-            {
-                var reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(tx.TransactionData));
-
-                if (reader.TryReadVarByteArray(65536, out script)
-                    && script.Length > 0
-                    && TryReadGas(ref reader, tx.Version, out gas))
-                {
-                    return true;
-                }
-            }
-
-            script = default;
-            gas = default;
             return false;
         }
     }

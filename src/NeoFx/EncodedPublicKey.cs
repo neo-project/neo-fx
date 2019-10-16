@@ -10,6 +10,8 @@ namespace NeoFx
     {
         public readonly ReadOnlyMemory<byte> Key;
 
+        public int Size => Key.Length;
+
         public EncodedPublicKey(ReadOnlyMemory<byte> key)
         {
             Key = key;
@@ -41,5 +43,17 @@ namespace NeoFx
             value = default;
             return false;
         }
+
+        public bool TryWrite(Span<byte> buffer)
+        {
+            return Key.Span.TryCopyTo(buffer);
+        }
+
+        public void Write(Span<byte> buffer)
+        {
+            if (!TryWrite(buffer))
+                throw new ArgumentException(nameof(buffer));
+        }
+
     }
 }

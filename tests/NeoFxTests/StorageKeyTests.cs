@@ -27,7 +27,8 @@ namespace NeoFxTests
             key1.Key.Span.SequenceEqual(keyBuffer).Should().BeTrue();
 
             var writeBuffer = new byte[key1.GetSize()];
-            key1.TryWriteBytes(writeBuffer).Should().BeTrue();
+            key1.TryWrite(writeBuffer, out var bytesWritten).Should().BeTrue();
+            bytesWritten.Should().Be(writeBuffer.Length);
 
             BinaryFormat.TryReadBytes(writeBuffer, out var key2).Should().BeTrue();
             key2.ScriptHash.Should().Be(scriptHash);

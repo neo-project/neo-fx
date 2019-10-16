@@ -8,8 +8,11 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Drawing;
 using System.IO;
 using System.Linq;
+
+using Console = Colorful.Console;
 
 namespace StorageExperimentation
 {
@@ -26,7 +29,7 @@ namespace StorageExperimentation
 
         private static void Main()
         {
-            var cpArchivePath = @"C:\Users\harry\Source\neo\seattle\express\src\neo-express\cp2.neo-express-checkpoint";
+            var cpArchivePath = @"C:\Users\harry\Source\neo\seattle\express\src\neo-express\cponline.neo-express-checkpoint";
             //Path.GetFullPath("./cp1.neo-express-checkpoint");
 
             if (!File.Exists(cpArchivePath))
@@ -49,18 +52,113 @@ namespace StorageExperimentation
             System.IO.Compression.ZipFile.ExtractToDirectory(cpArchivePath, cpTempPath);
             Console.WriteLine(cpTempPath);
 
-            RocksDbStoreTryGetBlockExperiment(cpTempPath);
+            RocksDBExperiment(cpTempPath);
         }
 
-        static void RunWithDB(string path, Action<RocksDb> action)
+        //static void RunWithDB(string path, Action<RocksDb> action)
+        //{
+        //    var options = new DbOptions()
+        //        .SetCreateIfMissing(false)
+        //        .SetCreateMissingColumnFamilies(false);
+
+        //    using var db = RocksDb.Open(options, path, ColumnFamilies);
+        //    action(db);
+        //}
+
+        private static void RocksDBExperiment(string path)
+        {
+            using var store = new RocksDbStore(path);
+
+            for (uint i = 0; i < store.Height; i++)
+            {
+                if (store.TryGetBlockHash(i, out var blockHash)
+                    && store.TryGetBlock(blockHash, out var header, out var hashes))
+                {
+                    for (int j = 0; j < hashes.Length; j++)
+                    {
+                        if (store.TryGetTransaction(hashes.Span[j], out var _, out var tx)
+                            && HashHelpers.TryHash(tx, out var txHash))
+                        {
+                            Console.WriteLine($"{txHash.Equals(hashes.Span[j])} {txHash} {hashes.Span[j]}");
+                            if (!txHash.Equals(hashes.Span[j])) throw new Exception($"block {i} tx {j}");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"TX {hashes.Span[j]}", Color.Red);
+                        }
+                    }
+                }
+                else
+                {
+                    Console.WriteLine($"Block {i}", Color.Yellow);
+                }
+            }
+
+            ;
+        }
+        private static void RocksDBExperimentxx(string path)
         {
             var options = new DbOptions()
                 .SetCreateIfMissing(false)
                 .SetCreateMissingColumnFamilies(false);
 
             using var db = RocksDb.Open(options, path, ColumnFamilies);
-            action(db);
+
+            var blockIndex = GetBlocks(db)
+                .OrderBy(t => t.blockState.header.Index)
+                .Select(t => t.key)
+                .ToList();
+
+            Span<byte> keyBuffer = stackalloc byte[UInt256.Size];
+            if (blockIndex[0].TryWrite(keyBuffer)
+                && db.TryGet<(long, BlockHeader, ReadOnlyMemory<UInt256>)>(keyBuffer, db.GetColumnFamily(BLOCK_FAMILY), TryReadBlockStateSpan, out var value))
+            {
+                Console.WriteLine(value.Item1);
+            }
+            else
+            {
+                throw new Exception();
+
+            }
+
+            ;
         }
+
+        private static bool TryReadBlockStateSpan(ReadOnlySpan<byte> span, out (long systemFee, BlockHeader header, ReadOnlyMemory<UInt256> hashes) value)
+        {
+            return TryReadBlockState(span.ToArray().AsMemory(), out value);
+        }
+
+        private static IEnumerable<(UInt256 key, (long systemFee, BlockHeader header, ReadOnlyMemory<UInt256> hashes) blockState)> GetBlocks(RocksDb db)
+        {
+            return null!;
+            //return db.Iterate<UInt256, (long, BlockHeader, ReadOnlyMemory<UInt256>)>(BLOCK_FAMILY, TryReadUInt256Key, TryReadBlockState);
+        }
+
+        private static bool TryReadBlockState(ReadOnlyMemory<byte> memory, out (long systemFee, BlockHeader header, ReadOnlyMemory<UInt256> hashes) value)
+        {
+            //var reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(memory));
+
+            //if (TryReadStateVersion(ref reader, 0)
+            //    && reader.TryRead(out long systemFee)
+            //    && reader.TryRead(out BlockHeader header)
+            //    && reader.TryReadVarArray<UInt256>(BinaryFormat.TryRead, out var hashes))
+            //{
+            //    Debug.Assert(reader.Remaining == 0);
+            //    value = (systemFee, header, hashes);
+            //    return true;
+            //}
+
+            value = default;
+            return false;
+        }
+
+        private static bool TryReadUInt256Key(ReadOnlyMemory<byte> memory, out UInt256 key)
+        {
+            Debug.Assert(memory.Length == UInt256.Size);
+            return UInt256.TryRead(memory.Span, out key);
+        }
+
 
         private static void RocksDbStoreTryGetBlockExperiment(string path)
         {
@@ -69,21 +167,48 @@ namespace StorageExperimentation
             Console.WriteLine($"NEO: {storage.GoverningTokenHash}");
             Console.WriteLine($"GAS: {storage.UtilityTokenHash}");
 
+            int max = 0;
 
-            if (storage.TryGetBlockHash(0, out var genesisHash)
-                && storage.TryGetBlock(genesisHash, out BlockHeader _, out var hashes))
+            for (uint i = 0; i < storage.Height; i++)
             {
-                for (int i = 0; i < hashes.Length; i++)
+                if (storage.TryGetBlock(i, out var block))
                 {
-                    if (storage.TryGetTransaction(hashes.Span[i], out var _, out var tx)
-                        && HashHelpers.TryHash(tx, out var newhash))
+                    for (int j = 0; j < block.Transactions.Length; j++)
                     {
-                        Console.WriteLine(tx.Type);
-                        Console.WriteLine(hashes.Span[i]);
-                        Console.WriteLine(newhash);
+                        max = Math.Max(max, block.Transactions.Span[j].GetSize());
                     }
+                    //Console.WriteLine($"{i}\t\t{block.Timestamp}");
+                    //for (var j = 0; j < block.Transactions.Length; j++)
+                    //{
+                    //    Console.WriteLine($"  {block.Transactions.Span[j].Type}");
+                    //}
+                }
+                else
+                {
+                    Console.WriteLine($"TryGetBlock {i} failed", Color.Red);
                 }
             }
+
+            Console.WriteLine($"{max}", Color.Cyan);
+
+            //if (storage.TryGetBlockHash(0, out var genesisHash)
+            //    && storage.TryGetBlock(genesisHash, out BlockHeader _, out var hashes))
+            //{
+            //    for (int i = 0; i < hashes.Length; i++)
+            //    {
+            //        if (storage.TryGetTransaction(hashes.Span[i], out var _, out var tx))
+            //        {
+            //            Console.WriteLine(tx.GetType().FullName);
+            //        }
+
+            //        //    && HashHelpers.TryHash(tx, out var newhash))
+            //        //{
+            //        //    Console.WriteLine(tx.Type);
+            //        //    Console.WriteLine(hashes.Span[i]);
+            //        //    Console.WriteLine(newhash);
+            //        //}
+            //    }
+            //}
 
 
 

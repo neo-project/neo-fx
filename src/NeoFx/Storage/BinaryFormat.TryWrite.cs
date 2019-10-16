@@ -1,7 +1,9 @@
 ﻿using NeoFx.Models;
 using System;
+using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Text;
 
@@ -9,24 +11,10 @@ namespace NeoFx.Storage
 {
     public static partial class BinaryFormat
     {
-        public static bool TryWriteBytes(this CoinReference input, Span<byte> span)
+        public static bool TryWrite(this StorageKey key, Span<byte> span, out int bytesWritten)
         {
-            return span.Length >= CoinReferenceSize
-                && input.PrevHash.TryWrite(span)
-                && BinaryPrimitives.TryWriteUInt16LittleEndian(span.Slice(UInt256.Size), input.PrevIndex);
-        }
-
-        public static bool TryWriteBytes(this TransactionOutput output, Span<byte> span)
-        {
-            return span.Length >= TransactionOutputSize
-                && output.AssetId.TryWrite(span)
-                && output.Value.TryWrite(span.Slice(UInt256.Size))
-                && output.ScriptHash.TryWrite(span.Slice(UInt256.Size + Fixed8.Size));
-        }
-
-        public static bool TryWriteBytes(this StorageKey key, Span<byte> span)
-        {
-            if (span.Length >= key.GetSize() && key.ScriptHash.TryWrite(span))
+            var keySize = key.GetSize();
+            if (span.Length >= keySize && key.ScriptHash.TryWrite(span))
             {
                 span = span.Slice(UInt160.Size);
                 var keySpan = key.Key.Span;
@@ -46,102 +34,7 @@ namespace NeoFx.Storage
                 span.Slice(keySpan.Length).Clear();
                 span[StorageKeyBlockSize] = (byte)(StorageKeyBlockSize - keySpan.Length);
 
-                return true;
-            }
-
-            return false;
-        }
-
-        public static bool TryWrite(ref this SpanWriter<byte> writer, byte value)
-        {
-            if (writer.Length > 0)
-            {
-                writer.Span[0] = value;
-                writer.Advance(1);
-                return true;
-            }
-
-            return false;
-        }
-
-        public static bool TryWrite(ref this SpanWriter<byte> writer, ushort value)
-        {
-            if (BinaryPrimitives.TryWriteUInt16LittleEndian(writer.Span, value))
-            {
-                writer.Advance(sizeof(ushort));
-                return true;
-            }
-            return false;
-        }
-
-        public static bool TryWrite(ref this SpanWriter<byte> writer, uint value)
-        {
-            if (BinaryPrimitives.TryWriteUInt32LittleEndian(writer.Span, value))
-            {
-                writer.Advance(sizeof(uint));
-                return true;
-            }
-            return false;
-        }
-
-        public static bool TryWrite(ref this SpanWriter<byte> writer, ulong value)
-        {
-            if (BinaryPrimitives.TryWriteUInt64LittleEndian(writer.Span, value))
-            {
-                writer.Advance(sizeof(ulong));
-                return true;
-            }
-            return false;
-        }
-
-        public static bool TryWrite(ref this SpanWriter<byte> writer, ReadOnlySpan<byte> value)
-        {
-            if (value.TryCopyTo(writer.Span))
-            {
-                writer.Advance(value.Length);
-                return true;
-            }
-            return false;
-        }
-
-        public static bool TryWriteVarInt(this Span<byte> span, int value, out int bytesWritten)
-        {
-            Debug.Assert(value >= 0);
-            return span.TryWriteVarInt((ulong)value, out bytesWritten);
-        }
-
-        public static bool TryWriteVarInt(this Span<byte> span, ulong value, out int bytesWritten)
-        {
-            if (value < 0xfd && span.Length >= 1)
-            {
-                span[0] = (byte)value;
-                bytesWritten = 1;
-                return true;
-            }
-
-            if (value < 0xffff
-                && span.Length >= 3
-                && BinaryPrimitives.TryWriteUInt16LittleEndian(span.Slice(1, 2), (ushort)value))
-            {
-                span[0] = 0xfd;
-                bytesWritten = 3;
-                return true;
-            }
-
-            if (value < 0xffffffff
-                && span.Length >= 5
-                && BinaryPrimitives.TryWriteUInt32LittleEndian(span.Slice(1, 4), (uint)value))
-            {
-                span[0] = 0xfe;
-                bytesWritten = 5;
-                return true;
-            }
-
-            if (span.Length >= 9
-                && BinaryPrimitives.TryWriteUInt64LittleEndian(span.Slice(1, 4), value))
-            {
-                span[0] = 0xfe;
-                bytesWritten = 9;
+                bytesWritten = keySize;
                 return true;
             }
 
@@ -149,84 +42,165 @@ namespace NeoFx.Storage
             return false;
         }
 
-        public static bool TryWriteVarInt(ref this SpanWriter<byte> writer, int value)
+        public static void Write(this IBufferWriter<byte> buffer, in TransactionAttribute attribute)
         {
-            Debug.Assert(value >= 0);
-            return TryWriteVarInt(ref writer, (ulong)value);
+            buffer.Write((byte)attribute.Usage);
+            buffer.Write(attribute.Data.Span);
         }
 
-        public static bool TryWriteVarInt(ref this SpanWriter<byte> writer, ulong value)
+        public static void Write(this IBufferWriter<byte> buffer, in CoinReference input)
         {
-            if (writer.Span.TryWriteVarInt(value, out var bytesWritten))
+            buffer.Write(input.PrevHash);
+            buffer.Write(input.PrevIndex);
+        }
+
+        public static void Write(this IBufferWriter<byte> buffer, in TransactionOutput output)
+        {
+            buffer.Write(output.AssetId);
+            buffer.Write(output.Value);
+            buffer.Write(output.ScriptHash);
+        }
+
+        public static void Write(this IBufferWriter<byte> buffer, in StateDescriptor value)
+        {
+            buffer.Write((byte)value.Type);
+            buffer.WriteVarArray(value.Key.Span);
+            buffer.WriteVarString(value.Field);
+            buffer.WriteVarArray(value.Value.Span);
+        }
+
+        private delegate void Writer(Span<byte> span);
+
+        private static void Write(IBufferWriter<byte> buffer, int size, Writer writer)
+        {
+            var span = buffer.GetSpan(size);
+            writer(span);
+            buffer.Advance(size);
+        }
+
+        public static void Write(this IBufferWriter<byte> buffer, uint value) 
+            => Write(buffer, sizeof(uint), span => BinaryPrimitives.WriteUInt32LittleEndian(span, value));
+
+        public static void Write(this IBufferWriter<byte> buffer, ushort value)
+            => Write(buffer, sizeof(ushort), span => BinaryPrimitives.WriteUInt16LittleEndian(span, value));
+
+        public static void Write(this IBufferWriter<byte> buffer, byte value) 
+            => Write(buffer, 1, span => span[0] = value);
+
+        public static void Write(this IBufferWriter<byte> buffer, bool value)
+            => Write(buffer, 1, span => span[0] = (byte)(value ? 1 : 0));
+
+        public static void Write(this IBufferWriter<byte> buffer, in Fixed8 value)
+            => Write(buffer, Fixed8.Size, value.Write);
+
+        public static void Write(this IBufferWriter<byte> buffer, in UInt160 value)
+            => Write(buffer, UInt160.Size, value.Write);
+
+        public static void Write(this IBufferWriter<byte> buffer, in UInt256 value)
+            => Write(buffer, UInt256.Size, value.Write);
+
+        public static void Write(this IBufferWriter<byte> buffer, in ContractParameterType value)
+            => Write(buffer, (byte)value);
+
+        public static void Write(this IBufferWriter<byte> buffer, EncodedPublicKey value)
+            => Write(buffer, value.Size, value.Write);
+
+        public static void Write(this IBufferWriter<byte> buffer, MinerTransaction tx)
+        {
+            buffer.Write(tx.Nonce);
+        }
+
+        public static void Write(this IBufferWriter<byte> buffer, ClaimTransaction tx)
+        {
+            buffer.WriteVarArray(tx.Claims.Span, Write);
+        }
+
+#pragma warning disable CS0612 // Type or member is obsolete
+        public static void Write(this IBufferWriter<byte> buffer, EnrollmentTransaction tx)
+#pragma warning restore CS0612 // Type or member is obsolete
+        {
+            buffer.Write(tx.PublicKey);
+        }
+
+        public static void Write(this IBufferWriter<byte> buffer, RegisterTransaction tx)
+        {
+            buffer.Write((byte)tx.AssetType);
+            Debug.Assert(tx.Name.Length <= 1024);
+            buffer.WriteVarString(tx.Name); 
+            buffer.Write(tx.Amount);
+            buffer.Write(tx.Precision);
+            buffer.Write(tx.Owner);
+            buffer.Write(tx.Admin);
+        }
+
+        public static void Write(this IBufferWriter<byte> buffer, StateTransaction tx)
+        {
+            buffer.WriteVarArray(tx.Descriptors.Span, Write);
+        }
+
+#pragma warning disable CS0612 // Type or member is obsolete
+        public static void Write(this IBufferWriter<byte> buffer, PublishTransaction tx)
+#pragma warning restore CS0612 // Type or member is obsolete
+        {
+            buffer.WriteVarArray(tx.Script.Span);
+            buffer.WriteVarArray(tx.ParameterList.Span, Write);
+            buffer.Write((byte)tx.ReturnType);
+            if (tx.Version >= 1)
             {
-                writer.Advance(bytesWritten);
-                return true;
+                buffer.Write(tx.NeedStorage);
             }
-            return false;
+            buffer.WriteVarString(tx.Name);
+            buffer.WriteVarString(tx.CodeVersion);
+            buffer.WriteVarString(tx.Author);
+            buffer.WriteVarString(tx.Email);
+            buffer.WriteVarString(tx.Description);
         }
 
-        public static bool TryWriteVarArray(ref this SpanWriter<byte> writer, ReadOnlyMemory<byte> memory)
+        public static void Write(this IBufferWriter<byte> buffer, InvocationTransaction tx)
         {
-            return TryWriteVarArray(ref writer, memory.Span);
+            Debug.Assert(tx.Script.Length <= 65536);
+            buffer.WriteVarArray(tx.Script.Span);
+            buffer.Write(tx.Gas);
         }
 
-        public static bool TryWriteVarArray(ref this SpanWriter<byte> writer, ReadOnlySpan<byte> span)
+        public static void WriteData(this IBufferWriter<byte> buffer, Transaction tx)
         {
-            return writer.TryWriteVarInt(span.Length)
-                && writer.TryWrite(span);
-        }
+            buffer.Write((byte)tx.GetTransactionType());
+            buffer.Write(tx.Version);
 
-        public delegate bool TryWriteItem<T>(ref SpanWriter<byte> writer, in T item);
-
-        public static bool TryWriteVarArray<T>(ref this SpanWriter<byte> writer, ReadOnlyMemory<T> memory, TryWriteItem<T> tryWriteItem)
-        {
-            return TryWriteVarArray(ref writer, memory.Span, tryWriteItem);
-        }
-
-        public static bool TryWriteVarArray<T>(ref this SpanWriter<byte> writer, ReadOnlySpan<T> span, TryWriteItem<T> tryWriteItem)
-        {
-            if (writer.TryWriteVarInt(span.Length))
+            switch (tx)
             {
-                for (int i = 0; i < span.Length; i++)
-                {
-                    if (!tryWriteItem(ref writer, span[i]))
-                    {
-                        return false;
-                    }
-                }
-
-                return true;
+                case MinerTransaction miner:
+                    buffer.Write(miner);
+                    break;
+                case ClaimTransaction claim:
+                    buffer.Write(claim);
+                    break;
+#pragma warning disable CS0612 // Type or member is obsolete
+                case EnrollmentTransaction enrollment:
+#pragma warning restore CS0612 // Type or member is obsolete
+                    buffer.Write(enrollment);
+                    break;
+                case RegisterTransaction register:
+                    buffer.Write(register);
+                    break;
+                case StateTransaction state:
+                    buffer.Write(state);
+                    break;
+#pragma warning disable CS0612 // Type or member is obsolete
+                case PublishTransaction publish:
+#pragma warning restore CS0612 // Type or member is obsolete
+                    buffer.Write(publish);
+                    break;
+                case InvocationTransaction invocation:
+                    buffer.Write(invocation);
+                    break;
+                case IssueTransaction _:
+                case ContractTransaction _:
+                    break;
+                default:
+                    throw new ArgumentException(nameof(tx));
             }
-
-            return false;
-        }
-
-        public static bool TryWrite(ref SpanWriter<byte> writer, in TransactionAttribute value)
-        {
-
-            return false;
-        }
-
-        public static bool TryWrite(ref SpanWriter<byte> writer, in CoinReference value)
-        {
-            if (value.TryWriteBytes(writer.Span))
-            {
-                writer.Advance(CoinReferenceSize);
-                return true;
-            }
-
-            return false;
-        }
-
-        public static bool TryWrite(ref SpanWriter<byte> writer, in TransactionOutput value)
-        {
-            if (value.TryWriteBytes(writer.Span))
-            {
-                writer.Advance(TransactionOutputSize);
-                return true;
-            }
-
-            return false;
         }
     }
 }
