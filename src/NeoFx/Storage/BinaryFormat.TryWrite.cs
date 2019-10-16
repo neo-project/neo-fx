@@ -45,7 +45,7 @@ namespace NeoFx.Storage
         public static void Write(this IBufferWriter<byte> buffer, in TransactionAttribute attribute)
         {
             buffer.Write((byte)attribute.Usage);
-            buffer.WriteByteArray(attribute.Data.Span);
+            buffer.Write(attribute.Data.Span);
         }
 
         public static void Write(this IBufferWriter<byte> buffer, in CoinReference input)
@@ -159,7 +159,7 @@ namespace NeoFx.Storage
         public static void Write(this IBufferWriter<byte> buffer, InvocationTransaction tx)
         {
             Debug.Assert(tx.Script.Length <= 65536);
-            buffer.WriteByteArray(tx.Script);
+            buffer.WriteVarArray(tx.Script.Span);
             buffer.Write(tx.Gas);
         }
 

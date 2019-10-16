@@ -80,6 +80,7 @@ namespace StorageExperimentation
                             && HashHelpers.TryHash(tx, out var txHash))
                         {
                             Console.WriteLine($"{txHash.Equals(hashes.Span[j])} {txHash} {hashes.Span[j]}");
+                            if (!txHash.Equals(hashes.Span[j])) throw new Exception($"block {i} tx {j}");
                         }
                         else
                         {

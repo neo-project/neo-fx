@@ -48,16 +48,10 @@ namespace NeoFx.Storage
             }
         }
 
-        public static void WriteByteArray(this IBufferWriter<byte> writer, ReadOnlySpan<byte> span)
-        {
-            writer.Write(span);
-            writer.Advance(span.Length);
-        }
-
         public static void WriteVarArray(this IBufferWriter<byte> writer, ReadOnlySpan<byte> span)
         {
             writer.WriteVarInt(span.Length);
-            writer.WriteByteArray(span);
+            writer.Write(span);
         }
 
         public delegate void WriteItem<T>(IBufferWriter<byte> writer, in T item);
@@ -79,11 +73,6 @@ namespace NeoFx.Storage
             var span = writer.GetSpan(length);
             System.Text.Encoding.UTF8.GetBytes(@string, span);
             writer.Advance(length);
-        }
-
-        public static void WriteByteArray(this IBufferWriter<byte> writer, ReadOnlyMemory<byte> memory)
-        {
-            WriteByteArray(writer, memory.Span);
         }
     }
 }
