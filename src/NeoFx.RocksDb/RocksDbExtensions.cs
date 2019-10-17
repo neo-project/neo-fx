@@ -1,13 +1,13 @@
 ﻿using System;
-using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Text;
 
 namespace NeoFx.RocksDb
 {
     using RocksDb = RocksDbSharp.RocksDb;
+    using ReadOptions = RocksDbSharp.ReadOptions;
+    using ColumnFamilyHandle = RocksDbSharp.ColumnFamilyHandle;
 
     public static class RocksDbExtensions
     {
@@ -27,12 +27,12 @@ namespace NeoFx.RocksDb
         }
 
         private static RocksDbSharp.Native Instance => RocksDbSharp.Native.Instance;
-        private static RocksDbSharp.ReadOptions DefaultReadOptions { get; } = new RocksDbSharp.ReadOptions();
+        private static ReadOptions DefaultReadOptions { get; } = new ReadOptions();
 
         public static bool TryGet<T>(
             this RocksDb db,
             ReadOnlySpan<byte> key,
-            RocksDbSharp.ColumnFamilyHandle columnFamily,
+            ColumnFamilyHandle columnFamily,
             TryRead<T> tryReadValue,
             [MaybeNullWhen(false)] out T value)
         {
@@ -42,8 +42,8 @@ namespace NeoFx.RocksDb
         public static unsafe bool TryGet<T>(
             this RocksDb db,
             ReadOnlySpan<byte> key,
-            RocksDbSharp.ColumnFamilyHandle columnFamily,
-            RocksDbSharp.ReadOptions? readOptions,
+            ColumnFamilyHandle columnFamily,
+            ReadOptions? readOptions,
             TryRead<T> tryReadValue,
             [MaybeNullWhen(false)] out T value)
         {
@@ -66,7 +66,7 @@ namespace NeoFx.RocksDb
 
         public static IEnumerable<(TKey key, TValue value)> Iterate<TKey, TValue>(
             this RocksDb db,
-            RocksDbSharp.ColumnFamilyHandle columnFamily,
+            ColumnFamilyHandle columnFamily,
             TryRead<TKey> tryReadKey,
             TryRead<TValue> tryReadValue)
         {

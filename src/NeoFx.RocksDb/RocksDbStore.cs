@@ -1,6 +1,5 @@
 ﻿using NeoFx.Models;
 using System;
-using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -14,7 +13,6 @@ namespace NeoFx.RocksDb
 
     using RocksDb = RocksDbSharp.RocksDb;
     using ColumnFamilies = RocksDbSharp.ColumnFamilies;
-    using ColumnFamilyHandle = RocksDbSharp.ColumnFamilyHandle;
     using ColumnFamilyOptions = RocksDbSharp.ColumnFamilyOptions;
 
     public sealed class RocksDbStore : IDisposable, IBlockchainStorage
@@ -102,7 +100,7 @@ namespace NeoFx.RocksDb
                 .SetCreateMissingColumnFamilies(false);
 
             db = RocksDb.Open(options, path, ColumnFamilies);
-            blockIndex = GetBlocks(db)
+            blockIndex = GetBlocks()
                 .OrderBy(t => t.blockState.header.Index)
                 .Select(t => t.key)
                 .ToList();
@@ -391,17 +389,25 @@ namespace NeoFx.RocksDb
         {
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
-            return GetBlocks(db);
+            var columnFamily = db.GetColumnFamily(BLOCK_FAMILY);
+            return db.Iterate<UInt256, (long, BlockHeader, ReadOnlyMemory<UInt256>)>(columnFamily, UInt256.TryRead, TryReadBlockState);
         }
 
-        public IEnumerable<(UInt256 key, (uint blockIndex, Transaction tx) blockState)> GetTransactions()
+        public IEnumerable<(UInt160 key, DeployedContract contractState)> GetContracts()
         {
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
-            return GetTransactions(db);
+            var columnFamily = db.GetColumnFamily(CONTRACT_FAMILY);
+            return db.Iterate<UInt160, DeployedContract>(columnFamily, UInt160.TryRead, TryReadContractState);
         }
 
+        public IEnumerable<(UInt256 key, (uint blockIndex, Transaction tx) transactionState)> GetTransactions()
+        {
+            if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
+            var columnFamily = db.GetColumnFamily(TX_FAMILY);
+            return db.Iterate<UInt256, (uint, Transaction)>(columnFamily, UInt256.TryRead, TryReadTransactionState);
+        }
 
         private static bool TryReadStateVersion(ref SpanReader<byte> reader, byte expectedVersion)
         {
@@ -413,18 +419,6 @@ namespace NeoFx.RocksDb
             }
 
             return false;
-        }
-
-        private static bool TryReadUInt256Key(ReadOnlySpan<byte> span, out UInt256 key)
-        {
-            Debug.Assert(span.Length == UInt256.Size);
-            return UInt256.TryRead(span, out key);
-        }
-
-        private static bool TryWriteEncodedPublicKey(in EncodedPublicKey key, Span<byte> span)
-        {
-            Debug.Assert(span.Length == key.Key.Length);
-            return key.Key.Span.TryCopyTo(span);
         }
 
         private static bool TryReadAccountState(ReadOnlySpan<byte> span, out Account value)
@@ -575,18 +569,6 @@ namespace NeoFx.RocksDb
 
             value = default;
             return false;
-        }
-
-        internal static IEnumerable<(UInt256 key, (long systemFee, BlockHeader header, ReadOnlyMemory<UInt256> hashes) blockState)> GetBlocks(RocksDb db)
-        {
-            var columnFamily = db.GetColumnFamily(BLOCK_FAMILY);
-            return db.Iterate<UInt256, (long, BlockHeader, ReadOnlyMemory<UInt256>)>(columnFamily, TryReadUInt256Key, TryReadBlockState);
-        }
-
-        internal static IEnumerable<(UInt256 key, (uint blockIndex, Transaction tx) blockState)> GetTransactions(RocksDb db)
-        {
-            var columnFamily = db.GetColumnFamily(TX_FAMILY);
-            return db.Iterate<UInt256, (uint, Transaction)>(columnFamily, TryReadUInt256Key, TryReadTransactionState);
         }
     }
 }

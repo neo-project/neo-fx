@@ -527,17 +527,10 @@ namespace NeoFx.Storage
             return false;
         }
 
-        private static ReadOnlyMemory<ContractParameterType> ConvertContractParameterTypeMemory(ReadOnlyMemory<byte> memory)
-        {
-            // TODO: There's probably a faster way to do this by somehow casting the ReadOnlyMemory<byte> object
-            //       to a ReadOnlyMemory<ParameterType>. Find it later.
-            ContractParameterType[] buffer = new ContractParameterType[memory.Length];
-            for (int i = 0; i < memory.Length; i++)
-            {
-                buffer[i] = (ContractParameterType)memory.Span[i];
-            }
-            return buffer;
-        }
+        // since ContractParameterType is a byte param, it's safe to cast the byte array to an 
+        // array of ContractParameterType using Unsafe.As
+        private static ContractParameterType[] ConvertContractParameterTypeMemory(byte[] parameterList) 
+            => System.Runtime.CompilerServices.Unsafe.As<byte[], ContractParameterType[]>(ref parameterList);
 
         public static bool TryRead(ref this SpanReader<byte> reader, out DeployedContract value)
         {
