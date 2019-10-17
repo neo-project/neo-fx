@@ -11,7 +11,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="Storage\SpanWriter.cs" />
+    <None Include="neo-logo-72.png" Pack="true" Visible="false" PackagePath="" />
   </ItemGroup>
 
   <ItemGroup>

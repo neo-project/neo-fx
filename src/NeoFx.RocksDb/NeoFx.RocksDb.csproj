@@ -12,6 +12,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Include="neo-logo-72.png" Pack="true" Visible="false" PackagePath="" />
+  </ItemGroup>
+  
+  <ItemGroup>
     <PackageReference Include="RocksDbNative" Version="6.2.2" />
     <PackageReference Include="RocksDbSharp" Version="6.2.2" />
   </ItemGroup>
