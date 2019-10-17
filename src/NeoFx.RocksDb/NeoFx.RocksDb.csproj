@@ -1,12 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Authors>Neo Global Development Seattle</Authors>
     <LangVersion>8.0</LangVersion>
     <Nullable>enable</Nullable>
+    <PackageIcon>neo-logo-72.png</PackageIcon>
+    <PackageId>Neo.Fx.RocksDb</PackageId>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <TargetFramework>netstandard2.1</TargetFramework>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
