@@ -22,7 +22,9 @@ namespace NeoFx.RocksDb
             folder ??= System.IO.Path.Combine(folder ?? System.IO.Path.GetTempPath(), $"RocksDbStore.{System.IO.Path.GetRandomFileName()}");
 
             if (!System.IO.File.Exists(checkpointPath))
-                throw new ArgumentException(nameof(checkpointPath));
+            {
+                throw new Exception($"{checkpointPath} checkpoint file could not be found");
+            }
 
             if (System.IO.Directory.Exists(folder))
             {
