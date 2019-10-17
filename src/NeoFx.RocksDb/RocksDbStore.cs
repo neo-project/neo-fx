@@ -385,6 +385,22 @@ namespace NeoFx.RocksDb
         }
         #endregion
 
+        public IEnumerable<(UInt160 key, Account accountState)> GetAccounts()
+        {
+            if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
+
+            var columnFamily = db.GetColumnFamily(ACCOUNT_FAMILY);
+            return db.Iterate<UInt160, Account>(columnFamily, UInt160.TryRead, TryReadAccountState);
+        }
+
+        public IEnumerable<(UInt256 key, Asset assetState)> GetAssets()
+        {
+            if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
+
+            var columnFamily = db.GetColumnFamily(ASSET_FAMILY);
+            return db.Iterate<UInt256, Asset>(columnFamily, UInt256.TryRead, TryReadAssetState);
+        }
+
         public IEnumerable<(UInt256 key, (long systemFee, BlockHeader header, ReadOnlyMemory<UInt256> hashes) blockState)> GetBlocks()
         {
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
@@ -401,12 +417,42 @@ namespace NeoFx.RocksDb
             return db.Iterate<UInt160, DeployedContract>(columnFamily, UInt160.TryRead, TryReadContractState);
         }
 
+        public IEnumerable<(StorageKey key, StorageItem contractState)> GetStorages()
+        {
+            if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
+
+            var columnFamily = db.GetColumnFamily(STORAGE_FAMILY);
+            return db.Iterate<StorageKey, StorageItem>(columnFamily, BinaryFormat.TryReadBytes, TryReadStorageItem);
+        }
+
         public IEnumerable<(UInt256 key, (uint blockIndex, Transaction tx) transactionState)> GetTransactions()
         {
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
             var columnFamily = db.GetColumnFamily(TX_FAMILY);
             return db.Iterate<UInt256, (uint, Transaction)>(columnFamily, UInt256.TryRead, TryReadTransactionState);
+        }
+
+        public IEnumerable<(UInt256 key, CoinState[] coinState)> GetUnspentCoins()
+        {
+            if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
+
+            var columnFamily = db.GetColumnFamily(UNSPENT_COIN_FAMILY);
+            return db.Iterate<UInt256, CoinState[]>(columnFamily, UInt256.TryRead, TryReadUnspentCoinsState);
+        }
+
+        public IEnumerable<(EncodedPublicKey key, Validator validatorState)> GetValidators()
+        {
+            static bool TryReadEncodedPublicKey(ReadOnlySpan<byte> span, out EncodedPublicKey value)
+            {
+                var reader = new SpanReader<byte>(span);
+                return BinaryFormat.TryRead(ref reader, out value);
+            }
+
+            if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
+
+            var columnFamily = db.GetColumnFamily(VALIDATOR_FAMILY);
+            return db.Iterate<EncodedPublicKey, Validator>(columnFamily, TryReadEncodedPublicKey, TryReadValidatorState);
         }
 
         private static bool TryReadStateVersion(ref SpanReader<byte> reader, byte expectedVersion)
@@ -539,7 +585,7 @@ namespace NeoFx.RocksDb
             return false;
         }
 
-        private static bool TryReadUnspentCoinsState(ReadOnlySpan<byte> span, [NotNullWhen(true)] out CoinState[]? value)
+        private static bool TryReadUnspentCoinsState(ReadOnlySpan<byte> span, [MaybeNullWhen(false)] out CoinState[] value)
         {
             var reader = new SpanReader<byte>(span);
 
@@ -551,7 +597,7 @@ namespace NeoFx.RocksDb
                 return true;
             }
 
-            value = default;
+            value = default!;
             return false;
         }
 
