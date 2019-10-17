@@ -3,6 +3,7 @@ using NeoFx.Storage;
 using System;
 using System.Buffers;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -41,6 +42,24 @@ namespace NeoFx
             bytesWritten = default;
             return false;
         }
+
+        public static bool TryBase58CheckEncode(ReadOnlySpan<byte> input, [NotNullWhen(true)] out string? output)
+        {
+            Span<byte> checksum = stackalloc byte[Hash256Size];
+            Span<byte> encodeBuffer = stackalloc byte[input.Length + 4];
+
+            if (TryHash256(input, checksum)
+                && input.TryCopyTo(encodeBuffer.Slice(0, input.Length))
+                && checksum.Slice(0, 4).TryCopyTo(encodeBuffer.Slice(input.Length, 4)))
+            {
+                output = SimpleBase.Base58.Bitcoin.Encode(encodeBuffer);
+                return true;
+            }
+
+            output = default;
+            return false;
+        }
+
 
         public static UInt160 ToScriptHash(this string address)
         {

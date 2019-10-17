@@ -1,10 +1,8 @@
 ﻿using FluentAssertions;
 using NeoFx;
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
-using System.Text;
 using Xunit;
 
 namespace NeoFxTests
@@ -23,6 +21,16 @@ namespace NeoFxTests
             HashHelpers.TryBase58CheckDecode(@string, actual, out var written).Should().BeTrue();
             written.Should().Be(actual.Length);
             actual.SequenceEqual(expected).Should().BeTrue();
+        }
+
+        [Fact]
+        public void Test_neofx_Base58CheckEncode_matches_neo()
+        {
+            var testData = System.Text.Encoding.UTF8.GetBytes("SomeTestData");
+            var expected = Neo.Cryptography.Helper.Base58CheckEncode(testData);
+
+            HashHelpers.TryBase58CheckEncode(testData, out var actual).Should().BeTrue();
+            actual.Should().Be(expected);
         }
 
         [Fact]
