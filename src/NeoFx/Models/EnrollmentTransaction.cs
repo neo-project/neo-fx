@@ -12,7 +12,7 @@ namespace NeoFx.Models
         public EnrollmentTransaction(EncodedPublicKey publicKey, byte version,
                                         ReadOnlyMemory<TransactionAttribute> attributes,
                                         ReadOnlyMemory<CoinReference> inputs, ReadOnlyMemory<TransactionOutput> outputs,
-                                        ReadOnlyMemory<Witness> witnesses) 
+                                        ReadOnlyMemory<Witness> witnesses)
             : base(version, attributes, inputs, outputs, witnesses)
         {
             PublicKey = publicKey;

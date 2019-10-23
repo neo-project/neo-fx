@@ -529,7 +529,7 @@ namespace NeoFx.Storage
 
         // since ContractParameterType is a byte param, it's safe to cast the byte array to an 
         // array of ContractParameterType using Unsafe.As
-        private static ContractParameterType[] ConvertContractParameterTypeMemory(byte[] parameterList) 
+        private static ContractParameterType[] ConvertContractParameterTypeMemory(byte[] parameterList)
             => System.Runtime.CompilerServices.Unsafe.As<byte[], ContractParameterType[]>(ref parameterList);
 
         public static bool TryRead(ref this SpanReader<byte> reader, out DeployedContract value)

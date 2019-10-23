@@ -78,13 +78,13 @@ namespace NeoFx.Storage
             buffer.Advance(size);
         }
 
-        public static void Write(this IBufferWriter<byte> buffer, uint value) 
+        public static void Write(this IBufferWriter<byte> buffer, uint value)
             => Write(buffer, sizeof(uint), span => BinaryPrimitives.WriteUInt32LittleEndian(span, value));
 
         public static void Write(this IBufferWriter<byte> buffer, ushort value)
             => Write(buffer, sizeof(ushort), span => BinaryPrimitives.WriteUInt16LittleEndian(span, value));
 
-        public static void Write(this IBufferWriter<byte> buffer, byte value) 
+        public static void Write(this IBufferWriter<byte> buffer, byte value)
             => Write(buffer, 1, span => span[0] = value);
 
         public static void Write(this IBufferWriter<byte> buffer, bool value)
@@ -126,7 +126,7 @@ namespace NeoFx.Storage
         {
             buffer.Write((byte)tx.AssetType);
             Debug.Assert(tx.Name.Length <= 1024);
-            buffer.WriteVarString(tx.Name); 
+            buffer.WriteVarString(tx.Name);
             buffer.Write(tx.Amount);
             buffer.Write(tx.Precision);
             buffer.Write(tx.Owner);

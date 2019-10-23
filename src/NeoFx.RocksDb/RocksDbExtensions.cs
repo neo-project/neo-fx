@@ -58,7 +58,7 @@ namespace NeoFx.RocksDb
                     return TryConvert(valuePtr, valueLength, tryReadValue, out value);
                 }
                 finally
-                { 
+                {
                     Instance.rocksdb_pinnableslice_destroy(pinnableSlice);
                 }
             }

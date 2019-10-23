@@ -110,7 +110,7 @@ namespace NeoFx.RocksDb
             governingTokenHash = new Lazy<UInt256>(() => GetTokenHash(AssetType.GoverningToken));
             utilityTokenHash = new Lazy<UInt256>(() => GetTokenHash(AssetType.UtilityToken));
         }
-    
+
         public void Dispose()
         {
             if (!objectDisposed)
@@ -249,7 +249,7 @@ namespace NeoFx.RocksDb
             Span<byte> keybuffer = stackalloc byte[UInt256.Size];
 
             if (key.TryWrite(keybuffer)
-                && db.TryGet(keybuffer, columnFamily, TryReadBlockState, out (long systemFee, BlockHeader header, ReadOnlyMemory<UInt256> hashes) value)) 
+                && db.TryGet(keybuffer, columnFamily, TryReadBlockState, out (long systemFee, BlockHeader header, ReadOnlyMemory<UInt256> hashes) value))
             {
                 header = value.header;
                 hashes = value.hashes;
@@ -300,7 +300,7 @@ namespace NeoFx.RocksDb
             var columnFamily = db.GetColumnFamily(METADATA_FAMILY);
             Span<byte> keybuffer = stackalloc byte[1];
             keybuffer[0] = CURRENT_BLOCK_KEY;
-            
+
             if (db.TryGet(keybuffer, columnFamily, TryReadHashIndexState, out (UInt256 hash, uint index) currentBlock))
             {
                 value = currentBlock.hash;
@@ -459,7 +459,7 @@ namespace NeoFx.RocksDb
 
         private static bool TryReadStateVersion(ref SpanReader<byte> reader, byte expectedVersion)
         {
-            if (reader.TryPeek(out var value) 
+            if (reader.TryPeek(out var value)
                 && value == expectedVersion
                 && reader.TryAdvance(1))
             {

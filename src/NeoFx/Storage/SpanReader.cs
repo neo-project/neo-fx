@@ -24,7 +24,7 @@ namespace NeoFx.Storage
         }
 
         public int Length => sequence.IsEmpty
-            ? span.Length 
+            ? span.Length
             : (int)sequence.Length;
 
         public readonly bool TryCopyTo(Span<T> destination)

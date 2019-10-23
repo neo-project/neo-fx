@@ -12,7 +12,7 @@ namespace NeoFx.Models
         public InvocationTransaction(ReadOnlyMemory<byte> script, Fixed8 gas, byte version,
                                      ReadOnlyMemory<TransactionAttribute> attributes,
                                      ReadOnlyMemory<CoinReference> inputs, ReadOnlyMemory<TransactionOutput> outputs,
-                                     ReadOnlyMemory<Witness> witnesses) 
+                                     ReadOnlyMemory<Witness> witnesses)
             : base(version, attributes, inputs, outputs, witnesses)
         {
             Script = script;

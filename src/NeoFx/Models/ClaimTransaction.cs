@@ -10,7 +10,7 @@ namespace NeoFx.Models
 
         public ClaimTransaction(ReadOnlyMemory<CoinReference> claims, byte version,
                                 ReadOnlyMemory<TransactionAttribute> attributes, ReadOnlyMemory<CoinReference> inputs,
-                                ReadOnlyMemory<TransactionOutput> outputs, ReadOnlyMemory<Witness> witnesses) 
+                                ReadOnlyMemory<TransactionOutput> outputs, ReadOnlyMemory<Witness> witnesses)
             : base(version, attributes, inputs, outputs, witnesses)
         {
             Claims = claims;

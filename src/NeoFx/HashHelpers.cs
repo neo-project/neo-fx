@@ -60,7 +60,6 @@ namespace NeoFx
             return false;
         }
 
-
         public static UInt160 ToScriptHash(this string address)
         {
             Span<byte> buffer = stackalloc byte[21];
@@ -120,7 +119,7 @@ namespace NeoFx
             hash = default;
             return false;
         }
-        
+
         public static bool TryInteropMethodHash(string methodName, out uint value)
         {
             Span<byte> asciiMethodName = stackalloc byte[(Encoding.ASCII.GetByteCount(methodName))];
