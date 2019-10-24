@@ -6,9 +6,9 @@ using System.Security.Cryptography;
 
 namespace NeoFx
 {
-    public static class ECPointHelpers
+    internal static class ECPointHelpers
     {
-        public static ECCurve GetExplicit(this ECCurve curve)
+        internal static ECCurve GetExplicit(this ECCurve curve)
         {
             if (!curve.IsExplicit && curve.IsNamed)
             {
@@ -19,7 +19,7 @@ namespace NeoFx
             return curve;
         }
 
-        public static bool TryDecodePoint(this ECCurve curve, ReadOnlySpan<byte> span, out ECPoint point)
+        internal static bool TryDecodePoint(this ECCurve curve, ReadOnlySpan<byte> span, out ECPoint point)
         {
             curve = GetExplicit(curve);
 

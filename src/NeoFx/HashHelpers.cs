@@ -72,6 +72,19 @@ namespace NeoFx
             throw new ArgumentException(nameof(address));
         }
 
+        public static string ToAddress(this UInt160 scriptHash, byte addressVersion = 0x17)
+        {
+            Span<byte> buffer = stackalloc byte[21];
+            buffer[0] = addressVersion;
+            if (scriptHash.TryWrite(buffer.Slice(1))
+                && TryBase58CheckEncode(buffer, out var address))
+            {
+                return address;
+            }
+
+            throw new ArgumentException(nameof(scriptHash));
+        }
+
         public static bool TryHash256(ReadOnlySpan<byte> message, Span<byte> hash)
         {
             Span<byte> tempBuffer = stackalloc byte[Hash256Size];
