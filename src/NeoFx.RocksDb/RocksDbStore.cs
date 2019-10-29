@@ -129,7 +129,7 @@ namespace NeoFx.RocksDb
             {
                 if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
-                return (uint)blockIndex.Count;
+                return (uint)blockIndex.Count - 1;
             }
         }
 
