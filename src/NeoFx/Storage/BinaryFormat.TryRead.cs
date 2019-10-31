@@ -13,7 +13,7 @@ namespace NeoFx.Storage
     {
         public static bool TryReadBytes(ReadOnlySpan<byte> span, out StorageKey value)
         {
-            // StorageKey.Key uses an atypical storage pattern relative to other models in NEO.
+            // StorageKey.Key uses an atypical storage pattern relative to other models in Neo.
             // The byte array is written in blocks of 16 bytes followed by a byte indicating how many
             // bytes of the previous block were padding. Only the last block of 16 is allowed to have
             // padding. Read blocks of 16 (plus 1 padding indication byte) until padding indication byte
