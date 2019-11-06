@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <AssemblyName>NeoFx</AssemblyName>
     <Authors>Neo Global Development Seattle</Authors>
     <LangVersion>8.0</LangVersion>
     <Nullable>enable</Nullable>
@@ -8,6 +9,7 @@
     <PackageId>Neo.Fx</PackageId>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <RootNamespace>NeoFx</RootNamespace>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>	
     <TargetFramework>netstandard2.1</TargetFramework>
   </PropertyGroup>

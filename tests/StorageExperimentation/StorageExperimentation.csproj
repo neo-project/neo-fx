@@ -22,7 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\NeoFx.RocksDb\NeoFx.RocksDb.csproj" />
+    <ProjectReference Include="..\..\src\RocksDb\NeoFx.RocksDb.csproj" />
     <ProjectReference Include="..\..\src\NeoFx\NeoFx.csproj" />
   </ItemGroup>
 
