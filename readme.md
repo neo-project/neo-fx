@@ -1,6 +1,8 @@
 <!-- markdownlint-enable -->
 # Neo Unified Programming Model (aka Neo-Fx)
 
+[![Build Status](https://dev.azure.com/NGDSeattle/Public/_apis/build/status/neo-project.neo-fx?branchName=master)](https://dev.azure.com/NGDSeattle/Public/_build/latest?definitionId=26&branchName=master)
+
 This repo contains the start of the [Neo Unified Programming Model](https://github.com/ngdseattle/design-notes/blob/master/NDX-DN02%20-%20NEO-FX%20Unified%20Programming%20Model.md)
 library for .NET.
 
