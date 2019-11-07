@@ -8,6 +8,7 @@
     <PackageIcon>neo-logo-72.png</PackageIcon>
     <PackageId>Neo.Fx.RocksDb</PackageId>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>	
     <TargetFramework>netstandard2.1</TargetFramework>
   </PropertyGroup>
 
