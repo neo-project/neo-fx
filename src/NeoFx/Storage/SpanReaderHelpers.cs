@@ -46,7 +46,7 @@ namespace NeoFx.Storage
                     return CheckMax(@uint, max, out value);
                 }
 
-                if (b == 0xfe
+                if (b == 0xff
                     && reader.TryRead(sizeof(ulong), BinaryPrimitives.TryReadUInt64LittleEndian, out ulong @ulong))
                 {
                     return CheckMax(@ulong, max, out value);
