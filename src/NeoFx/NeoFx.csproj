@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <AssemblyName>NeoFx</AssemblyName>
     <Authors>Neo Global Development Seattle</Authors>
     <LangVersion>8.0</LangVersion>
@@ -15,6 +16,17 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Storage\**" />
+    <EmbeddedResource Remove="Storage\**" />
+    <None Remove="Storage\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="ECPointHelpers.cs" />
+    <Compile Remove="HashHelpers.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Include="../neo-logo-72.png" Pack="true" Visible="false" PackagePath="" />
   </ItemGroup>
 
@@ -25,10 +37,16 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="Storage\SpanReader.cs" />
+    <Compile Include="Storage\SpanReaderHelpers.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="DevHawk.RIPEMD160" Version="2.0.4" />
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0-beta2-19554-01" PrivateAssets="All"/>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" />
     <PackageReference Include="SimpleBase" Version="2.0.0" />
-    <PackageReference Include="System.Collections.Immutable" Version="1.6.0" />
+    <PackageReference Include="System.Collections.Immutable" Version="1.7.0" />
+    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="4.7.0" />
   </ItemGroup>
 
 </Project>

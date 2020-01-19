@@ -30,20 +30,20 @@ namespace NeoFx.Models
         public bool HasDynamicInvoke => (ContractProperties & PropertyState.HasDynamicInvoke) != 0;
         public bool Payable => (ContractProperties & PropertyState.Payable) != 0;
 
-        private readonly Lazy<UInt160> scriptHash;
+        //private readonly Lazy<UInt160> scriptHash;
 
-        public UInt160 ScriptHash => scriptHash.Value;
+        //public UInt160 ScriptHash => scriptHash.Value;
 
-        private static UInt160 CalculateScriptHash(ReadOnlyMemory<byte> script)
-        {
-            Span<byte> buffer = stackalloc byte[HashHelpers.Hash160Size];
-            if (HashHelpers.TryHash160(script.Span, buffer))
-            {
-                return new UInt160(buffer);
-            }
+        //private static UInt160 CalculateScriptHash(ReadOnlyMemory<byte> script)
+        //{
+        //    Span<byte> buffer = stackalloc byte[HashHelpers.Hash160Size];
+        //    if (HashHelpers.TryHash160(script.Span, buffer))
+        //    {
+        //        return new UInt160(buffer);
+        //    }
 
-            throw new Exception();
-        }
+        //    throw new Exception();
+        //}
 
         public DeployedContract(ReadOnlyMemory<byte> script, ReadOnlyMemory<ContractParameterType> parameterList, ContractParameterType returnType, PropertyState contractProperties, string name, string codeVersion, string author, string email, string description)
         {
@@ -57,7 +57,7 @@ namespace NeoFx.Models
             Email = email;
             Description = description;
 
-            scriptHash = new Lazy<UInt160>(() => CalculateScriptHash(script));
+            //scriptHash = new Lazy<UInt160>(() => CalculateScriptHash(script));
         }
     }
 }

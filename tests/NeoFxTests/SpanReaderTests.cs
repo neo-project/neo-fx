@@ -28,18 +28,148 @@ namespace NeoFxTests
 
     public class SpanReaderTests
     {
-        [Fact]
-        public void SpanReader_Span_source()
+        static ReadOnlySequence<byte> GetTestReadOnlySequence()
         {
-            Span<byte> buffer = stackalloc byte[] { 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8 };
-            var reader = new SpanReader<byte>(buffer);
+            var seq = new Nerdbank.Streams.Sequence<byte>();
 
-            reader.TryRead(out uint value1).Should().BeTrue();
-            value1.Should().Be(0x04030201);
-            reader.TryRead(out uint value2).Should().BeTrue();
-            value2.Should().Be(0x08070605);
-            reader.TryRead(out uint _).Should().BeFalse();
+            var mem1 = seq.GetMemory(4);
+            var span1 = mem1.Span;
+            span1[0] = 0;
+            span1[1] = 1;
+            span1[2] = 2;
+            span1[3] = 3;
+            seq.Advance(4);
+
+            var mem2 = seq.GetMemory(6);
+            var span2 = mem2.Span;
+            span2[0] = 4;
+            span2[1] = 5;
+            span2[2] = 6;
+            span2[3] = 7;
+            span2[4] = 8;
+            span2[5] = 9;
+            seq.Advance(6);
+
+            return seq.AsReadOnlySequence;
         }
+
+        [Fact]
+        public void Can_TryRead_Span()
+        {
+            Span<byte> span = new byte[] {0,1,2,3,4,5,6,7,8,9};
+            var reader = new SpanReader<byte>(span);
+
+            for (byte expected = 0; expected < 10; expected++)
+            {
+                reader.TryRead(out byte actual).Should().BeTrue();
+                actual.Should().Be(expected);
+            }
+
+            reader.TryRead(out byte _).Should().BeFalse();
+        }
+
+        [Fact]
+        public void Can_TryPeek_Span()
+        {
+            Span<byte> span = new byte[] {0,1,2,3,4,5,6,7,8,9};
+            var reader = new SpanReader<byte>(span);
+
+            reader.TryPeek(out byte actual).Should().BeTrue();
+            actual.Should().Be(0x00);
+            reader.TryPeek(out byte actual2).Should().BeTrue();
+            actual2.Should().Be(0x00);
+        }
+
+        [Fact]
+        public void Can_TryPeekAndAdvance_Span()
+        {
+            Span<byte> span = new byte[] {0,1,2,3,4,5,6,7,8,9};
+            var reader = new SpanReader<byte>(span);
+
+            for (byte expected = 0; expected < 10; expected++)
+            {
+                reader.TryPeek(out byte actual).Should().BeTrue();
+                actual.Should().Be(expected);
+                reader.Advance(1);
+            }
+
+            reader.TryRead(out byte _).Should().BeFalse();
+        }
+
+        [Fact]
+        public void Can_TryRead_Sequence()
+        {
+            var seq = GetTestReadOnlySequence();
+            var reader = new SpanReader<byte>(seq);
+
+            for (byte expected = 0; expected < 10; expected++)
+            {
+                reader.TryRead(out byte actual).Should().BeTrue();
+                actual.Should().Be(expected);
+            }
+
+            reader.TryRead(out byte _).Should().BeFalse();
+        }
+
+        [Fact]
+        public void Can_TryPeek_Sequence()
+        {
+            var seq = GetTestReadOnlySequence();
+            var reader = new SpanReader<byte>(seq);
+
+            reader.TryPeek(out byte actual).Should().BeTrue();
+            actual.Should().Be(0x00);
+            reader.TryPeek(out byte actual2).Should().BeTrue();
+            actual2.Should().Be(0x00);
+        }
+
+        [Fact]
+        public void Can_TryPeekAndAdvance_Sequence()
+        {
+            var seq = GetTestReadOnlySequence();
+            var reader = new SpanReader<byte>(seq);
+
+            for (byte expected = 0; expected < 10; expected++)
+            {
+                reader.TryPeek(out byte actual).Should().BeTrue();
+                actual.Should().Be(expected);
+                reader.Advance(1);
+            }
+
+            reader.TryRead(out byte _).Should().BeFalse();
+        }
+
+        [Fact]
+        public void Can_TryCopyTo_Seq()
+        {
+            Span<byte> expected = new byte[] {0,1,2,3,4,5,6,7,8,9};
+
+            var ros = GetTestReadOnlySequence();
+            var reader = new SpanReader<byte>(ros);
+
+            Span<byte> actual = new byte[10];
+            reader.TryCopyTo(actual).Should().BeTrue();
+
+            actual.SequenceEqual(expected).Should().BeTrue();
+        }
+
+        [Fact]
+        public void Can_TryCopyTo_Span()
+        {
+            Span<byte> span = new byte[] {0,1,2,3,4,5,6,7,8,9};
+            var reader = new SpanReader<byte>(span);
+
+            Span<byte> expected = new byte[] {0,1,2,3,4,5,6,7,8,9};
+
+            Span<byte> actual = new byte[10];
+            reader.TryCopyTo(actual).Should().BeTrue();
+            actual.SequenceEqual(expected).Should().BeTrue();
+        }
+
+
+
+
+
 
         [Fact]
         public void SpanReader_Sequence_Source()
@@ -76,7 +206,7 @@ namespace NeoFxTests
             sequence.FirstSpan.Length.Should().Be(buffer1.Length);
 
             var reader = new SpanReader<byte>(sequence);
-            reader.TryAdvance(8).Should().BeTrue();
+            reader.Advance(8);
             reader.TryRead(out _).Should().BeFalse();
         }
 

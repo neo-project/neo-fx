@@ -103,6 +103,40 @@ namespace NeoFxTests
         }
 
         [Fact]
+        public void Can_TryParse()
+        {
+            UInt160 a = new UInt160(0x0807060504030201, 0x100f0e0d0c0b0a09, 0x14131211);
+            const string @string = "0x14131211100f0e0d0c0b0a090807060504030201";
+            UInt160.TryParse(@string, out var b).Should().BeTrue();
+
+            a.Equals(b).Should().BeTrue();
+        }
+
+        [Fact]
+        public void TryParse_invalid_string_returns_false()
+        {
+            const string @string = "0x14131211100f0e0Qd0c0b0a090807060504030201";
+            UInt160.TryParse(@string, out _).Should().BeFalse();
+        }
+
+        [Fact]
+        public void Can_TryFormat()
+        {
+            UInt160 a = new UInt160(0x0807060504030201, 0x100f0e0d0c0b0a09, 0x14131211);
+
+            var actual = new char[2 + (UInt160.Size * 2)];
+            a.TryFormat(actual, out var written).Should().BeTrue();
+
+            const string expected = "0x14131211100f0e0d0c0b0a090807060504030201";
+            written.Should().Be(expected.Length);
+
+            actual.Should().Equal(expected, (l, r) => l == r);
+        }
+
+
+
+
+        [Fact]
         public void ToString_matches_NEO_ToString()
         {
             byte[] span = new byte[] {
