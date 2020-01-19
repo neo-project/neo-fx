@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Buffers;
+using System.Collections.Immutable;
 
 namespace NeoFx.Models
 {
@@ -12,11 +13,11 @@ namespace NeoFx.Models
         }
 
         public readonly StateType Type;
-        public readonly ReadOnlyMemory<byte> Key;
+        public readonly ImmutableArray<byte> Key;
         public readonly string Field;
-        public readonly ReadOnlyMemory<byte> Value;
+        public readonly ImmutableArray<byte> Value;
 
-        public StateDescriptor(StateType type, ReadOnlyMemory<byte> key, string field, ReadOnlyMemory<byte> value)
+        public StateDescriptor(StateType type, ImmutableArray<byte> key, string field, ImmutableArray<byte> value)
         {
             Type = type;
             Key = key;

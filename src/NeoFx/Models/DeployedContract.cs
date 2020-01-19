@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Text;
 
 namespace NeoFx.Models
@@ -16,8 +17,8 @@ namespace NeoFx.Models
             Payable = 1 << 2
         }
 
-        public readonly ReadOnlyMemory<byte> Script;
-        public readonly ReadOnlyMemory<ContractParameterType> ParameterList;
+        public readonly ImmutableArray<byte> Script;
+        public readonly ImmutableArray<ContractParameterType> ParameterList;
         public readonly ContractParameterType ReturnType;
         public readonly PropertyState ContractProperties;
         public readonly string Name;
@@ -34,7 +35,7 @@ namespace NeoFx.Models
 
         //public UInt160 ScriptHash => scriptHash.Value;
 
-        //private static UInt160 CalculateScriptHash(ReadOnlyMemory<byte> script)
+        //private static UInt160 CalculateScriptHash(ImmutableArray<byte> script)
         //{
         //    Span<byte> buffer = stackalloc byte[HashHelpers.Hash160Size];
         //    if (HashHelpers.TryHash160(script.Span, buffer))
@@ -45,7 +46,7 @@ namespace NeoFx.Models
         //    throw new Exception();
         //}
 
-        public DeployedContract(ReadOnlyMemory<byte> script, ReadOnlyMemory<ContractParameterType> parameterList, ContractParameterType returnType, PropertyState contractProperties, string name, string codeVersion, string author, string email, string description)
+        public DeployedContract(ImmutableArray<byte> script, ImmutableArray<ContractParameterType> parameterList, ContractParameterType returnType, PropertyState contractProperties, string name, string codeVersion, string author, string email, string description)
         {
             Script = script;
             ParameterList = parameterList;

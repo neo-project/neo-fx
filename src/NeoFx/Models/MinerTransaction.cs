@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Text;
 
 namespace NeoFx.Models
@@ -8,9 +9,12 @@ namespace NeoFx.Models
     {
         public readonly uint Nonce;
 
-        public MinerTransaction(uint nonce, byte version, ReadOnlyMemory<TransactionAttribute> attributes,
-                                ReadOnlyMemory<CoinReference> inputs, ReadOnlyMemory<TransactionOutput> outputs,
-                                ReadOnlyMemory<Witness> witnesses)
+        public MinerTransaction(uint nonce,
+                                byte version,
+                                ImmutableArray<TransactionAttribute> attributes,
+                                ImmutableArray<CoinReference> inputs,
+                                ImmutableArray<TransactionOutput> outputs,
+                                ImmutableArray<Witness> witnesses)
             : base(version, attributes, inputs, outputs, witnesses)
         {
             Nonce = nonce;

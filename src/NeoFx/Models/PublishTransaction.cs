@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Text;
 
 namespace NeoFx.Models
@@ -7,8 +8,8 @@ namespace NeoFx.Models
     [Obsolete]
     public sealed class PublishTransaction : Transaction
     {
-        public ReadOnlyMemory<byte> Script;
-        public ReadOnlyMemory<ContractParameterType> ParameterList;
+        public ImmutableArray<byte> Script;
+        public ImmutableArray<ContractParameterType> ParameterList;
         public ContractParameterType ReturnType;
         public bool NeedStorage;
         public string Name;
@@ -17,12 +18,20 @@ namespace NeoFx.Models
         public string Email;
         public string Description;
 
-        public PublishTransaction(ReadOnlyMemory<byte> script, ReadOnlyMemory<ContractParameterType> parameterList,
-                                     ContractParameterType returnType, bool needStorage, string name, string codeVersion,
-                                     string author, string email, string description, byte version,
-                                     ReadOnlyMemory<TransactionAttribute> attributes,
-                                     ReadOnlyMemory<CoinReference> inputs, ReadOnlyMemory<TransactionOutput> outputs,
-                                     ReadOnlyMemory<Witness> witnesses)
+        public PublishTransaction(ImmutableArray<byte> script,
+                                  ImmutableArray<ContractParameterType> parameterList,
+                                  ContractParameterType returnType,
+                                  bool needStorage,
+                                  string name,
+                                  string codeVersion,
+                                  string author,
+                                  string email,
+                                  string description,
+                                  byte version,
+                                  ImmutableArray<TransactionAttribute> attributes,
+                                  ImmutableArray<CoinReference> inputs,
+                                  ImmutableArray<TransactionOutput> outputs,
+                                  ImmutableArray<Witness> witnesses)
             : base(version, attributes, inputs, outputs, witnesses)
         {
             Script = script;

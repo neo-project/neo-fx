@@ -1,16 +1,17 @@
 ﻿using System;
 using System.Buffers;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Text;
 
 namespace NeoFx.Models
 {
     public readonly struct Witness
     {
-        public readonly ReadOnlyMemory<byte> InvocationScript;
-        public readonly ReadOnlyMemory<byte> VerificationScript;
+        public readonly ImmutableArray<byte> InvocationScript;
+        public readonly ImmutableArray<byte> VerificationScript;
 
-        public Witness(ReadOnlyMemory<byte> invocationScript, ReadOnlyMemory<byte> verificationScript)
+        public Witness(ImmutableArray<byte> invocationScript, ImmutableArray<byte> verificationScript)
         {
             InvocationScript = invocationScript;
             VerificationScript = verificationScript;

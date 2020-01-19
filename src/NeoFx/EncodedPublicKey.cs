@@ -6,6 +6,8 @@ using System.Text;
 
 namespace NeoFx
 {
+    // TODO: this type should hold either a compressed or uncompressed public key in 
+    //       a fixed size buffer
     public readonly struct EncodedPublicKey
     {
         public readonly ReadOnlyMemory<byte> Key;

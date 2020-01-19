@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Text;
 
 namespace NeoFx.Models
@@ -13,10 +14,17 @@ namespace NeoFx.Models
         public readonly EncodedPublicKey Owner;
         public readonly UInt160 Admin;
 
-        public RegisterTransaction(AssetType assetType, string name, Fixed8 amount, byte precision,
-                                   EncodedPublicKey owner, in UInt160 admin, byte version,
-                                   ReadOnlyMemory<TransactionAttribute> attributes, ReadOnlyMemory<CoinReference> inputs,
-                                   ReadOnlyMemory<TransactionOutput> outputs, ReadOnlyMemory<Witness> witnesses)
+        public RegisterTransaction(AssetType assetType,
+                                   string name,
+                                   Fixed8 amount,
+                                   byte precision,
+                                   EncodedPublicKey owner,
+                                   in UInt160 admin,
+                                   byte version,
+                                   ImmutableArray<TransactionAttribute> attributes,
+                                   ImmutableArray<CoinReference> inputs,
+                                   ImmutableArray<TransactionOutput> outputs,
+                                   ImmutableArray<Witness> witnesses)
             : base(version, attributes, inputs, outputs, witnesses)
         {
             AssetType = assetType;

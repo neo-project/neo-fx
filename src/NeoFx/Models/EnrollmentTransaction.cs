@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Text;
 
 namespace NeoFx.Models
@@ -9,10 +10,12 @@ namespace NeoFx.Models
     {
         public readonly EncodedPublicKey PublicKey;
 
-        public EnrollmentTransaction(EncodedPublicKey publicKey, byte version,
-                                        ReadOnlyMemory<TransactionAttribute> attributes,
-                                        ReadOnlyMemory<CoinReference> inputs, ReadOnlyMemory<TransactionOutput> outputs,
-                                        ReadOnlyMemory<Witness> witnesses)
+        public EnrollmentTransaction(EncodedPublicKey publicKey,
+                                     byte version,
+                                     ImmutableArray<TransactionAttribute> attributes,
+                                     ImmutableArray<CoinReference> inputs,
+                                     ImmutableArray<TransactionOutput> outputs,
+                                     ImmutableArray<Witness> witnesses)
             : base(version, attributes, inputs, outputs, witnesses)
         {
             PublicKey = publicKey;

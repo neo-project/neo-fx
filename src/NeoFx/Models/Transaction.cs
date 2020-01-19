@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Text;
 
 namespace NeoFx.Models
@@ -7,14 +8,16 @@ namespace NeoFx.Models
     public abstract class Transaction
     {
         public readonly byte Version;
-        public readonly ReadOnlyMemory<TransactionAttribute> Attributes;
-        public readonly ReadOnlyMemory<CoinReference> Inputs;
-        public readonly ReadOnlyMemory<TransactionOutput> Outputs;
-        public readonly ReadOnlyMemory<Witness> Witnesses;
+        public readonly ImmutableArray<TransactionAttribute> Attributes;
+        public readonly ImmutableArray<CoinReference> Inputs;
+        public readonly ImmutableArray<TransactionOutput> Outputs;
+        public readonly ImmutableArray<Witness> Witnesses;
 
-        protected Transaction(byte version, ReadOnlyMemory<TransactionAttribute> attributes,
-                              ReadOnlyMemory<CoinReference> inputs, ReadOnlyMemory<TransactionOutput> outputs,
-                              ReadOnlyMemory<Witness> witnesses)
+        protected Transaction(byte version,
+                              ImmutableArray<TransactionAttribute> attributes,
+                              ImmutableArray<CoinReference> inputs,
+                              ImmutableArray<TransactionOutput> outputs,
+                              ImmutableArray<Witness> witnesses)
         {
             Version = version;
             Attributes = attributes;
