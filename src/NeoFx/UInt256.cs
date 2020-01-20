@@ -1,4 +1,5 @@
-﻿using System;
+﻿using NeoFx.Storage;
+using System;
 using System.Buffers.Binary;
 using System.Diagnostics;
 using System.Globalization;
@@ -41,6 +42,21 @@ namespace NeoFx
                 && BinaryPrimitives.TryReadUInt64LittleEndian(buffer.Slice(8), out var data2)
                 && BinaryPrimitives.TryReadUInt64LittleEndian(buffer.Slice(16), out var data3)
                 && BinaryPrimitives.TryReadUInt64LittleEndian(buffer.Slice(24), out var data4))
+            {
+                result = new UInt256(data1, data2, data3, data4);
+                return true;
+            }
+
+            result = default;
+            return false;
+        }
+
+        public static bool TryRead(ref SpanReader<byte> reader, out UInt256 result)
+        {
+            if (reader.TryRead(out ulong data1)
+                && reader.TryRead(out ulong data2)
+                && reader.TryRead(out ulong data3)
+                && reader.TryRead(out ulong data4))
             {
                 result = new UInt256(data1, data2, data3, data4);
                 return true;

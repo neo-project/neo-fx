@@ -40,6 +40,7 @@
     <Compile Include="Storage\IBlockchainStorage.cs" />
     <Compile Include="Storage\SpanReader.cs" />
     <Compile Include="Storage\SpanReaderHelpers.cs" />
+    <Compile Include="Storage\VarSizeHelpers.cs" />
   </ItemGroup>
 
   <ItemGroup>

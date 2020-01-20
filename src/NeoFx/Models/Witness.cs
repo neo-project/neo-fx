@@ -1,4 +1,5 @@
-﻿using System.Collections.Immutable;
+﻿using NeoFx.Storage;
+using System.Collections.Immutable;
 
 namespace NeoFx.Models
 {
@@ -12,5 +13,19 @@ namespace NeoFx.Models
             InvocationScript = invocationScript;
             VerificationScript = verificationScript;
         }
+
+        public static bool TryRead(ref SpanReader<byte> reader, out Witness value)
+        {
+            if (reader.TryReadVarArray(65536, out var invocation)
+                && reader.TryReadVarArray(65536, out var verification))
+            {
+                value = new Witness(invocation, verification);
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
+
     }
 }

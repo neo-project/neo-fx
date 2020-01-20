@@ -1,4 +1,5 @@
-﻿using System;
+﻿using NeoFx.Storage;
+using System;
 
 namespace NeoFx.Models
 {
@@ -28,6 +29,26 @@ namespace NeoFx.Models
             ConsensusData = consensusData;
             NextConsensus = nextConsensus;
             Witness = witness;
+        }
+
+        public static bool TryRead(ref SpanReader<byte> reader, out BlockHeader value)
+        {
+            if (reader.TryRead(out uint version)
+                && UInt256.TryRead(ref reader, out var prevHash)
+                && UInt256.TryRead(ref reader, out var merkleRoot)
+                && reader.TryRead(out uint timestamp)
+                && reader.TryRead(out uint index)
+                && reader.TryRead(out ulong consensusData)
+                && UInt160.TryRead(ref reader, out var nextConsensus)
+                && reader.TryRead(out byte witnessCount) && witnessCount == 1
+                && Witness.TryRead(ref reader, out Witness witness))
+            {
+                value = new BlockHeader(version, prevHash, merkleRoot, timestamp, index, consensusData, nextConsensus, witness);
+                return true;
+            }
+
+            value = default;
+            return false;
         }
     }
 }

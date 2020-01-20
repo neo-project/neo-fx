@@ -22,5 +22,12 @@ namespace NeoFx.Models
             Header = header;
             Transactions = transactions;
         }
+
+        public static bool TryRead(ReadOnlySpan<byte> buffer, out Block result)
+        {
+            result = default;
+            return false;
+        }
+
     }
 }
