@@ -1,8 +1,9 @@
 ﻿using NeoFx.Storage;
+using System.Buffers;
 
 namespace NeoFx.Models
 {
-    public readonly struct TransactionOutput
+    public readonly struct TransactionOutput : IWritable<TransactionOutput>
     {
         public readonly UInt256 AssetId;
         public readonly Fixed8 Value;
@@ -29,5 +30,11 @@ namespace NeoFx.Models
             return false;
         }
 
+        public void Write(IBufferWriter<byte> writer)
+        {
+            writer.Write(AssetId);
+            writer.Write(Value);
+            writer.Write(ScriptHash);
+        }
     }
 }

@@ -1,5 +1,6 @@
 ﻿using NeoFx.Storage;
 using System;
+using System.Buffers;
 using System.Buffers.Binary;
 using System.Diagnostics;
 using System.Globalization;
@@ -8,7 +9,7 @@ namespace NeoFx
 {
     // TODO: IFormattable?
 
-    public readonly struct UInt160 : IEquatable<UInt160>, IComparable<UInt160>
+    public readonly struct UInt160 : IEquatable<UInt160>, IComparable<UInt160>, IWritable<UInt160>
     {
         public static readonly UInt160 Zero = new UInt160(0, 0, 0);
 
@@ -74,6 +75,13 @@ namespace NeoFx
         {
             if (!TryWrite(buffer))
                 throw new ArgumentException(nameof(buffer));
+        }
+
+        public void Write(IBufferWriter<byte> writer)
+        {
+            writer.WriteLittleEndian(data1);
+            writer.WriteLittleEndian(data2);
+            writer.WriteLittleEndian(data3);
         }
 
         public override string ToString()

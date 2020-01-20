@@ -1,11 +1,12 @@
 ﻿using NeoFx.Storage;
 using System;
+using System.Buffers;
 using System.Buffers.Binary;
 using System.Globalization;
 
 namespace NeoFx
 {
-    public readonly struct Fixed8 : IComparable<Fixed8>, IEquatable<Fixed8>
+    public readonly struct Fixed8 : IComparable<Fixed8>, IEquatable<Fixed8>, IWritable<Fixed8>
     {
         private const long D = 100_000_000;
         public const int Size = sizeof(long);
@@ -76,6 +77,11 @@ namespace NeoFx
         {
             if (!TryWrite(buffer))
                 throw new ArgumentException(nameof(buffer));
+        }
+
+        public void Write(IBufferWriter<byte> writer)
+        {
+            writer.WriteLittleEndian(value);
         }
 
         public Fixed8 Abs()

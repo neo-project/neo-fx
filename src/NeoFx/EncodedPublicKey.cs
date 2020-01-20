@@ -1,5 +1,6 @@
 ﻿using NeoFx.Storage;
 using System;
+using System.Buffers;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Security.Cryptography;
@@ -8,7 +9,7 @@ namespace NeoFx
 {
     // TODO: this type should hold either a compressed or uncompressed public key in 
     //       a fixed size buffer
-    public readonly struct EncodedPublicKey
+    public readonly struct EncodedPublicKey : IWritable<EncodedPublicKey>
     {
         public readonly ImmutableArray<byte> Key;
 
@@ -82,6 +83,11 @@ namespace NeoFx
             return false;
         }
 
-
+        public void Write(IBufferWriter<byte> writer)
+        {
+            var span = writer.GetSpan(Key.Length);
+            Key.AsSpan().CopyTo(span);
+            writer.Advance(Key.Length);
+        }
     }
 }

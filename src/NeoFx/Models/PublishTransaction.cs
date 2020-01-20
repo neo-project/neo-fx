@@ -1,5 +1,6 @@
 ﻿using NeoFx.Storage;
 using System;
+using System.Buffers;
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
@@ -91,6 +92,21 @@ namespace NeoFx.Models
             return false;
         }
 
-
+        public override void WriteTransactionData(IBufferWriter<byte> writer)
+        {
+            writer.WriteVarArray(Script.AsSpan());
+            var byteParameterList = Unsafe.As<ImmutableArray<ContractParameterType>, byte[]>(ref ParameterList);
+            writer.WriteVarArray(byteParameterList);
+            writer.WriteLittleEndian((byte)ReturnType);
+            if (Version >= 1)
+            {
+                writer.WriteLittleEndian(NeedStorage ? (byte)1 : (byte)0);
+            }
+            writer.WriteVarString(Name);
+            writer.WriteVarString(CodeVersion);
+            writer.WriteVarString(Author);
+            writer.WriteVarString(Email);
+            writer.WriteVarString(Description);
+        }
     }
 }

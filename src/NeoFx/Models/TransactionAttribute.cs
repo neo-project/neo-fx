@@ -1,10 +1,11 @@
 ﻿using NeoFx.Storage;
 using System;
+using System.Buffers;
 using System.Collections.Immutable;
 
 namespace NeoFx.Models
 {
-    public readonly struct TransactionAttribute
+    public readonly struct TransactionAttribute : IWritable<TransactionAttribute>
     {
         public enum UsageType : byte
         {
@@ -121,5 +122,10 @@ namespace NeoFx.Models
             return false;
         }
 
+        public void Write(IBufferWriter<byte> writer)
+        {
+            writer.WriteLittleEndian((byte)Usage);
+            writer.WriteVarArray(Data.AsSpan());
+        }
     }
 }

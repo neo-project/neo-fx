@@ -1,9 +1,10 @@
 ﻿using NeoFx.Storage;
+using System.Buffers;
 using System.Collections.Immutable;
 
 namespace NeoFx.Models
 {
-    public readonly struct StateDescriptor
+    public readonly struct StateDescriptor : IWritable<StateDescriptor>
     {
         public enum StateType : byte
         {
@@ -39,5 +40,12 @@ namespace NeoFx.Models
             return false;
         }
 
+        public void Write(IBufferWriter<byte> writer)
+        {
+            writer.WriteLittleEndian((byte)Type);
+            writer.WriteVarArray(Key.AsSpan());
+            writer.WriteVarString(Field);
+            writer.WriteVarArray(Value.AsSpan());
+        }
     }
 }

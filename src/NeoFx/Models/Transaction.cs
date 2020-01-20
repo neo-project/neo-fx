@@ -1,4 +1,5 @@
 ﻿using NeoFx.Storage;
+using System.Buffers;
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 
@@ -124,5 +125,6 @@ namespace NeoFx.Models
             return false;
         }
 
+        public abstract void WriteTransactionData(IBufferWriter<byte> writer);
     }
 }

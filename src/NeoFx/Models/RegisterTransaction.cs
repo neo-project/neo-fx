@@ -1,5 +1,7 @@
 ﻿using NeoFx.Storage;
+using System.Buffers;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 
 namespace NeoFx.Models
@@ -56,5 +58,17 @@ namespace NeoFx.Models
             return false;
         }
 
+        public override void WriteTransactionData(IBufferWriter<byte> writer)
+        {
+            writer.WriteLittleEndian((byte)TransactionType.Register);
+            writer.WriteLittleEndian(Version);
+            writer.WriteLittleEndian((byte)AssetType);
+            Debug.Assert(Name.Length <= 1024);
+            writer.WriteVarString(Name);
+            writer.WriteLittleEndian(Amount);
+            writer.WriteLittleEndian(Precision);
+            writer.Write(Owner);
+            writer.WriteLittleEndian(Admin);
+        }
     }
 }

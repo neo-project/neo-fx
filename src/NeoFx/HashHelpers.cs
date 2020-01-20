@@ -108,23 +108,23 @@ namespace NeoFx
 
         public static void WriteHashData(in Transaction tx, IBufferWriter<byte> buffer)
         {
-            //buffer.WriteData(tx);
-            //buffer.WriteVarArray(tx.Attributes.Span, BinaryFormat.Write);
-            //buffer.WriteVarArray(tx.Inputs.Span, BinaryFormat.Write);
-            //buffer.WriteVarArray(tx.Outputs.Span, BinaryFormat.Write);
+            tx.WriteTransactionData(buffer);
+            buffer.WriteVarArray(tx.Attributes.AsSpan());
+            buffer.WriteVarArray(tx.Inputs.AsSpan());
+            buffer.WriteVarArray(tx.Outputs.AsSpan());
         }
 
         public static bool TryHash(in Transaction tx, out UInt256 hash)
         {
-            //var buffer = new ArrayBufferWriter<byte>(tx.GetSize());
-            //WriteHashData(tx, buffer);
+            var buffer = new ArrayBufferWriter<byte>(1024);
+            WriteHashData(tx, buffer);
 
-            //Span<byte> hashBuffer = stackalloc byte[Hash256Size];
-            //if (TryHash256(buffer.WrittenSpan, hashBuffer))
-            //{
-            //    hash = new UInt256(hashBuffer);
-            //    return true;
-            //}
+            Span<byte> hashBuffer = stackalloc byte[Hash256Size];
+            if (TryHash256(buffer.WrittenSpan, hashBuffer))
+            {
+                hash = new UInt256(hashBuffer);
+                return true;
+            }
 
             hash = default;
             return false;
