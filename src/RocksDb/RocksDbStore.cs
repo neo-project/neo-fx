@@ -139,29 +139,31 @@ namespace NeoFx.RocksDb
 
         public IEnumerable<(ReadOnlyMemory<byte> key, StorageItem item)> EnumerateStorage(in UInt160 scriptHash)
         {
-            if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
+            //if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
-            static IEnumerable<(ReadOnlyMemory<byte> key, StorageItem item)> EnumerateStorage(RocksDb db, UInt160 scriptHash)
-            {
-                var keyPrefix = new byte[UInt160.Size];
-                scriptHash.TryWrite(keyPrefix);
+            //static IEnumerable<(ReadOnlyMemory<byte> key, StorageItem item)> EnumerateStorage(RocksDb db, UInt160 scriptHash)
+            //{
+            //    var keyPrefix = new byte[UInt160.Size];
+            //    scriptHash.TryWrite(keyPrefix);
 
-                using var iterator = db.NewIterator(db.GetColumnFamily(STORAGE_FAMILY));
-                iterator.Seek(keyPrefix);
-                while (iterator.Valid())
-                {
-                    var keyReadResult = BinaryFormat.TryReadBytes(iterator.Key(), out StorageKey key);
-                    var valueReadResult = TryReadStorageItem(iterator.Value(), out var value);
+            //    using var iterator = db.NewIterator(db.GetColumnFamily(STORAGE_FAMILY));
+            //    iterator.Seek(keyPrefix);
+            //    while (iterator.Valid())
+            //    {
+            //        var keyReadResult = BinaryFormat.TryReadBytes(iterator.Key(), out StorageKey key);
+            //        var valueReadResult = TryReadStorageItem(iterator.Value(), out var value);
 
-                    Debug.Assert(keyReadResult);
-                    Debug.Assert(valueReadResult);
+            //        Debug.Assert(keyReadResult);
+            //        Debug.Assert(valueReadResult);
 
-                    yield return (key.Key, value);
-                    iterator.Next();
-                }
-            }
+            //        yield return (key.Key, value);
+            //        iterator.Next();
+            //    }
+            //}
 
-            return EnumerateStorage(db, scriptHash);
+            //return EnumerateStorage(db, scriptHash);
+
+            return null!;
         }
 
         public bool TryGetAccount(in UInt160 key, out Account value)
@@ -220,8 +222,8 @@ namespace NeoFx.RocksDb
                     }
                 }
 
-                value = new Block(header, transactions);
-                return true;
+                //value = new Block(header, transactions);
+                //return true;
             }
 
             value = default;
@@ -316,15 +318,15 @@ namespace NeoFx.RocksDb
         {
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
-            var columnFamily = db.GetColumnFamily(STORAGE_FAMILY);
-            Span<byte> keybuffer = stackalloc byte[key.GetSize()];
+            //var columnFamily = db.GetColumnFamily(STORAGE_FAMILY);
+            //Span<byte> keybuffer = stackalloc byte[key.GetSize()];
 
-            if (key.TryWrite(keybuffer, out var _)
-                && db.TryGet(keybuffer, columnFamily, TryReadStorageItem, out StorageItem item))
-            {
-                value = item;
-                return true;
-            }
+            //if (key.TryWrite(keybuffer, out var _)
+            //    && db.TryGet(keybuffer, columnFamily, TryReadStorageItem, out StorageItem item))
+            //{
+            //    value = item;
+            //    return true;
+            //}
 
             value = default;
             return false;
@@ -424,7 +426,8 @@ namespace NeoFx.RocksDb
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
             var columnFamily = db.GetColumnFamily(STORAGE_FAMILY);
-            return db.Iterate<StorageKey, StorageItem>(columnFamily, BinaryFormat.TryReadBytes, TryReadStorageItem);
+            //return db.Iterate<StorageKey, StorageItem>(columnFamily, BinaryFormat.TryReadBytes, TryReadStorageItem);
+            return null!;
         }
 
         public IEnumerable<(UInt256 key, (uint blockIndex, Transaction tx) transactionState)> GetTransactions()
@@ -445,26 +448,27 @@ namespace NeoFx.RocksDb
 
         public IEnumerable<(EncodedPublicKey key, Validator validatorState)> GetValidators()
         {
-            static bool TryReadEncodedPublicKey(ReadOnlySpan<byte> span, out EncodedPublicKey value)
-            {
-                var reader = new SpanReader<byte>(span);
-                return BinaryFormat.TryRead(ref reader, out value);
-            }
+            //static bool TryReadEncodedPublicKey(ReadOnlySpan<byte> span, out EncodedPublicKey value)
+            //{
+            //    var reader = new SpanReader<byte>(span);
+            //    return BinaryFormat.TryRead(ref reader, out value);
+            //}
 
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
             var columnFamily = db.GetColumnFamily(VALIDATOR_FAMILY);
-            return db.Iterate<EncodedPublicKey, Validator>(columnFamily, TryReadEncodedPublicKey, TryReadValidatorState);
+            //return db.Iterate<EncodedPublicKey, Validator>(columnFamily, TryReadEncodedPublicKey, TryReadValidatorState);
+            return null!;
         }
 
         private static bool TryReadStateVersion(ref SpanReader<byte> reader, byte expectedVersion)
         {
-            if (reader.TryPeek(out var value)
-                && value == expectedVersion
-                && reader.TryAdvance(1))
-            {
-                return true;
-            }
+            //if (reader.TryPeek(out var value)
+            //    && value == expectedVersion
+            //    && reader.TryAdvance(1))
+            //{
+            //    return true;
+            //}
 
             return false;
         }
@@ -473,14 +477,14 @@ namespace NeoFx.RocksDb
         {
             var reader = new SpanReader<byte>(span);
 
-            if (TryReadStateVersion(ref reader, 0)
-                && reader.TryRead(out Account account))
-            {
-                Debug.Assert(reader.Length == 0);
+            //if (TryReadStateVersion(ref reader, 0)
+            //    && reader.TryRead(out Account account))
+            //{
+            //    Debug.Assert(reader.Length == 0);
 
-                value = account;
-                return true;
-            }
+            //    value = account;
+            //    return true;
+            //}
 
             value = default;
             return false;
@@ -490,14 +494,14 @@ namespace NeoFx.RocksDb
         {
             var reader = new SpanReader<byte>(span);
 
-            if (TryReadStateVersion(ref reader, 0)
-                && reader.TryRead(out Asset asset))
-            {
-                Debug.Assert(reader.Length == 0);
+            //if (TryReadStateVersion(ref reader, 0)
+            //    && reader.TryRead(out Asset asset))
+            //{
+            //    Debug.Assert(reader.Length == 0);
 
-                value = asset;
-                return true;
-            }
+            //    value = asset;
+            //    return true;
+            //}
 
             value = default;
             return false;
@@ -507,15 +511,15 @@ namespace NeoFx.RocksDb
         {
             var reader = new SpanReader<byte>(span);
 
-            if (TryReadStateVersion(ref reader, 0)
-                && reader.TryRead(out long systemFee)
-                && reader.TryRead(out BlockHeader header)
-                && reader.TryReadVarArray<UInt256>(BinaryFormat.TryRead, out var hashes))
-            {
-                Debug.Assert(reader.Length == 0);
-                value = (systemFee, header, hashes);
-                return true;
-            }
+            //if (TryReadStateVersion(ref reader, 0)
+            //    && reader.TryRead(out long systemFee)
+            //    && reader.TryRead(out BlockHeader header)
+            //    && reader.TryReadVarArray<UInt256>(BinaryFormat.TryRead, out var hashes))
+            //{
+            //    Debug.Assert(reader.Length == 0);
+            //    value = (systemFee, header, hashes);
+            //    return true;
+            //}
 
             value = default;
             return false;
@@ -525,13 +529,13 @@ namespace NeoFx.RocksDb
         {
             var reader = new SpanReader<byte>(span);
 
-            if (TryReadStateVersion(ref reader, 0)
-                && reader.TryRead(out DeployedContract contract))
-            {
-                Debug.Assert(reader.Length == 0);
-                value = contract;
-                return true;
-            }
+            //if (TryReadStateVersion(ref reader, 0)
+            //    && reader.TryRead(out DeployedContract contract))
+            //{
+            //    Debug.Assert(reader.Length == 0);
+            //    value = contract;
+            //    return true;
+            //}
 
             value = default;
             return false;
@@ -541,14 +545,14 @@ namespace NeoFx.RocksDb
         {
             var reader = new SpanReader<byte>(span);
 
-            if (TryReadStateVersion(ref reader, 0)
-                && reader.TryRead(out UInt256 hash)
-                && reader.TryRead(out uint index))
-            {
-                Debug.Assert(reader.Length == 0);
-                value = (hash, index);
-                return true;
-            }
+            //if (TryReadStateVersion(ref reader, 0)
+            //    && reader.TryRead(out UInt256 hash)
+            //    && reader.TryRead(out uint index))
+            //{
+            //    Debug.Assert(reader.Length == 0);
+            //    value = (hash, index);
+            //    return true;
+            //}
 
             value = default;
             return false;
@@ -558,13 +562,13 @@ namespace NeoFx.RocksDb
         {
             var reader = new SpanReader<byte>(span);
 
-            if (TryReadStateVersion(ref reader, 0)
-                && reader.TryRead(out StorageItem item))
-            {
-                Debug.Assert(reader.Length == 0);
-                value = item;
-                return true;
-            }
+            //if (TryReadStateVersion(ref reader, 0)
+            //    && reader.TryRead(out StorageItem item))
+            //{
+            //    Debug.Assert(reader.Length == 0);
+            //    value = item;
+            //    return true;
+            //}
 
             value = default;
             return false;
@@ -574,14 +578,14 @@ namespace NeoFx.RocksDb
         {
             var reader = new SpanReader<byte>(span);
 
-            if (TryReadStateVersion(ref reader, 0)
-                && reader.TryRead(out uint blockIndex)
-                && reader.TryRead(out Transaction? tx))
-            {
-                Debug.Assert(reader.Length == 0);
-                value = (blockIndex, tx);
-                return true;
-            }
+            //if (TryReadStateVersion(ref reader, 0)
+            //    && reader.TryRead(out uint blockIndex)
+            //    && reader.TryRead(out Transaction? tx))
+            //{
+            //    Debug.Assert(reader.Length == 0);
+            //    value = (blockIndex, tx);
+            //    return true;
+            //}
 
             value = default;
             return false;
@@ -591,13 +595,13 @@ namespace NeoFx.RocksDb
         {
             var reader = new SpanReader<byte>(span);
 
-            if (TryReadStateVersion(ref reader, 0)
-                && reader.TryReadVarArray(BinaryFormat.TryRead, out CoinState[]? coins))
-            {
-                Debug.Assert(reader.Length == 0);
-                value = coins;
-                return true;
-            }
+            //if (TryReadStateVersion(ref reader, 0)
+            //    && reader.TryReadVarArray(BinaryFormat.TryRead, out CoinState[]? coins))
+            //{
+            //    Debug.Assert(reader.Length == 0);
+            //    value = coins;
+            //    return true;
+            //}
 
             value = default!;
             return false;
@@ -607,13 +611,13 @@ namespace NeoFx.RocksDb
         {
             var reader = new SpanReader<byte>(span);
 
-            if (TryReadStateVersion(ref reader, 0)
-                && reader.TryRead(out Validator validator))
-            {
-                Debug.Assert(reader.Length == 0);
-                value = validator;
-                return true;
-            }
+            //if (TryReadStateVersion(ref reader, 0)
+            //    && reader.TryRead(out Validator validator))
+            //{
+            //    Debug.Assert(reader.Length == 0);
+            //    value = validator;
+            //    return true;
+            //}
 
             value = default;
             return false;

@@ -37,6 +37,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="Storage\IBlockchainStorage.cs" />
     <Compile Include="Storage\SpanReader.cs" />
     <Compile Include="Storage\SpanReaderHelpers.cs" />
   </ItemGroup>
