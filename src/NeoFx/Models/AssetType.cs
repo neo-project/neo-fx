@@ -1,7 +1,4 @@
-﻿using System;
-using System.Buffers;
-
-namespace NeoFx.Models
+﻿namespace NeoFx.Models
 {
     public enum AssetType : byte
     {

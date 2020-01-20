@@ -1,8 +1,4 @@
-﻿using System;
-using System.Buffers;
-using System.Buffers.Binary;
-
-namespace NeoFx.Models
+﻿namespace NeoFx.Models
 {
     public readonly struct CoinReference
     {

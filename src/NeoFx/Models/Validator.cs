@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace NeoFx.Models
+﻿namespace NeoFx.Models
 {
     public readonly struct Validator
     {
