@@ -1,4 +1,5 @@
-﻿using System.Collections.Immutable;
+﻿using NeoFx.Storage;
+using System.Collections.Immutable;
 
 namespace NeoFx.Models
 {
@@ -22,5 +23,21 @@ namespace NeoFx.Models
             Field = field;
             Value = value;
         }
+
+        public static bool TryRead(ref SpanReader<byte> reader, out StateDescriptor descriptor)
+        {
+            if (reader.TryRead(out var type)
+                && reader.TryReadVarArray(100, out var key)
+                && reader.TryReadVarString(32, out var field)
+                && reader.TryReadVarArray(65535, out var value))
+            {
+                descriptor = new StateDescriptor((StateType)type, key, field, value);
+                return true;
+            }
+
+            descriptor = default;
+            return false;
+        }
+
     }
 }

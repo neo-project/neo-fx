@@ -52,11 +52,11 @@ namespace NeoFx.Models
                         break;
                     case TransactionType.Claim:
                         {
-                            //if (reader.TryRead(version, out ClaimTransaction? _tx))
-                            //{
-                            //    tx = _tx;
-                            //    return true;
-                            //}
+                            if (ClaimTransaction.TryRead(ref reader, version, out var _tx))
+                            {
+                                tx = _tx;
+                                return true;
+                            }
                         }
                         break;
                     case TransactionType.Register:
@@ -70,51 +70,51 @@ namespace NeoFx.Models
                         break;
                     case TransactionType.Contract:
                         {
-                            //if (reader.TryRead(version, out ContractTransaction? _tx))
-                            //{
-                            //    tx = _tx;
-                            //    return true;
-                            //}
+                            if (ContractTransaction.TryRead(ref reader, version, out var _tx))
+                            {
+                                tx = _tx;
+                                return true;
+                            }
                         }
                         break;
                     case TransactionType.Invocation:
                         {
-                            //if (reader.TryRead(version, out InvocationTransaction? _tx))
-                            //{
-                            //    tx = _tx;
-                            //    return true;
-                            //}
+                            if (InvocationTransaction.TryRead(ref reader, version, out var _tx))
+                            {
+                                tx = _tx;
+                                return true;
+                            }
                         }
                         break;
                     case TransactionType.State:
                         {
-                            //if (reader.TryRead(version, out StateTransaction? _tx))
-                            //{
-                            //    tx = _tx;
-                            //    return true;
-                            //}
+                            if (StateTransaction.TryRead(ref reader, version, out var _tx))
+                            {
+                                tx = _tx;
+                                return true;
+                            }
                         }
                         break;
                     case TransactionType.Enrollment:
                         {
-//#pragma warning disable CS0612 // Type or member is obsolete
-//                            if (reader.TryRead(version, out EnrollmentTransaction? _tx))
-//#pragma warning restore CS0612 // Type or member is obsolete
-//                            {
-//                                tx = _tx;
-//                                return true;
-//                            }
+#pragma warning disable CS0612 // Type or member is obsolete
+                            if (EnrollmentTransaction.TryRead(ref reader, version, out var _tx))
+#pragma warning restore CS0612 // Type or member is obsolete
+                            {
+                                tx = _tx;
+                                return true;
+                            }
                         }
                         break;
                     case TransactionType.Publish:
                         {
-//#pragma warning disable CS0612 // Type or member is obsolete
-//                            if (reader.TryRead(version, out PublishTransaction? _tx))
-//#pragma warning restore CS0612 // Type or member is obsolete
-//                            {
-//                                tx = _tx;
-//                                return true;
-//                            }
+#pragma warning disable CS0612 // Type or member is obsolete
+                            if (PublishTransaction.TryRead(ref reader, version, out var _tx))
+#pragma warning restore CS0612 // Type or member is obsolete
+                            {
+                                tx = _tx;
+                                return true;
+                            }
                         }
                         break;
                 }
