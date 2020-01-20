@@ -79,7 +79,6 @@ namespace NeoFxTests
         public void RoundTrip()
         {
             var buffer = new byte[testValues[0].Length / 2];
-            var newBuffer = new byte[testValues[0].Length / 2];
             var curve = ECCurve.NamedCurves.nistP256.GetExplicit();
 
             foreach (var test in testValues)
@@ -87,9 +86,8 @@ namespace NeoFxTests
                 TryHexToBytes(test, buffer).Should().BeTrue();
 
                 curve.TryDecodePoint(buffer, out var fxPoint).Should().BeTrue();
-                fxPoint.TryEncodePoint(newBuffer, true, out var bytesWritten).Should().BeTrue();
-                bytesWritten.Should().Be(newBuffer.Length);
-                buffer.AsSpan().SequenceEqual(newBuffer).Should().BeTrue();
+                fxPoint.TryEncodePoint(true, out var newBuffer).Should().BeTrue();
+                buffer.AsSpan().SequenceEqual(newBuffer.AsSpan()).Should().BeTrue();
             }
         }
     }

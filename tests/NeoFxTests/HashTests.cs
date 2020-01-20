@@ -17,10 +17,9 @@ namespace NeoFxTests
             var @string = "AXaXZjZGA3qhQRTCsyG5uFKr9HeShgVhTF";
             var expected = Neo.Cryptography.Helper.Base58CheckDecode(@string);
 
-            Span<byte> actual = stackalloc byte[HashHelpers.GetBase58CheckDecodeByteCount(@string)];
+            Span<byte> actual = stackalloc byte[500];
             HashHelpers.TryBase58CheckDecode(@string, actual, out var written).Should().BeTrue();
-            written.Should().Be(actual.Length);
-            actual.SequenceEqual(expected).Should().BeTrue();
+            actual.Slice(0, written).SequenceEqual(expected).Should().BeTrue();
         }
 
         [Fact]

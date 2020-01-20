@@ -29,7 +29,7 @@ namespace NeoFx
 
         public bool TryDecode(ECCurve curve, out ECPoint point)
         {
-            return curve.TryDecodePoint(Key, out point);
+            return curve.TryDecodePoint(Key.AsSpan(), out point);
         }
 
         public static bool TryEncode(ECPoint point, bool compressed, out EncodedPublicKey value)

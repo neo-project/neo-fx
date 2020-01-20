@@ -21,7 +21,7 @@ namespace NeoFx
             return curve;
         }
 
-        internal static bool TryDecodePoint(this ECCurve curve, ImmutableArray<byte> encodedPoint, out ECPoint point)
+        internal static bool TryDecodePoint(this ECCurve curve, ReadOnlySpan<byte> encodedPoint, out ECPoint point)
         {
             curve = GetExplicit(curve);
 
@@ -37,16 +37,15 @@ namespace NeoFx
                 case 0x03:
                     Debug.Assert(encodedPoint.Length == expectedLength + 1);
                     int yTilde = encodedPoint[0] & 1;
-                    return TryDecompressPoint(encodedPoint.AsSpan().Slice(1), yTilde, expectedLength, curve, out point);
+                    return TryDecompressPoint(encodedPoint.Slice(1), yTilde, expectedLength, curve, out point);
                 case 0x04:
                 case 0x06:
                 case 0x07:
                     Debug.Assert(encodedPoint.Length == (2 * expectedLength) + 1);
-                    var span = encodedPoint.AsSpan();
                     point = new ECPoint()
                     {
-                        X = span.Slice(1, expectedLength).ToArray(),
-                        Y = span.Slice(1 + expectedLength, expectedLength).ToArray()
+                        X = encodedPoint.Slice(1, expectedLength).ToArray(),
+                        Y = encodedPoint.Slice(1 + expectedLength, expectedLength).ToArray()
                     };
                     return true;
                 default:

@@ -1,5 +1,6 @@
 ﻿using NeoFx.Models;
 using NeoFx.Storage;
+using SimpleBase;
 using System;
 using System.Buffers;
 using System.Diagnostics;
@@ -17,26 +18,22 @@ namespace NeoFx
         private static readonly Lazy<SHA256> _sha256 = new Lazy<SHA256>(() => SHA256.Create());
         private static readonly Lazy<RIPEMD160> _ripemd160 = new Lazy<RIPEMD160>(() => RIPEMD160.Create());
 
-        public static int GetBase58CheckDecodeByteCount(ReadOnlySpan<char> input)
-        {
-            // TODO: rewrite this function when SimpleBase is updated
-            var buffer = SimpleBase.Base58.Bitcoin.Decode(input);
-            if (buffer.Length < 4) throw new FormatException();
-            return buffer.Length - 4;
-        }
-
         public static bool TryBase58CheckDecode(ReadOnlySpan<char> input, Span<byte> output, out int bytesWritten)
         {
-            // TODO: rewrite this function when SimpleBase is updated
             Span<byte> checksum = stackalloc byte[Hash256Size];
-            var buffer = SimpleBase.Base58.Bitcoin.Decode(input);
-            if (buffer.Length >= 4
-                && TryHash256(buffer.Slice(0, buffer.Length - 4), checksum)
-                && buffer.Slice(buffer.Length - 4).SequenceEqual(checksum.Slice(0, 4))
-                && buffer.Slice(0, buffer.Length - 4).TryCopyTo(output))
+
+            var bufferSize = Base58.Bitcoin.GetSafeByteCountForDecoding(input);
+            if (bufferSize >= 4)
             {
-                bytesWritten = buffer.Length - 4;
-                return true;
+                Span<byte> buffer = stackalloc byte[bufferSize];
+                if (Base58.Bitcoin.TryDecode(input, buffer, out var written)
+                    && TryHash256(buffer.Slice(0, written - 4), checksum)
+                    && buffer.Slice(written - 4, 4).SequenceEqual(checksum.Slice(0, 4))
+                    && buffer.Slice(0, written - 4).TryCopyTo(output))
+                {
+                    bytesWritten = written - 4;
+                    return true;
+                }
             }
 
             bytesWritten = default;
@@ -52,7 +49,7 @@ namespace NeoFx
                 && input.TryCopyTo(encodeBuffer.Slice(0, input.Length))
                 && checksum.Slice(0, 4).TryCopyTo(encodeBuffer.Slice(input.Length, 4)))
             {
-                output = SimpleBase.Base58.Bitcoin.Encode(encodeBuffer);
+                output = Base58.Bitcoin.Encode(encodeBuffer);
                 return true;
             }
 
@@ -111,23 +108,23 @@ namespace NeoFx
 
         public static void WriteHashData(in Transaction tx, IBufferWriter<byte> buffer)
         {
-            buffer.WriteData(tx);
-            buffer.WriteVarArray(tx.Attributes.Span, BinaryFormat.Write);
-            buffer.WriteVarArray(tx.Inputs.Span, BinaryFormat.Write);
-            buffer.WriteVarArray(tx.Outputs.Span, BinaryFormat.Write);
+            //buffer.WriteData(tx);
+            //buffer.WriteVarArray(tx.Attributes.Span, BinaryFormat.Write);
+            //buffer.WriteVarArray(tx.Inputs.Span, BinaryFormat.Write);
+            //buffer.WriteVarArray(tx.Outputs.Span, BinaryFormat.Write);
         }
 
         public static bool TryHash(in Transaction tx, out UInt256 hash)
         {
-            var buffer = new ArrayBufferWriter<byte>(tx.GetSize());
-            WriteHashData(tx, buffer);
+            //var buffer = new ArrayBufferWriter<byte>(tx.GetSize());
+            //WriteHashData(tx, buffer);
 
-            Span<byte> hashBuffer = stackalloc byte[Hash256Size];
-            if (TryHash256(buffer.WrittenSpan, hashBuffer))
-            {
-                hash = new UInt256(hashBuffer);
-                return true;
-            }
+            //Span<byte> hashBuffer = stackalloc byte[Hash256Size];
+            //if (TryHash256(buffer.WrittenSpan, hashBuffer))
+            //{
+            //    hash = new UInt256(hashBuffer);
+            //    return true;
+            //}
 
             hash = default;
             return false;

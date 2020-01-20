@@ -22,10 +22,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="HashHelpers.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
     <None Include="../neo-logo-72.png" Pack="true" Visible="false" PackagePath="" />
   </ItemGroup>
 
@@ -45,7 +41,7 @@
   <ItemGroup>
     <PackageReference Include="DevHawk.RIPEMD160" Version="2.0.4" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" />
-    <PackageReference Include="SimpleBase" Version="2.0.0" />
+    <PackageReference Include="SimpleBase" Version="3.0.0" />
     <PackageReference Include="System.Collections.Immutable" Version="1.7.0" />
     <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="4.7.0" />
   </ItemGroup>
