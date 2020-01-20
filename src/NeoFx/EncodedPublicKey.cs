@@ -1,4 +1,8 @@
-﻿using System;
+﻿using NeoFx.Storage;
+using System;
+using System.Collections.Immutable;
+using System.Diagnostics;
+using System.Security.Cryptography;
 
 namespace NeoFx
 {
@@ -6,52 +10,78 @@ namespace NeoFx
     //       a fixed size buffer
     public readonly struct EncodedPublicKey
     {
-        public readonly ReadOnlyMemory<byte> Key;
+        public readonly ImmutableArray<byte> Key;
 
         public int Size => Key.Length;
 
-        public EncodedPublicKey(ReadOnlyMemory<byte> key)
+        public EncodedPublicKey(ImmutableArray<byte> key)
         {
             Key = key;
         }
 
-        //public EncodedPublicKey(ECPoint point, bool compressed)
-        //{
-        //    if (!TryEncode(point, compressed, out this))
-        //    {
-        //        throw new ArgumentException(nameof(point));
-        //    }
-        //}
-
-        //public bool TryDecode(ECCurve curve, out ECPoint point)
-        //{
-        //    return curve.TryDecodePoint(Key.Span, out point);
-        //}
-
-        //public static bool TryEncode(ECPoint point, bool compressed, out EncodedPublicKey value)
-        //{
-        //    var buffer = new byte[65];
-        //    if (point.TryEncodePoint(buffer, compressed, out var written))
-        //    {
-        //        Debug.Assert(written < buffer.Length);
-        //        value = new EncodedPublicKey(buffer.AsMemory().Slice(0, written));
-        //        return true;
-        //    }
-
-        //    value = default;
-        //    return false;
-        //}
-
-        public bool TryWrite(Span<byte> buffer)
+        public EncodedPublicKey(ECPoint point, bool compressed)
         {
-            return Key.Span.TryCopyTo(buffer);
+            if (!TryEncode(point, compressed, out this))
+            {
+                throw new ArgumentException(nameof(point));
+            }
         }
 
-        public void Write(Span<byte> buffer)
+        public bool TryDecode(ECCurve curve, out ECPoint point)
         {
-            if (!TryWrite(buffer))
-                throw new ArgumentException(nameof(buffer));
+            return curve.TryDecodePoint(Key, out point);
         }
+
+        public static bool TryEncode(ECPoint point, bool compressed, out EncodedPublicKey value)
+        {
+            if (point.TryEncodePoint(compressed, out var encodedPoint))
+            {
+                value = new EncodedPublicKey(encodedPoint);
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
+
+        //public bool TryWrite(Span<byte> buffer)
+        //{
+        //    return Key.Span.TryCopyTo(buffer);
+        //}
+
+        //public void Write(Span<byte> buffer)
+        //{
+        //    if (!TryWrite(buffer))
+        //        throw new ArgumentException(nameof(buffer));
+        //}
+
+        public static bool TryRead(ref SpanReader<byte> reader, out EncodedPublicKey value)
+        {
+            static bool TryGetBufferLength(byte type, out int length)
+            {
+                length = type switch
+                {
+                    0x00 => 1,
+                    var x when (0x02 <= x && x <= 0x03) => 33,
+                    var x when (0x04 <= x && x <= 0x06) => 65,
+                    _ => 0
+                };
+
+                return length > 0;
+            }
+
+            if (reader.TryPeek(out var type)
+                && TryGetBufferLength(type, out var length)
+                && reader.TryReadByteArray(length, out var key))
+            {
+                value = new EncodedPublicKey(key);
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
+
 
     }
 }

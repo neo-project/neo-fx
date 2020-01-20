@@ -1,4 +1,5 @@
-﻿using System;
+﻿using NeoFx.Storage;
+using System;
 using System.Buffers.Binary;
 using System.Globalization;
 
@@ -45,6 +46,18 @@ namespace NeoFx
         public static bool TryRead(ReadOnlySpan<byte> buffer, out Fixed8 result)
         {
             if (BinaryPrimitives.TryReadInt64LittleEndian(buffer, out var @long))
+            {
+                result = new Fixed8(@long);
+                return true;
+            }
+
+            result = default;
+            return false;
+        }
+
+        public static bool TryRead(ref SpanReader<byte> reader, out Fixed8 result)
+        {
+            if (reader.TryRead(out long @long))
             {
                 result = new Fixed8(@long);
                 return true;

@@ -26,6 +26,5 @@ namespace NeoFx.Models
             value = default;
             return false;
         }
-
     }
 }

@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 
 namespace NeoFx
@@ -19,27 +21,28 @@ namespace NeoFx
             return curve;
         }
 
-        internal static bool TryDecodePoint(this ECCurve curve, ReadOnlySpan<byte> span, out ECPoint point)
+        internal static bool TryDecodePoint(this ECCurve curve, ImmutableArray<byte> encodedPoint, out ECPoint point)
         {
             curve = GetExplicit(curve);
 
             var prime = new BigInteger(curve.Prime, isUnsigned: true, isBigEndian: true);
             int expectedLength = (prime.GetBitLength() + 7) / 8;
 
-            switch (span[0])
+            switch (encodedPoint[0])
             {
                 case 0x00:
                     point = new ECPoint();
                     return true;
                 case 0x02:
                 case 0x03:
-                    Debug.Assert(span.Length == expectedLength + 1);
-                    int yTilde = span[0] & 1;
-                    return TryDecompressPoint(span.Slice(1), yTilde, expectedLength, curve, out point);
+                    Debug.Assert(encodedPoint.Length == expectedLength + 1);
+                    int yTilde = encodedPoint[0] & 1;
+                    return TryDecompressPoint(encodedPoint.AsSpan().Slice(1), yTilde, expectedLength, curve, out point);
                 case 0x04:
                 case 0x06:
                 case 0x07:
-                    Debug.Assert(span.Length == (2 * expectedLength) + 1);
+                    Debug.Assert(encodedPoint.Length == (2 * expectedLength) + 1);
+                    var span = encodedPoint.AsSpan();
                     point = new ECPoint()
                     {
                         X = span.Slice(1, expectedLength).ToArray(),
@@ -52,36 +55,39 @@ namespace NeoFx
             }
         }
 
-        internal static bool TryEncodePoint(this ECPoint point, Span<byte> span, bool compressed, out int bytesWritten)
+        internal static bool TryEncodePoint(this ECPoint point, bool compressed, out ImmutableArray<byte> encodedPoint)
         {
             if (point.X == null
-                && point.Y == null
-                && span.Length >= 1)
+                && point.Y == null)
             {
-                span[0] = 0;
-                bytesWritten = 1;
+                encodedPoint = ImmutableArray.Create<byte>(0);
                 return true;
             }
-            else if (compressed
-                && span.Length >= 33
-                && point.X.AsSpan().TryCopyTo(span.Slice(1, 32)))
+            else if (compressed)
             {
-                var y = new BigInteger(point.Y, true, true);
-                span[0] = y.IsEven ? (byte)0x02 : (byte)0x03;
-                bytesWritten = 33;
-                return true;
+                var array = new byte[33];
+                if (point.X.AsSpan().TryCopyTo(array.AsSpan().Slice(1, 32)))
+                {
+                    var y = new BigInteger(point.Y, true, true);
+                    array[0] = y.IsEven ? (byte)0x02 : (byte)0x03;
+                    encodedPoint = Unsafe.As<byte[], ImmutableArray<byte>>(ref array);
+                    return true;
+                }
+
             }
-            else if (compressed
-                && span.Length >= 65
-                && point.X.AsSpan().TryCopyTo(span.Slice(1, 32))
-                && point.Y.AsSpan().TryCopyTo(span.Slice(33, 32)))
+            else
             {
-                span[0] = 0x04;
-                bytesWritten = 65;
-                return true;
+                var array = new byte[65];
+                if (point.X.AsSpan().TryCopyTo(array.AsSpan().Slice(1, 32))
+                    && point.Y.AsSpan().TryCopyTo(array.AsSpan().Slice(33, 32)))
+                {
+                    array[0] = 0x04;
+                    encodedPoint = Unsafe.As<byte[], ImmutableArray<byte>>(ref array);
+                    return true;
+                }
             }
 
-            bytesWritten = default;
+            encodedPoint = default;
             return false;
         }
 

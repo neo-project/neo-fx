@@ -377,7 +377,7 @@ namespace NeoFx.RocksDb
             var columnFamily = db.GetColumnFamily(VALIDATOR_FAMILY);
             Span<byte> keybuffer = stackalloc byte[key.Key.Length];
 
-            if (key.Key.Span.TryCopyTo(keybuffer)
+            if (key.Key.AsSpan().TryCopyTo(keybuffer)
                 && db.TryGet(keybuffer, columnFamily, TryReadValidatorState, out Validator validator))
             {
                 value = validator;

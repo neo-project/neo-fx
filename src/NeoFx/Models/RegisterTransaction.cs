@@ -1,4 +1,6 @@
-﻿using System.Collections.Immutable;
+﻿using NeoFx.Storage;
+using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 
 namespace NeoFx.Models
 {
@@ -31,5 +33,28 @@ namespace NeoFx.Models
             Owner = owner;
             Admin = admin;
         }
+
+        public static bool TryRead(ref SpanReader<byte> reader, byte version, [NotNullWhen(true)] out RegisterTransaction? tx)
+        {
+            if (reader.TryRead(out byte assetType)
+                && reader.TryReadVarString(1024, out var name)
+                && Fixed8.TryRead(ref reader, out Fixed8 amount)
+                && reader.TryRead(out byte precision)
+                && EncodedPublicKey.TryRead(ref reader, out EncodedPublicKey owner)
+                && UInt160.TryRead(ref reader, out UInt160 admin)
+                && reader.TryReadVarArray<TransactionAttribute>(TransactionAttribute.TryRead, out var attributes)
+                && reader.TryReadVarArray<CoinReference>(CoinReference.TryRead, out var inputs)
+                && reader.TryReadVarArray<TransactionOutput>(TransactionOutput.TryRead, out var outputs)
+                && reader.TryReadVarArray<Witness>(Witness.TryRead, out var witnesses))
+            {
+                tx = new RegisterTransaction((AssetType)assetType, name, amount, precision, owner, admin, version,
+                                             attributes, inputs, outputs, witnesses);
+                return true;
+            }
+
+            tx = null;
+            return false;
+        }
+
     }
 }

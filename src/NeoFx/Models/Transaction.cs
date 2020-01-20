@@ -1,4 +1,6 @@
-﻿using System.Collections.Immutable;
+﻿using NeoFx.Storage;
+using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 
 namespace NeoFx.Models
 {
@@ -22,5 +24,105 @@ namespace NeoFx.Models
             Outputs = outputs;
             Witnesses = witnesses;
         }
+
+        public static bool TryRead(ref SpanReader<byte> reader, [NotNullWhen(true)] out Transaction? tx)
+        {
+            if (reader.TryRead(out byte type)
+                && reader.TryRead(out byte version))
+            {
+                switch ((TransactionType)type)
+                {
+                    case TransactionType.Miner:
+                        {
+                            if (MinerTransaction.TryRead(ref reader, version, out var _tx))
+                            {
+                                tx = _tx;
+                                return true;
+                            }
+                        }
+                        break;
+                    case TransactionType.Issue:
+                        {
+                            if (IssueTransaction.TryRead(ref reader, version, out var _tx))
+                            {
+                                tx = _tx;
+                                return true;
+                            }
+                        }
+                        break;
+                    case TransactionType.Claim:
+                        {
+                            //if (reader.TryRead(version, out ClaimTransaction? _tx))
+                            //{
+                            //    tx = _tx;
+                            //    return true;
+                            //}
+                        }
+                        break;
+                    case TransactionType.Register:
+                        {
+                            if (RegisterTransaction.TryRead(ref reader, version, out var _tx))
+                            {
+                                tx = _tx;
+                                return true;
+                            }
+                        }
+                        break;
+                    case TransactionType.Contract:
+                        {
+                            //if (reader.TryRead(version, out ContractTransaction? _tx))
+                            //{
+                            //    tx = _tx;
+                            //    return true;
+                            //}
+                        }
+                        break;
+                    case TransactionType.Invocation:
+                        {
+                            //if (reader.TryRead(version, out InvocationTransaction? _tx))
+                            //{
+                            //    tx = _tx;
+                            //    return true;
+                            //}
+                        }
+                        break;
+                    case TransactionType.State:
+                        {
+                            //if (reader.TryRead(version, out StateTransaction? _tx))
+                            //{
+                            //    tx = _tx;
+                            //    return true;
+                            //}
+                        }
+                        break;
+                    case TransactionType.Enrollment:
+                        {
+//#pragma warning disable CS0612 // Type or member is obsolete
+//                            if (reader.TryRead(version, out EnrollmentTransaction? _tx))
+//#pragma warning restore CS0612 // Type or member is obsolete
+//                            {
+//                                tx = _tx;
+//                                return true;
+//                            }
+                        }
+                        break;
+                    case TransactionType.Publish:
+                        {
+//#pragma warning disable CS0612 // Type or member is obsolete
+//                            if (reader.TryRead(version, out PublishTransaction? _tx))
+//#pragma warning restore CS0612 // Type or member is obsolete
+//                            {
+//                                tx = _tx;
+//                                return true;
+//                            }
+                        }
+                        break;
+                }
+            }
+
+            tx = null;
+            return false;
+        }
+
     }
 }

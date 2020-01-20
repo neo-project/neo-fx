@@ -1,4 +1,6 @@
-﻿using System;
+﻿using NeoFx.Storage;
+using System;
+using System.Collections.Immutable;
 
 namespace NeoFx.Models
 {
@@ -53,12 +55,71 @@ namespace NeoFx.Models
         }
 
         public readonly UsageType Usage;
-        public readonly ReadOnlyMemory<byte> Data;
+        public readonly ImmutableArray<byte> Data;
 
-        public TransactionAttribute(UsageType usage, ReadOnlyMemory<byte> data)
+        public TransactionAttribute(UsageType usage, ImmutableArray<byte> data)
         {
             Usage = usage;
             Data = data;
         }
+
+        private static bool TryReadAttributeData(ref SpanReader<byte> reader, UsageType usage, out ImmutableArray<byte> value)
+        {
+            switch (usage)
+            {
+                case UsageType.ContractHash:
+                case UsageType.Vote:
+                case UsageType.ECDH02:
+                case UsageType.ECDH03:
+                case var _ when usage >= UsageType.Hash1 && usage <= UsageType.Hash15:
+                    {
+                        if (reader.TryReadByteArray(32, out var buffer))
+                        {
+                            value = buffer;
+                            return true;
+                        }
+                    }
+                    break;
+                case UsageType.Script:
+                    {
+                        if (reader.TryReadByteArray(20, out var buffer))
+                        {
+                            value = buffer;
+                            return true;
+                        }
+                    }
+                    break;
+                case UsageType.Description:
+                case var _ when usage >= UsageType.Remark:
+                    return reader.TryReadVarArray(ushort.MaxValue, out value);
+                case UsageType.DescriptionUrl:
+                    {
+                        if (reader.TryRead(out byte length)
+                            && reader.TryReadByteArray(length, out var data))
+                        {
+                            value = data;
+                            return true;
+                        }
+                    }
+                    break;
+            }
+
+            value = default;
+            return false;
+        }
+
+        public static bool TryRead(ref SpanReader<byte> reader, out TransactionAttribute value)
+        {
+            if (reader.TryRead(out byte usage)
+                && TryReadAttributeData(ref reader, (UsageType)usage, out var data))
+            {
+                value = new TransactionAttribute((UsageType)usage, data);
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
+
     }
 }

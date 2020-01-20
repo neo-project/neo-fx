@@ -22,7 +22,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="ECPointHelpers.cs" />
     <Compile Remove="HashHelpers.cs" />
   </ItemGroup>
 

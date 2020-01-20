@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Buffers.Binary;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 
@@ -123,6 +124,7 @@ namespace NeoFx.Storage
             {
                 Span<byte> buffer = stackalloc byte[(int)length];
                 reader.TryCopyTo(buffer);
+                reader.Advance((int)length);
 
                 value = System.Text.Encoding.UTF8.GetString(buffer);
                 return true;
@@ -137,11 +139,11 @@ namespace NeoFx.Storage
             // check length first to avoid allocating array if reader doesn't have enough data
             if (reader.Length >= length)
             {
-                var _value = new byte[length];
-                if (reader.TryCopyTo(_value.AsSpan()))
+                var array = new byte[length];
+                if (reader.TryCopyTo(array.AsSpan()))
                 {
                     reader.Advance(length);
-                    value = Unsafe.As<byte[], ImmutableArray<byte>>(ref _value);
+                    value = Unsafe.As<byte[], ImmutableArray<byte>>(ref array);
                     return true;
                 }
             }
@@ -169,36 +171,35 @@ namespace NeoFx.Storage
             return false;
         }
 
-        //public delegate bool TryReadItem<T>(ref SpanReader<byte> reader, out T value);
+        public delegate bool TryReadItem<T>(ref SpanReader<byte> reader, out T value);
 
-        //public static bool TryReadVarArray<T>(ref this SpanReader<byte> reader, TryReadItem<T> tryReadItem, [NotNullWhen(true)] out T[]? value)
-        //{
-        //    return TryReadVarArray<T>(ref reader, 0x1000000, tryReadItem, out value);
-        //}
+        public static bool TryReadVarArray<T>(ref this SpanReader<byte> reader, TryReadItem<T> tryReadItem, out ImmutableArray<T> value)
+        {
+            return TryReadVarArray<T>(ref reader, 0x1000000, tryReadItem, out value);
+        }
 
-        //public static bool TryReadVarArray<T>(ref this SpanReader<byte> reader, uint max, TryReadItem<T> tryReadItem, [NotNullWhen(true)] out T[]? value)
-        //{
-        //    if (reader.TryReadVarInt(max, out var length))
-        //    {
-        //        Debug.Assert(length <= int.MaxValue);
+        public static bool TryReadVarArray<T>(ref this SpanReader<byte> reader, uint max, TryReadItem<T> tryReadItem, out ImmutableArray<T> value)
+        {
+            if (reader.TryReadVarInt(max, out var length))
+            {
+                Debug.Assert(length <= int.MaxValue);
 
-        //        var buffer = new T[length];
-        //        for (int index = 0; index < (int)length; index++)
-        //        {
-        //            if (!tryReadItem(ref reader, out buffer[index]))
-        //            {
-        //                value = null;
-        //                return false;
-        //            }
-        //        }
+                var array = new T[(int)length];
+                for (int index = 0; index < (int)length; index++)
+                {
+                    if (!tryReadItem(ref reader, out array[index]))
+                    {
+                        value = default;
+                        return false;
+                    }
+                }
 
-        //        value = buffer;
-        //        return true;
-        //    }
+                value = Unsafe.As<T[], ImmutableArray<T>>(ref array);
+                return true;
+            }
 
-        //    value = null;
-        //    return false;
-        //}
-
+            value = default;
+            return false;
+        }
     }
 }

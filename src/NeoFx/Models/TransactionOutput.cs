@@ -1,4 +1,6 @@
-﻿namespace NeoFx.Models
+﻿using NeoFx.Storage;
+
+namespace NeoFx.Models
 {
     public readonly struct TransactionOutput
     {
@@ -12,5 +14,20 @@
             Value = value;
             ScriptHash = scriptHash;
         }
+
+        public static bool TryRead(ref SpanReader<byte> reader, out TransactionOutput value)
+        {
+            if (reader.TryRead(out UInt256 assetId)
+               && Fixed8.TryRead(ref reader, out var outputValue)
+               && UInt160.TryRead(ref reader, out var scriptHash))
+            {
+                value = new TransactionOutput(assetId, outputValue, scriptHash);
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
+
     }
 }
