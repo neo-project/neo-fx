@@ -36,6 +36,7 @@
     <Compile Include="Storage\IBufferWriterHelpers.cs" />
     <Compile Include="Storage\BufferReader.cs" />
     <Compile Include="Storage\BufferReaderExtensions.cs" />
+    <Compile Include="Storage\IFactoryReader.cs" />
     <Compile Include="Storage\VarSizeHelpers.cs" />
   </ItemGroup>
 

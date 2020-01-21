@@ -31,7 +31,7 @@ namespace NeoFx.Models
 
         public static bool TryRead(ref BufferReader<byte> reader, byte version, [NotNullWhen(true)] out ClaimTransaction? tx)
         {
-            if (reader.TryReadVarArray<CoinReference>(CoinReference.TryRead, out var claims)
+            if (reader.TryReadVarArray<CoinReference>(out var claims)
                 && TryReadCommonData(ref reader, out var commonData))
             {
                 tx = new ClaimTransaction(claims, version, commonData);

@@ -5,7 +5,7 @@ using System.Collections.Immutable;
 
 namespace NeoFx.Models
 {
-    public readonly struct TransactionAttribute : IWritable<TransactionAttribute>
+    public readonly struct TransactionAttribute : IFactoryReader<TransactionAttribute>, IWritable<TransactionAttribute>
     {
         public enum UsageType : byte
         {
@@ -121,6 +121,8 @@ namespace NeoFx.Models
             value = default;
             return false;
         }
+
+        bool IFactoryReader<TransactionAttribute>.TryReadItem(ref BufferReader<byte> reader, out TransactionAttribute value) => TryRead(ref reader, out value);
 
         public void Write(IBufferWriter<byte> writer)
         {

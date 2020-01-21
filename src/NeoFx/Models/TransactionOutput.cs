@@ -3,7 +3,7 @@ using System.Buffers;
 
 namespace NeoFx.Models
 {
-    public readonly struct TransactionOutput : IWritable<TransactionOutput>
+    public readonly struct TransactionOutput : IFactoryReader<TransactionOutput>, IWritable<TransactionOutput>
     {
         public readonly UInt256 AssetId;
         public readonly Fixed8 Value;
@@ -29,6 +29,8 @@ namespace NeoFx.Models
             value = default;
             return false;
         }
+
+        bool IFactoryReader<TransactionOutput>.TryReadItem(ref BufferReader<byte> reader, out TransactionOutput value) => TryRead(ref reader, out value);
 
         public void Write(IBufferWriter<byte> writer)
         {

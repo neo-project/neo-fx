@@ -3,7 +3,7 @@ using System.Buffers;
 
 namespace NeoFx.Models
 {
-    public readonly struct CoinReference : IWritable<CoinReference>
+    public readonly struct CoinReference : IFactoryReader<CoinReference>, IWritable<CoinReference>
     {
         public readonly UInt256 PrevHash;
         public readonly ushort PrevIndex;
@@ -28,6 +28,8 @@ namespace NeoFx.Models
             value = default;
             return false;
         }
+
+        bool IFactoryReader<CoinReference>.TryReadItem(ref BufferReader<byte> reader, out CoinReference value) => TryRead(ref reader, out value);
 
         public void Write(IBufferWriter<byte> writer)
         {

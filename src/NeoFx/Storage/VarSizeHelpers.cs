@@ -172,15 +172,17 @@ namespace NeoFx.Storage
             return false;
         }
 
-        public delegate bool TryReadItem<T>(ref BufferReader<byte> reader, out T value);
-
-        public static bool TryReadVarArray<T>(ref this BufferReader<byte> reader, TryReadItem<T> tryReadItem, out ImmutableArray<T> value)
+        public static bool TryReadVarArray<T>(ref this BufferReader<byte> reader, out ImmutableArray<T> value)
+            where T : struct, IFactoryReader<T>
         {
-            return TryReadVarArray<T>(ref reader, 0x1000000, tryReadItem, out value);
+            return TryReadVarArray<T>(ref reader, 0x1000000, out value);
         }
 
-        public static bool TryReadVarArray<T>(ref this BufferReader<byte> reader, uint max, TryReadItem<T> tryReadItem, out ImmutableArray<T> value)
+        public static bool TryReadVarArray<T>(ref this BufferReader<byte> reader, uint max, out ImmutableArray<T> value)
+            where T : struct, IFactoryReader<T>
         {
+            var factory = default(T);
+
             if (reader.TryReadVarInt(max, out var length))
             {
                 Debug.Assert(length <= int.MaxValue);
@@ -188,7 +190,7 @@ namespace NeoFx.Storage
                 var array = new T[(int)length];
                 for (int index = 0; index < (int)length; index++)
                 {
-                    if (!tryReadItem(ref reader, out array[index]))
+                    if (!factory.TryReadItem(ref reader, out array[index]))
                     {
                         value = default;
                         return false;

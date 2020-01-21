@@ -169,10 +169,10 @@ namespace NeoFx.Models
 
         protected static bool TryReadCommonData(ref BufferReader<byte> reader, out CommonData commonData)
         {
-            if (reader.TryReadVarArray<TransactionAttribute>(TransactionAttribute.TryRead, out var attributes)
-                && reader.TryReadVarArray<CoinReference>(CoinReference.TryRead, out var inputs)
-                && reader.TryReadVarArray<TransactionOutput>(TransactionOutput.TryRead, out var outputs)
-                && reader.TryReadVarArray<Witness>(Witness.TryRead, out var witnesses))
+            if (reader.TryReadVarArray<TransactionAttribute>(out var attributes)
+                && reader.TryReadVarArray<CoinReference>(out var inputs)
+                && reader.TryReadVarArray<TransactionOutput>(out var outputs)
+                && reader.TryReadVarArray<Witness>(out var witnesses))
             {
                 commonData = new CommonData(attributes, inputs, outputs, witnesses);
                 return true;

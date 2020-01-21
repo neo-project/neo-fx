@@ -4,7 +4,7 @@ using System.Collections.Immutable;
 
 namespace NeoFx.Models
 {
-    public readonly struct StateDescriptor : IWritable<StateDescriptor>
+    public readonly struct StateDescriptor : IFactoryReader<StateDescriptor>, IWritable<StateDescriptor>
     {
         public enum StateType : byte
         {
@@ -39,6 +39,8 @@ namespace NeoFx.Models
             descriptor = default;
             return false;
         }
+
+        bool IFactoryReader<StateDescriptor>.TryReadItem(ref BufferReader<byte> reader, out StateDescriptor value) => TryRead(ref reader, out value);
 
         public void Write(IBufferWriter<byte> writer)
         {
