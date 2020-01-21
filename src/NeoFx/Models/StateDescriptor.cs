@@ -25,7 +25,7 @@ namespace NeoFx.Models
             Value = value;
         }
 
-        public static bool TryRead(ref SpanReader<byte> reader, out StateDescriptor descriptor)
+        public static bool TryRead(ref BufferReader<byte> reader, out StateDescriptor descriptor)
         {
             if (reader.TryRead(out var type)
                 && reader.TryReadVarArray(100, out var key)

@@ -31,7 +31,7 @@ namespace NeoFx.Models
             Witness = witness;
         }
 
-        public static bool TryRead(ref SpanReader<byte> reader, out BlockHeader value)
+        public static bool TryRead(ref BufferReader<byte> reader, out BlockHeader value)
         {
             if (reader.TryRead(out uint version)
                 && UInt256.TryRead(ref reader, out var prevHash)

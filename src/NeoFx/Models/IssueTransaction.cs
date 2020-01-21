@@ -16,7 +16,7 @@ namespace NeoFx.Models
         {
         }
 
-        public static bool TryRead(ref SpanReader<byte> reader, byte version, [NotNullWhen(true)] out IssueTransaction? tx)
+        public static bool TryRead(ref BufferReader<byte> reader, byte version, [NotNullWhen(true)] out IssueTransaction? tx)
         {
             if (reader.TryReadVarArray<TransactionAttribute>(TransactionAttribute.TryRead, out var attributes)
                 && reader.TryReadVarArray<CoinReference>(CoinReference.TryRead, out var inputs)

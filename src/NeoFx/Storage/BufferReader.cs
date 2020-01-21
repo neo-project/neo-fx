@@ -6,7 +6,7 @@ using System.Threading;
 
 namespace NeoFx.Storage
 {
-    public ref struct SpanReader<T> where T : unmanaged
+    public ref struct BufferReader<T> where T : unmanaged
     {
         private readonly bool usingSequence;
         private readonly ReadOnlySequence<T> sequence;
@@ -15,7 +15,7 @@ namespace NeoFx.Storage
         private bool moreData;
         private readonly long length;
 
-        public SpanReader(ReadOnlySpan<T> span)
+        public BufferReader(ReadOnlySpan<T> span)
         {
             usingSequence = false;
             CurrentSpanIndex = 0;
@@ -29,7 +29,7 @@ namespace NeoFx.Storage
             moreData = span.Length > 0;
         }
 
-        public SpanReader(in ReadOnlySequence<T> sequence)
+        public BufferReader(in ReadOnlySequence<T> sequence)
         {
             usingSequence = true;
             CurrentSpanIndex = 0;

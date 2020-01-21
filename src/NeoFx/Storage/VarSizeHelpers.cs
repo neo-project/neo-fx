@@ -64,12 +64,12 @@ namespace NeoFx.Storage
         public static int GetVarSize<T>(this ReadOnlySpan<T> span, int size)
             => GetVarSize((ulong)span.Length) + (span.Length * size);
 
-        public static bool TryReadVarInt(ref this SpanReader<byte> reader, out ulong value)
+        public static bool TryReadVarInt(ref this BufferReader<byte> reader, out ulong value)
         {
             return TryReadVarInt(ref reader, ulong.MaxValue, out value);
         }
 
-        public static bool TryReadVarInt(ref this SpanReader<byte> reader, ulong max, out ulong value)
+        public static bool TryReadVarInt(ref this BufferReader<byte> reader, ulong max, out ulong value)
         {
             static bool CheckMax(ulong value, ulong max, out ulong outValue)
             {
@@ -113,12 +113,12 @@ namespace NeoFx.Storage
             return false;
         }
 
-        public static bool TryReadVarString(ref this SpanReader<byte> reader, out string value)
+        public static bool TryReadVarString(ref this BufferReader<byte> reader, out string value)
         {
             return TryReadVarString(ref reader, 0x1000000, out value);
         }
 
-        public static bool TryReadVarString(ref this SpanReader<byte> reader, uint max, out string value)
+        public static bool TryReadVarString(ref this BufferReader<byte> reader, uint max, out string value)
         {
             if (reader.TryReadVarInt(max, out var length)
                 && length < int.MaxValue)
@@ -135,7 +135,7 @@ namespace NeoFx.Storage
             return false;
         }
 
-        public static bool TryReadByteArray(ref this SpanReader<byte> reader, int length, out ImmutableArray<byte> value)
+        public static bool TryReadByteArray(ref this BufferReader<byte> reader, int length, out ImmutableArray<byte> value)
         {
             // check length first to avoid allocating array if reader doesn't have enough data
             if (reader.Length >= length)
@@ -153,12 +153,12 @@ namespace NeoFx.Storage
             return false;
         }
 
-        public static bool TryReadVarArray(ref this SpanReader<byte> reader, out ImmutableArray<byte> value)
+        public static bool TryReadVarArray(ref this BufferReader<byte> reader, out ImmutableArray<byte> value)
         {
             return TryReadVarArray(ref reader, 0x1000000, out value);
         }
 
-        public static bool TryReadVarArray(ref this SpanReader<byte> reader, uint max, out ImmutableArray<byte> value)
+        public static bool TryReadVarArray(ref this BufferReader<byte> reader, uint max, out ImmutableArray<byte> value)
         {
             if (reader.TryReadVarInt(max, out var length)
                 && length <= int.MaxValue
@@ -172,14 +172,14 @@ namespace NeoFx.Storage
             return false;
         }
 
-        public delegate bool TryReadItem<T>(ref SpanReader<byte> reader, out T value);
+        public delegate bool TryReadItem<T>(ref BufferReader<byte> reader, out T value);
 
-        public static bool TryReadVarArray<T>(ref this SpanReader<byte> reader, TryReadItem<T> tryReadItem, out ImmutableArray<T> value)
+        public static bool TryReadVarArray<T>(ref this BufferReader<byte> reader, TryReadItem<T> tryReadItem, out ImmutableArray<T> value)
         {
             return TryReadVarArray<T>(ref reader, 0x1000000, tryReadItem, out value);
         }
 
-        public static bool TryReadVarArray<T>(ref this SpanReader<byte> reader, uint max, TryReadItem<T> tryReadItem, out ImmutableArray<T> value)
+        public static bool TryReadVarArray<T>(ref this BufferReader<byte> reader, uint max, TryReadItem<T> tryReadItem, out ImmutableArray<T> value)
         {
             if (reader.TryReadVarInt(max, out var length))
             {

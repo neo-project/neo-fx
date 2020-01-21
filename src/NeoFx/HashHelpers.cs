@@ -84,6 +84,10 @@ namespace NeoFx
 
         public static bool TryHash256(ReadOnlySpan<byte> message, Span<byte> hash)
         {
+
+            var foo = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+
+
             Span<byte> tempBuffer = stackalloc byte[Hash256Size];
             if (_sha256.Value.TryComputeHash(message, tempBuffer, out var written1)
                 && _sha256.Value.TryComputeHash(tempBuffer, hash, out var written2))

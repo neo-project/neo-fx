@@ -24,9 +24,9 @@ namespace NeoFx.Models
             Gas = gas;
         }
 
-        public static bool TryRead(ref SpanReader<byte> reader, byte version, [NotNullWhen(true)] out InvocationTransaction? tx)
+        public static bool TryRead(ref BufferReader<byte> reader, byte version, [NotNullWhen(true)] out InvocationTransaction? tx)
         {
-            static bool TryReadGas(ref SpanReader<byte> reader, byte version, out Fixed8 gas)
+            static bool TryReadGas(ref BufferReader<byte> reader, byte version, out Fixed8 gas)
             {
                 if (version >= 1)
                 {

@@ -47,9 +47,9 @@ namespace NeoFx.Models
             Description = description;
         }
 
-        public static bool TryRead(ref SpanReader<byte> reader, byte version, [NotNullWhen(true)] out PublishTransaction? tx)
+        public static bool TryRead(ref BufferReader<byte> reader, byte version, [NotNullWhen(true)] out PublishTransaction? tx)
         {
-            static bool TryReadNeedStorage(ref SpanReader<byte> reader, byte version, out bool needStorage)
+            static bool TryReadNeedStorage(ref BufferReader<byte> reader, byte version, out bool needStorage)
             {
                 if (version < 1)
                 {

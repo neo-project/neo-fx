@@ -21,7 +21,7 @@ namespace NeoFx.Models
         {
             PublicKey = publicKey;
         }
-        public static bool TryRead(ref SpanReader<byte> reader, byte version, [NotNullWhen(true)] out EnrollmentTransaction? tx)
+        public static bool TryRead(ref BufferReader<byte> reader, byte version, [NotNullWhen(true)] out EnrollmentTransaction? tx)
         {
             if (EncodedPublicKey.TryRead(ref reader, out var publicKey)
                 && reader.TryReadVarArray<TransactionAttribute>(TransactionAttribute.TryRead, out var attributes)

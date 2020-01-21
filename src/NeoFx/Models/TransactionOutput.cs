@@ -16,9 +16,9 @@ namespace NeoFx.Models
             ScriptHash = scriptHash;
         }
 
-        public static bool TryRead(ref SpanReader<byte> reader, out TransactionOutput value)
+        public static bool TryRead(ref BufferReader<byte> reader, out TransactionOutput value)
         {
-            if (reader.TryRead(out UInt256 assetId)
+            if (UInt256.TryRead(ref reader, out var assetId)
                && Fixed8.TryRead(ref reader, out var outputValue)
                && UInt160.TryRead(ref reader, out var scriptHash))
             {

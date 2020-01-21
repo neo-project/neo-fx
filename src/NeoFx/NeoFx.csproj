@@ -34,8 +34,8 @@
   <ItemGroup>
     <Compile Include="Storage\IBlockchainStorage.cs" />
     <Compile Include="Storage\IBufferWriterHelpers.cs" />
-    <Compile Include="Storage\SpanReader.cs" />
-    <Compile Include="Storage\SpanReaderHelpers.cs" />
+    <Compile Include="Storage\BufferReader.cs" />
+    <Compile Include="Storage\BufferReaderExtensions.cs" />
     <Compile Include="Storage\VarSizeHelpers.cs" />
   </ItemGroup>
 

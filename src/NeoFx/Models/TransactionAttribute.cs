@@ -64,7 +64,7 @@ namespace NeoFx.Models
             Data = data;
         }
 
-        private static bool TryReadAttributeData(ref SpanReader<byte> reader, UsageType usage, out ImmutableArray<byte> value)
+        private static bool TryReadAttributeData(ref BufferReader<byte> reader, UsageType usage, out ImmutableArray<byte> value)
         {
             switch (usage)
             {
@@ -109,7 +109,7 @@ namespace NeoFx.Models
             return false;
         }
 
-        public static bool TryRead(ref SpanReader<byte> reader, out TransactionAttribute value)
+        public static bool TryRead(ref BufferReader<byte> reader, out TransactionAttribute value)
         {
             if (reader.TryRead(out byte usage)
                 && TryReadAttributeData(ref reader, (UsageType)usage, out var data))

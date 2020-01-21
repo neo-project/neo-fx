@@ -461,7 +461,7 @@ namespace NeoFx.RocksDb
             return null!;
         }
 
-        private static bool TryReadStateVersion(ref SpanReader<byte> reader, byte expectedVersion)
+        private static bool TryReadStateVersion(ref BufferReader<byte> reader, byte expectedVersion)
         {
             //if (reader.TryPeek(out var value)
             //    && value == expectedVersion
@@ -475,7 +475,7 @@ namespace NeoFx.RocksDb
 
         private static bool TryReadAccountState(ReadOnlySpan<byte> span, out Account value)
         {
-            var reader = new SpanReader<byte>(span);
+            var reader = new BufferReader<byte>(span);
 
             //if (TryReadStateVersion(ref reader, 0)
             //    && reader.TryRead(out Account account))
@@ -492,7 +492,7 @@ namespace NeoFx.RocksDb
 
         private static bool TryReadAssetState(ReadOnlySpan<byte> span, out Asset value)
         {
-            var reader = new SpanReader<byte>(span);
+            var reader = new BufferReader<byte>(span);
 
             //if (TryReadStateVersion(ref reader, 0)
             //    && reader.TryRead(out Asset asset))
@@ -509,7 +509,7 @@ namespace NeoFx.RocksDb
 
         private static bool TryReadBlockState(ReadOnlySpan<byte> span, out (long systemFee, BlockHeader header, ReadOnlyMemory<UInt256> hashes) value)
         {
-            var reader = new SpanReader<byte>(span);
+            var reader = new BufferReader<byte>(span);
 
             //if (TryReadStateVersion(ref reader, 0)
             //    && reader.TryRead(out long systemFee)
@@ -527,7 +527,7 @@ namespace NeoFx.RocksDb
 
         private static bool TryReadContractState(ReadOnlySpan<byte> span, out DeployedContract value)
         {
-            var reader = new SpanReader<byte>(span);
+            var reader = new BufferReader<byte>(span);
 
             //if (TryReadStateVersion(ref reader, 0)
             //    && reader.TryRead(out DeployedContract contract))
@@ -543,7 +543,7 @@ namespace NeoFx.RocksDb
 
         private static bool TryReadHashIndexState(ReadOnlySpan<byte> span, out (UInt256 hash, uint index) value)
         {
-            var reader = new SpanReader<byte>(span);
+            var reader = new BufferReader<byte>(span);
 
             //if (TryReadStateVersion(ref reader, 0)
             //    && reader.TryRead(out UInt256 hash)
@@ -560,7 +560,7 @@ namespace NeoFx.RocksDb
 
         private static bool TryReadStorageItem(ReadOnlySpan<byte> span, out StorageItem value)
         {
-            var reader = new SpanReader<byte>(span);
+            var reader = new BufferReader<byte>(span);
 
             //if (TryReadStateVersion(ref reader, 0)
             //    && reader.TryRead(out StorageItem item))
@@ -576,7 +576,7 @@ namespace NeoFx.RocksDb
 
         private static bool TryReadTransactionState(ReadOnlySpan<byte> span, out (uint blockIndex, Transaction tx) value)
         {
-            var reader = new SpanReader<byte>(span);
+            var reader = new BufferReader<byte>(span);
 
             //if (TryReadStateVersion(ref reader, 0)
             //    && reader.TryRead(out uint blockIndex)
@@ -593,7 +593,7 @@ namespace NeoFx.RocksDb
 
         private static bool TryReadUnspentCoinsState(ReadOnlySpan<byte> span, [MaybeNullWhen(false)] out CoinState[] value)
         {
-            var reader = new SpanReader<byte>(span);
+            var reader = new BufferReader<byte>(span);
 
             //if (TryReadStateVersion(ref reader, 0)
             //    && reader.TryReadVarArray(BinaryFormat.TryRead, out CoinState[]? coins))
@@ -609,7 +609,7 @@ namespace NeoFx.RocksDb
 
         private static bool TryReadValidatorState(ReadOnlySpan<byte> span, out Validator value)
         {
-            var reader = new SpanReader<byte>(span);
+            var reader = new BufferReader<byte>(span);
 
             //if (TryReadStateVersion(ref reader, 0)
             //    && reader.TryRead(out Validator validator))

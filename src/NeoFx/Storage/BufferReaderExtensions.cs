@@ -6,9 +6,9 @@ using System.Runtime.InteropServices;
 
 namespace NeoFx.Storage
 {
-    public static class SpanReaderExtensions
+    public static class BufferReaderExtensions
     {
-        public static unsafe bool TryRead<T>(ref this SpanReader<byte> reader, out T value)
+        private static unsafe bool TryReadUnsafe<T>(ref this BufferReader<byte> reader, out T value)
             where T : unmanaged
         {
             ReadOnlySpan<byte> span = reader.UnreadSpan;
@@ -22,7 +22,7 @@ namespace NeoFx.Storage
             return true;
         }
 
-        private static unsafe bool TryReadMultisegment<T>(ref SpanReader<byte> reader, out T value)
+        private static unsafe bool TryReadMultisegment<T>(ref BufferReader<byte> reader, out T value)
             where T : unmanaged
         {
             Debug.Assert(reader.UnreadSpan.Length < sizeof(T), "reader.UnreadSpan.Length < sizeof(T)");
@@ -42,9 +42,44 @@ namespace NeoFx.Storage
             return true;
         }
 
-        public static bool TryRead(ref this SpanReader<byte> reader, out sbyte value)
+        public static bool TryRead(ref this BufferReader<byte> reader, out byte value)
         {
-            if (TryRead(ref reader, out byte byteValue))
+            return TryReadUnsafe(ref reader, out value);
+        }
+
+        public static bool TryRead(ref this BufferReader<byte> reader, out ushort value)
+        {
+            return reader.TryReadUnsafe(out value);
+        }
+
+        public static bool TryRead(ref this BufferReader<byte> reader, out uint value)
+        {
+            return reader.TryReadUnsafe(out value);
+        }
+
+        public static bool TryRead(ref this BufferReader<byte> reader, out ulong value)
+        {
+            return reader.TryReadUnsafe(out value);
+        }
+
+        public static bool TryRead(ref this BufferReader<byte> reader, out short value)
+        {
+            return reader.TryReadUnsafe(out value);
+        }
+
+        public static bool TryRead(ref this BufferReader<byte> reader, out int value)
+        {
+            return reader.TryReadUnsafe(out value);
+        }
+
+        public static bool TryRead(ref this BufferReader<byte> reader, out long value)
+        {
+            return reader.TryReadUnsafe(out value);
+        }
+
+        public static bool TryRead(ref this BufferReader<byte> reader, out sbyte value)
+        {
+            if (TryReadUnsafe(ref reader, out byte byteValue))
             {
                 value = unchecked((sbyte)byteValue);
                 return true;
@@ -54,17 +89,17 @@ namespace NeoFx.Storage
             return false;
         }
 
-        public static bool TryReadBigEndian(ref this SpanReader<byte> reader, out short value)
+        public static bool TryReadBigEndian(ref this BufferReader<byte> reader, out short value)
         {
             if (!BitConverter.IsLittleEndian)
             {
-                return reader.TryRead(out value);
+                return reader.TryReadUnsafe(out value);
             }
 
             return TryReadReverseEndianness(ref reader, out value);
         }
 
-        public static bool TryReadBigEndian(ref this SpanReader<byte> reader, out ushort value)
+        public static bool TryReadBigEndian(ref this BufferReader<byte> reader, out ushort value)
         {
             if (TryReadBigEndian(ref reader, out short shortValue))
             {
@@ -76,9 +111,9 @@ namespace NeoFx.Storage
             return false;
         }
 
-        private static bool TryReadReverseEndianness(ref SpanReader<byte> reader, out short value)
+        private static bool TryReadReverseEndianness(ref BufferReader<byte> reader, out short value)
         {
-            if (reader.TryRead(out value))
+            if (reader.TryReadUnsafe(out value))
             {
                 value = BinaryPrimitives.ReverseEndianness(value);
                 return true;
@@ -87,17 +122,17 @@ namespace NeoFx.Storage
             return false;
         }
 
-        public static bool TryReadBigEndian(ref this SpanReader<byte> reader, out int value)
+        public static bool TryReadBigEndian(ref this BufferReader<byte> reader, out int value)
         {
             if (!BitConverter.IsLittleEndian)
             {
-                return reader.TryRead(out value);
+                return reader.TryReadUnsafe(out value);
             }
 
             return TryReadReverseEndianness(ref reader, out value);
         }
 
-        public static bool TryReadBigEndian(ref this SpanReader<byte> reader, out uint value)
+        public static bool TryReadBigEndian(ref this BufferReader<byte> reader, out uint value)
         {
             if (TryReadBigEndian(ref reader, out int intValue))
             {
@@ -109,9 +144,9 @@ namespace NeoFx.Storage
             return false;
         }
 
-        private static bool TryReadReverseEndianness(ref SpanReader<byte> reader, out int value)
+        private static bool TryReadReverseEndianness(ref BufferReader<byte> reader, out int value)
         {
-            if (reader.TryRead(out value))
+            if (reader.TryReadUnsafe(out value))
             {
                 value = BinaryPrimitives.ReverseEndianness(value);
                 return true;
@@ -120,17 +155,17 @@ namespace NeoFx.Storage
             return false;
         }
 
-        public static bool TryReadBigEndian(ref this SpanReader<byte> reader, out long value)
+        public static bool TryReadBigEndian(ref this BufferReader<byte> reader, out long value)
         {
             if (!BitConverter.IsLittleEndian)
             {
-                return reader.TryRead(out value);
+                return reader.TryReadUnsafe(out value);
             }
 
             return TryReadReverseEndianness(ref reader, out value);
         }
 
-        public static bool TryReadBigEndian(ref this SpanReader<byte> reader, out ulong value)
+        public static bool TryReadBigEndian(ref this BufferReader<byte> reader, out ulong value)
         {
             if (TryReadBigEndian(ref reader, out long longValue))
             {
@@ -142,9 +177,9 @@ namespace NeoFx.Storage
             return false;
         }
 
-        private static bool TryReadReverseEndianness(ref SpanReader<byte> reader, out long value)
+        private static bool TryReadReverseEndianness(ref BufferReader<byte> reader, out long value)
         {
-            if (reader.TryRead(out value))
+            if (reader.TryReadUnsafe(out value))
             {
                 value = BinaryPrimitives.ReverseEndianness(value);
                 return true;
@@ -153,7 +188,7 @@ namespace NeoFx.Storage
             return false;
         }
 
-        public static unsafe bool TryReadBigEndian(ref this SpanReader<byte> reader, out float value)
+        public static unsafe bool TryReadBigEndian(ref this BufferReader<byte> reader, out float value)
         {
             if (TryReadBigEndian(ref reader, out int intValue))
             {
@@ -165,7 +200,7 @@ namespace NeoFx.Storage
             return false;
         }
 
-        public static unsafe bool TryReadBigEndian(ref this SpanReader<byte> reader, out double value)
+        public static unsafe bool TryReadBigEndian(ref this BufferReader<byte> reader, out double value)
         {
             if (TryReadBigEndian(ref reader, out long longValue))
             {

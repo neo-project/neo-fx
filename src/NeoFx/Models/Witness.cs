@@ -14,7 +14,7 @@ namespace NeoFx.Models
             VerificationScript = verificationScript;
         }
 
-        public static bool TryRead(ref SpanReader<byte> reader, out Witness value)
+        public static bool TryRead(ref BufferReader<byte> reader, out Witness value)
         {
             if (reader.TryReadVarArray(65536, out var invocation)
                 && reader.TryReadVarArray(65536, out var verification))

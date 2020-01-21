@@ -56,7 +56,7 @@ namespace NeoFx
         //        throw new ArgumentException(nameof(buffer));
         //}
 
-        public static bool TryRead(ref SpanReader<byte> reader, out EncodedPublicKey value)
+        public static bool TryRead(ref BufferReader<byte> reader, out EncodedPublicKey value)
         {
             static bool TryGetBufferLength(byte type, out int length)
             {

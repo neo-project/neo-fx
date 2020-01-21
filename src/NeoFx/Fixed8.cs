@@ -56,7 +56,7 @@ namespace NeoFx
             return false;
         }
 
-        public static bool TryRead(ref SpanReader<byte> reader, out Fixed8 result)
+        public static bool TryRead(ref BufferReader<byte> reader, out Fixed8 result)
         {
             if (reader.TryRead(out long @long))
             {

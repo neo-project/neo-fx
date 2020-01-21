@@ -36,7 +36,7 @@ namespace NeoFx.Models
             Admin = admin;
         }
 
-        public static bool TryRead(ref SpanReader<byte> reader, byte version, [NotNullWhen(true)] out RegisterTransaction? tx)
+        public static bool TryRead(ref BufferReader<byte> reader, byte version, [NotNullWhen(true)] out RegisterTransaction? tx)
         {
             if (reader.TryRead(out byte assetType)
                 && reader.TryReadVarString(1024, out var name)

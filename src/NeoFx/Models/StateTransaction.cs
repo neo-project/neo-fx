@@ -20,7 +20,7 @@ namespace NeoFx.Models
             Descriptors = descriptors;
         }
 
-        public static bool TryRead(ref SpanReader<byte> reader, byte version, [NotNullWhen(true)] out StateTransaction? tx)
+        public static bool TryRead(ref BufferReader<byte> reader, byte version, [NotNullWhen(true)] out StateTransaction? tx)
         {
             if (reader.TryReadVarArray<StateDescriptor>(StateDescriptor.TryRead, out var descriptors)
                 && reader.TryReadVarArray<TransactionAttribute>(TransactionAttribute.TryRead, out var attributes)

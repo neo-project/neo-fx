@@ -20,7 +20,7 @@ namespace NeoFx.Models
             Claims = claims;
         }
 
-        public static bool TryRead(ref SpanReader<byte> reader, byte version, [NotNullWhen(true)] out ClaimTransaction? tx)
+        public static bool TryRead(ref BufferReader<byte> reader, byte version, [NotNullWhen(true)] out ClaimTransaction? tx)
         {
             if (reader.TryReadVarArray<CoinReference>(CoinReference.TryRead, out var claims)
                 && reader.TryReadVarArray<TransactionAttribute>(TransactionAttribute.TryRead, out var attributes)

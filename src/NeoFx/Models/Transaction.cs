@@ -26,7 +26,7 @@ namespace NeoFx.Models
             Witnesses = witnesses;
         }
 
-        public static bool TryRead(ref SpanReader<byte> reader, [NotNullWhen(true)] out Transaction? tx)
+        public static bool TryRead(ref BufferReader<byte> reader, [NotNullWhen(true)] out Transaction? tx)
         {
             if (reader.TryRead(out byte type)
                 && reader.TryRead(out byte version))

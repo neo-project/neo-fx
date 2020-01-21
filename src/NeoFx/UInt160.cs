@@ -49,7 +49,7 @@ namespace NeoFx
             return false;
         }
 
-        public static bool TryRead(ref SpanReader<byte> reader, out UInt160 result)
+        public static bool TryRead(ref BufferReader<byte> reader, out UInt160 result)
         {
             if (reader.TryRead(out ulong data1)
                 && reader.TryRead(out ulong data2)

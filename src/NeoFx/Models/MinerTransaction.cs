@@ -20,7 +20,7 @@ namespace NeoFx.Models
             Nonce = nonce;
         }
 
-        public static bool TryRead(ref SpanReader<byte> reader, byte version, [NotNullWhen(true)] out MinerTransaction? tx)
+        public static bool TryRead(ref BufferReader<byte> reader, byte version, [NotNullWhen(true)] out MinerTransaction? tx)
         {
             if (reader.TryRead(out uint nonce)
                 && reader.TryReadVarArray<TransactionAttribute>(TransactionAttribute.TryRead, out var attributes)

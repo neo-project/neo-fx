@@ -16,7 +16,7 @@ namespace NeoFx.Models
             PrevIndex = prevIndex;
         }
 
-        public static bool TryRead(ref SpanReader<byte> reader, out CoinReference value)
+        public static bool TryRead(ref BufferReader<byte> reader, out CoinReference value)
         {
             if (UInt256.TryRead(ref reader, out var prevHash)
                 && reader.TryRead(out ushort prevIndex))
