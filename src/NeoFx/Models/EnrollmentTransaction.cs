@@ -1,6 +1,7 @@
 ﻿using NeoFx.Storage;
 using System;
 using System.Buffers;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 
@@ -13,23 +14,27 @@ namespace NeoFx.Models
 
         public EnrollmentTransaction(EncodedPublicKey publicKey,
                                      byte version,
-                                     ImmutableArray<TransactionAttribute> attributes,
-                                     ImmutableArray<CoinReference> inputs,
-                                     ImmutableArray<TransactionOutput> outputs,
-                                     ImmutableArray<Witness> witnesses)
+                                     IEnumerable<TransactionAttribute> attributes,
+                                     IEnumerable<CoinReference> inputs,
+                                     IEnumerable<TransactionOutput> outputs,
+                                     IEnumerable<Witness> witnesses)
             : base(version, attributes, inputs, outputs, witnesses)
         {
             PublicKey = publicKey;
         }
+
+        private EnrollmentTransaction(EncodedPublicKey publicKey, byte version, in CommonData commonData)
+            : base(version, commonData)
+        {
+            PublicKey = publicKey;
+        }
+
         public static bool TryRead(ref BufferReader<byte> reader, byte version, [NotNullWhen(true)] out EnrollmentTransaction? tx)
         {
             if (EncodedPublicKey.TryRead(ref reader, out var publicKey)
-                && reader.TryReadVarArray<TransactionAttribute>(TransactionAttribute.TryRead, out var attributes)
-                && reader.TryReadVarArray<CoinReference>(CoinReference.TryRead, out var inputs)
-                && reader.TryReadVarArray<TransactionOutput>(TransactionOutput.TryRead, out var outputs)
-                && reader.TryReadVarArray<Witness>(Witness.TryRead, out var witnesses))
+                && TryReadCommonData(ref reader, out var commonData))
             {
-                tx = new EnrollmentTransaction(publicKey, version, attributes, inputs, outputs, witnesses);
+                tx = new EnrollmentTransaction(publicKey, version, commonData);
                 return true;
             }
 

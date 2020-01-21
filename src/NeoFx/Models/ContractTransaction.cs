@@ -1,5 +1,6 @@
 ﻿using NeoFx.Storage;
 using System.Buffers;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 
@@ -8,22 +9,24 @@ namespace NeoFx.Models
     public sealed class ContractTransaction : Transaction
     {
         public ContractTransaction(byte version,
-                                   ImmutableArray<TransactionAttribute> attributes,
-                                   ImmutableArray<CoinReference> inputs,
-                                   ImmutableArray<TransactionOutput> outputs,
-                                   ImmutableArray<Witness> witnesses)
+                                   IEnumerable<TransactionAttribute> attributes,
+                                   IEnumerable<CoinReference> inputs,
+                                   IEnumerable<TransactionOutput> outputs,
+                                   IEnumerable<Witness> witnesses)
             : base(version, attributes, inputs, outputs, witnesses)
+        {
+        }
+        
+        private ContractTransaction(byte version, in CommonData commonData)
+            : base(version, commonData)
         {
         }
 
         public static bool TryRead(ref BufferReader<byte> reader, byte version, [NotNullWhen(true)] out ContractTransaction? tx)
         {
-            if (reader.TryReadVarArray<TransactionAttribute>(TransactionAttribute.TryRead, out var attributes)
-                && reader.TryReadVarArray<CoinReference>(CoinReference.TryRead, out var inputs)
-                && reader.TryReadVarArray<TransactionOutput>(TransactionOutput.TryRead, out var outputs)
-                && reader.TryReadVarArray<Witness>(Witness.TryRead, out var witnesses))
+            if (TryReadCommonData(ref reader, out var commonData))
             {
-                tx = new ContractTransaction(version, attributes, inputs, outputs, witnesses);
+                tx = new ContractTransaction(version, commonData);
                 return true;
             }
 

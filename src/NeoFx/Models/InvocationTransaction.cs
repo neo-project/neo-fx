@@ -1,5 +1,6 @@
 ﻿using NeoFx.Storage;
 using System.Buffers;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -14,15 +15,26 @@ namespace NeoFx.Models
         public InvocationTransaction(ImmutableArray<byte> script,
                                      Fixed8 gas,
                                      byte version,
-                                     ImmutableArray<TransactionAttribute> attributes,
-                                     ImmutableArray<CoinReference> inputs,
-                                     ImmutableArray<TransactionOutput> outputs,
-                                     ImmutableArray<Witness> witnesses)
+                                     IEnumerable<TransactionAttribute> attributes,
+                                     IEnumerable<CoinReference> inputs,
+                                     IEnumerable<TransactionOutput> outputs,
+                                     IEnumerable<Witness> witnesses)
             : base(version, attributes, inputs, outputs, witnesses)
         {
             Script = script;
             Gas = gas;
         }
+
+        private InvocationTransaction(ImmutableArray<byte> script,
+                                     Fixed8 gas,
+                                     byte version,
+                                     CommonData commonData)
+            : base(version, commonData)
+        {
+            Script = script;
+            Gas = gas;
+        }
+
 
         public static bool TryRead(ref BufferReader<byte> reader, byte version, [NotNullWhen(true)] out InvocationTransaction? tx)
         {
@@ -39,12 +51,9 @@ namespace NeoFx.Models
 
             if (reader.TryReadVarArray(65536, out var script)
                 && TryReadGas(ref reader, version, out var gas)
-                && reader.TryReadVarArray<TransactionAttribute>(TransactionAttribute.TryRead, out var attributes)
-                && reader.TryReadVarArray<CoinReference>(CoinReference.TryRead, out var inputs)
-                && reader.TryReadVarArray<TransactionOutput>(TransactionOutput.TryRead, out var outputs)
-                && reader.TryReadVarArray<Witness>(Witness.TryRead, out var witnesses))
+                && TryReadCommonData(ref reader, out var commonData))
             {
-                tx = new InvocationTransaction(script, gas, version, attributes, inputs, outputs, witnesses);
+                tx = new InvocationTransaction(script, gas, version, commonData);
                 return true;
             }
 

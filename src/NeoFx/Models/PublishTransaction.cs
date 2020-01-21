@@ -1,6 +1,7 @@
 ﻿using NeoFx.Storage;
 using System;
 using System.Buffers;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
@@ -30,11 +31,35 @@ namespace NeoFx.Models
                                   string email,
                                   string description,
                                   byte version,
-                                  ImmutableArray<TransactionAttribute> attributes,
-                                  ImmutableArray<CoinReference> inputs,
-                                  ImmutableArray<TransactionOutput> outputs,
-                                  ImmutableArray<Witness> witnesses)
+                                  IEnumerable<TransactionAttribute> attributes,
+                                  IEnumerable<CoinReference> inputs,
+                                  IEnumerable<TransactionOutput> outputs,
+                                  IEnumerable<Witness> witnesses)
             : base(version, attributes, inputs, outputs, witnesses)
+        {
+            Script = script;
+            ParameterList = parameterList;
+            ReturnType = returnType;
+            NeedStorage = needStorage;
+            Name = name;
+            CodeVersion = codeVersion;
+            Author = author;
+            Email = email;
+            Description = description;
+        }
+
+        private PublishTransaction(ImmutableArray<byte> script,
+                          ImmutableArray<ContractParameterType> parameterList,
+                          ContractParameterType returnType,
+                          bool needStorage,
+                          string name,
+                          string codeVersion,
+                          string author,
+                          string email,
+                          string description,
+                          byte version,
+                          CommonData commonData)
+            : base(version, commonData)
         {
             Script = script;
             ParameterList = parameterList;
@@ -76,15 +101,11 @@ namespace NeoFx.Models
                 && reader.TryReadVarString(out var author)
                 && reader.TryReadVarString(out var email)
                 && reader.TryReadVarString(out var description)
-                && reader.TryReadVarArray<TransactionAttribute>(TransactionAttribute.TryRead, out var attributes)
-                && reader.TryReadVarArray<CoinReference>(CoinReference.TryRead, out var inputs)
-                && reader.TryReadVarArray<TransactionOutput>(TransactionOutput.TryRead, out var outputs)
-                && reader.TryReadVarArray<Witness>(Witness.TryRead, out var witnesses))
+                && TryReadCommonData(ref reader, out var commonData))
             {
                 var parameterList = Unsafe.As<ImmutableArray<byte>, ImmutableArray<ContractParameterType>> (ref byteParameterList);
                 tx = new PublishTransaction(script, parameterList, (ContractParameterType)returnType, needStorage, name,
-                                            codeVersion, author, email, description, version, attributes, inputs,
-                                            outputs, witnesses);
+                                            codeVersion, author, email, description, version, commonData);
                 return true;
             }
 

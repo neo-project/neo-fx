@@ -1,5 +1,6 @@
 ﻿using NeoFx.Storage;
 using System.Buffers;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 
@@ -11,11 +12,19 @@ namespace NeoFx.Models
 
         public ClaimTransaction(ImmutableArray<CoinReference> claims,
                                 byte version,
-                                ImmutableArray<TransactionAttribute> attributes,
-                                ImmutableArray<CoinReference> inputs,
-                                ImmutableArray<TransactionOutput> outputs,
-                                ImmutableArray<Witness> witnesses)
+                                IEnumerable<TransactionAttribute> attributes,
+                                IEnumerable<CoinReference> inputs,
+                                IEnumerable<TransactionOutput> outputs,
+                                IEnumerable<Witness> witnesses)
             : base(version, attributes, inputs, outputs, witnesses)
+        {
+            Claims = claims;
+        }
+
+        private ClaimTransaction(ImmutableArray<CoinReference> claims,
+                                 byte version,
+                                 in CommonData commonData)
+            : base(version, commonData)
         {
             Claims = claims;
         }
@@ -23,12 +32,9 @@ namespace NeoFx.Models
         public static bool TryRead(ref BufferReader<byte> reader, byte version, [NotNullWhen(true)] out ClaimTransaction? tx)
         {
             if (reader.TryReadVarArray<CoinReference>(CoinReference.TryRead, out var claims)
-                && reader.TryReadVarArray<TransactionAttribute>(TransactionAttribute.TryRead, out var attributes)
-                && reader.TryReadVarArray<CoinReference>(CoinReference.TryRead, out var inputs)
-                && reader.TryReadVarArray<TransactionOutput>(TransactionOutput.TryRead, out var outputs)
-                && reader.TryReadVarArray<Witness>(Witness.TryRead, out var witnesses))
+                && TryReadCommonData(ref reader, out var commonData))
             {
-                tx = new ClaimTransaction(claims, version, attributes, inputs, outputs, witnesses);
+                tx = new ClaimTransaction(claims, version, commonData);
                 return true;
             }
 

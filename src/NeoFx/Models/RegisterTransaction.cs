@@ -1,5 +1,6 @@
 ﻿using NeoFx.Storage;
 using System.Buffers;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -22,11 +23,29 @@ namespace NeoFx.Models
                                    EncodedPublicKey owner,
                                    in UInt160 admin,
                                    byte version,
-                                   ImmutableArray<TransactionAttribute> attributes,
-                                   ImmutableArray<CoinReference> inputs,
-                                   ImmutableArray<TransactionOutput> outputs,
-                                   ImmutableArray<Witness> witnesses)
+                                   IEnumerable<TransactionAttribute> attributes,
+                                   IEnumerable<CoinReference> inputs,
+                                   IEnumerable<TransactionOutput> outputs,
+                                   IEnumerable<Witness> witnesses)
             : base(version, attributes, inputs, outputs, witnesses)
+        {
+            AssetType = assetType;
+            Name = name;
+            Amount = amount;
+            Precision = precision;
+            Owner = owner;
+            Admin = admin;
+        }
+
+        private RegisterTransaction(AssetType assetType,
+                           string name,
+                           Fixed8 amount,
+                           byte precision,
+                           EncodedPublicKey owner,
+                           in UInt160 admin,
+                           byte version,
+                           CommonData commonData)
+            : base(version, commonData)
         {
             AssetType = assetType;
             Name = name;
@@ -44,13 +63,9 @@ namespace NeoFx.Models
                 && reader.TryRead(out byte precision)
                 && EncodedPublicKey.TryRead(ref reader, out EncodedPublicKey owner)
                 && UInt160.TryRead(ref reader, out UInt160 admin)
-                && reader.TryReadVarArray<TransactionAttribute>(TransactionAttribute.TryRead, out var attributes)
-                && reader.TryReadVarArray<CoinReference>(CoinReference.TryRead, out var inputs)
-                && reader.TryReadVarArray<TransactionOutput>(TransactionOutput.TryRead, out var outputs)
-                && reader.TryReadVarArray<Witness>(Witness.TryRead, out var witnesses))
+                && TryReadCommonData(ref reader, out var commonData))
             {
-                tx = new RegisterTransaction((AssetType)assetType, name, amount, precision, owner, admin, version,
-                                             attributes, inputs, outputs, witnesses);
+                tx = new RegisterTransaction((AssetType)assetType, name, amount, precision, owner, admin, version, commonData);
                 return true;
             }
 

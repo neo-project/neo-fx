@@ -1,5 +1,6 @@
 ﻿using NeoFx.Storage;
 using System.Buffers;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 
@@ -7,23 +8,64 @@ namespace NeoFx.Models
 {
     public abstract class Transaction
     {
+        protected struct CommonData
+        {
+            public readonly ImmutableArray<TransactionAttribute> Attributes;
+            public readonly ImmutableArray<CoinReference> Inputs;
+            public readonly ImmutableArray<TransactionOutput> Outputs;
+            public readonly ImmutableArray<Witness> Witnesses;
+
+            public CommonData(
+                      ImmutableArray<TransactionAttribute> attributes,
+                      ImmutableArray<CoinReference> inputs,
+                      ImmutableArray<TransactionOutput> outputs,
+                      ImmutableArray<Witness> witnesses)
+
+            {
+                Attributes = attributes;
+                Inputs = inputs;
+                Outputs = outputs;
+                Witnesses = witnesses;
+            }
+        }
+
         public readonly byte Version;
         public readonly ImmutableArray<TransactionAttribute> Attributes;
         public readonly ImmutableArray<CoinReference> Inputs;
         public readonly ImmutableArray<TransactionOutput> Outputs;
         public readonly ImmutableArray<Witness> Witnesses;
 
-        protected Transaction(byte version,
-                              ImmutableArray<TransactionAttribute> attributes,
-                              ImmutableArray<CoinReference> inputs,
-                              ImmutableArray<TransactionOutput> outputs,
-                              ImmutableArray<Witness> witnesses)
+        protected Transaction(byte version, in CommonData commonData)
         {
             Version = version;
-            Attributes = attributes;
-            Inputs = inputs;
-            Outputs = outputs;
-            Witnesses = witnesses;
+            Attributes = commonData.Attributes;
+            Inputs = commonData.Inputs;
+            Outputs = commonData.Outputs;
+            Witnesses = commonData.Witnesses;
+        }
+
+        protected Transaction(byte version, IEnumerable<TransactionAttribute> attributes, IEnumerable<CoinReference> inputs, IEnumerable<TransactionOutput> outputs, IEnumerable<Witness> witnesses)
+        {
+            static ImmutableArray<T> ToImmutableArray<T>(in IEnumerable<T> enumerable)
+            {
+                if (enumerable is ImmutableArray<T> immutableArray)
+                {
+                    return immutableArray;
+                }
+
+                if (enumerable is T[] array)
+                {
+                    return ImmutableArray.Create(array);
+                }
+
+                return ImmutableArray.CreateRange(enumerable);
+            }
+
+            Version = version;
+            Attributes = ToImmutableArray(attributes);
+            Inputs = ToImmutableArray(inputs);
+            Outputs = ToImmutableArray(outputs);
+            Witnesses = ToImmutableArray(witnesses);
         }
 
         public static bool TryRead(ref BufferReader<byte> reader, [NotNullWhen(true)] out Transaction? tx)
@@ -122,6 +164,21 @@ namespace NeoFx.Models
             }
 
             tx = null;
+            return false;
+        }
+
+        protected static bool TryReadCommonData(ref BufferReader<byte> reader, out CommonData commonData)
+        {
+            if (reader.TryReadVarArray<TransactionAttribute>(TransactionAttribute.TryRead, out var attributes)
+                && reader.TryReadVarArray<CoinReference>(CoinReference.TryRead, out var inputs)
+                && reader.TryReadVarArray<TransactionOutput>(TransactionOutput.TryRead, out var outputs)
+                && reader.TryReadVarArray<Witness>(Witness.TryRead, out var witnesses))
+            {
+                commonData = new CommonData(attributes, inputs, outputs, witnesses);
+                return true;
+            }
+
+            commonData = default;
             return false;
         }
 
