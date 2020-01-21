@@ -58,7 +58,7 @@ namespace NeoFx
 
         public static bool TryRead(ref BufferReader<byte> reader, out Fixed8 result)
         {
-            if (reader.TryRead(out long @long))
+            if (reader.TryReadLittleEndian(out long @long))
             {
                 result = new Fixed8(@long);
                 return true;

@@ -33,12 +33,12 @@ namespace NeoFx.Models
 
         public static bool TryRead(ref BufferReader<byte> reader, out BlockHeader value)
         {
-            if (reader.TryRead(out uint version)
+            if (reader.TryReadLittleEndian(out uint version)
                 && UInt256.TryRead(ref reader, out var prevHash)
                 && UInt256.TryRead(ref reader, out var merkleRoot)
-                && reader.TryRead(out uint timestamp)
-                && reader.TryRead(out uint index)
-                && reader.TryRead(out ulong consensusData)
+                && reader.TryReadLittleEndian(out uint timestamp)
+                && reader.TryReadLittleEndian(out uint index)
+                && reader.TryReadLittleEndian(out ulong consensusData)
                 && UInt160.TryRead(ref reader, out var nextConsensus)
                 && reader.TryRead(out byte witnessCount) && witnessCount == 1
                 && Witness.TryRead(ref reader, out Witness witness))

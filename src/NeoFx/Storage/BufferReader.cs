@@ -20,7 +20,7 @@ namespace NeoFx.Storage
             usingSequence = false;
             CurrentSpanIndex = 0;
             Consumed = 0;
-            this.sequence = default;
+            sequence = default;
             currentPosition = default;
             length = span.Length;
 
@@ -94,7 +94,7 @@ namespace NeoFx.Storage
                 return false;
             }
         }
- 
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryRead(out T value)
         {

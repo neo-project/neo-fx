@@ -19,7 +19,7 @@ namespace NeoFx.Models
         public static bool TryRead(ref BufferReader<byte> reader, out CoinReference value)
         {
             if (UInt256.TryRead(ref reader, out var prevHash)
-                && reader.TryRead(out ushort prevIndex))
+                && reader.TryReadLittleEndian(out ushort prevIndex))
             {
                 value = new CoinReference(prevHash, prevIndex);
                 return true;

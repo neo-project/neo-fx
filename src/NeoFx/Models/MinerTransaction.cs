@@ -22,7 +22,7 @@ namespace NeoFx.Models
 
         public static bool TryRead(ref BufferReader<byte> reader, byte version, [NotNullWhen(true)] out MinerTransaction? tx)
         {
-            if (reader.TryRead(out uint nonce)
+            if (reader.TryReadLittleEndian(out uint nonce)
                 && reader.TryReadVarArray<TransactionAttribute>(TransactionAttribute.TryRead, out var attributes)
                 && reader.TryReadVarArray<CoinReference>(CoinReference.TryRead, out var inputs)
                 && reader.TryReadVarArray<TransactionOutput>(TransactionOutput.TryRead, out var outputs)

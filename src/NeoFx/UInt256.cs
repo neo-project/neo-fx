@@ -54,10 +54,10 @@ namespace NeoFx
 
         public static bool TryRead(ref BufferReader<byte> reader, out UInt256 result)
         {
-            if (reader.TryRead(out ulong data1)
-                && reader.TryRead(out ulong data2)
-                && reader.TryRead(out ulong data3)
-                && reader.TryRead(out ulong data4))
+            if (reader.TryReadLittleEndian(out ulong data1)
+                && reader.TryReadLittleEndian(out ulong data2)
+                && reader.TryReadLittleEndian(out ulong data3)
+                && reader.TryReadLittleEndian(out ulong data4))
             {
                 result = new UInt256(data1, data2, data3, data4);
                 return true;

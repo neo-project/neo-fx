@@ -91,19 +91,19 @@ namespace NeoFx.Storage
                 }
 
                 if (b == 0xfd
-                    && reader.TryRead(out ushort @ushort))
+                    && reader.TryReadLittleEndian(out ushort @ushort))
                 {
                     return CheckMax(@ushort, max, out value);
                 }
 
                 if (b == 0xfe
-                    && reader.TryRead(out uint @uint))
+                    && reader.TryReadLittleEndian(out uint @uint))
                 {
                     return CheckMax(@uint, max, out value);
                 }
 
                 if (b == 0xff
-                    && reader.TryRead(out ulong @ulong))
+                    && reader.TryReadLittleEndian(out ulong @ulong))
                 {
                     return CheckMax(@ulong, max, out value);
                 }
