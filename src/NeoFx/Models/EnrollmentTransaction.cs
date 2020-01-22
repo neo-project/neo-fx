@@ -43,10 +43,12 @@ namespace NeoFx.Models
             return false;
         }
 
+        public override int GetTransactionDataSize() => 2 + PublicKey.Size;
+
         public override void WriteTransactionData(ref BufferWriter<byte> writer)
         {
-            writer.WriteLittleEndian((byte)TransactionType.Enrollment);
-            writer.WriteLittleEndian(Version);
+            writer.Write((byte)TransactionType.Enrollment);
+            writer.Write(Version);
             writer.Write(PublicKey);
         }
     }

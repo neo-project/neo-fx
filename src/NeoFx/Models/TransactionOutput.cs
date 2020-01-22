@@ -10,6 +10,8 @@ namespace NeoFx.Models
         public readonly Fixed8 Value;
         public readonly UInt160 ScriptHash;
 
+        public const int Size = Fixed8.Size + UInt256.Size + UInt160.Size;
+
         public TransactionOutput(in UInt256 assetId, Fixed8 value, in UInt160 scriptHash)
         {
             AssetId = assetId;

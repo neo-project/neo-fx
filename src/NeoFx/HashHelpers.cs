@@ -145,20 +145,20 @@ namespace NeoFx
             return false;
         }
 
-        public static void WriteHashData(ref BufferWriter<byte> writer, Transaction tx)
+        public static bool TryHash(Transaction tx, out UInt256 hash)
         {
+            var txSize = tx.GetTransactionDataSize() +
+                + tx.Inputs.GetVarSize(CoinReference.Size)
+                + tx.Outputs.GetVarSize(TransactionOutput.Size)
+                + tx.Attributes.GetVarSize(a => a.Size);
+
+            var buffer = new ArrayBufferWriter<byte>(txSize);
+            var writer = new BufferWriter<byte>(buffer);
+
             tx.WriteTransactionData(ref writer);
             writer.WriteVarArray(tx.Attributes);
             writer.WriteVarArray(tx.Inputs);
             writer.WriteVarArray(tx.Outputs);
-        }
-
-        public static bool TryHash(Transaction tx, out UInt256 hash)
-        {
-            var buffer = new ArrayBufferWriter<byte>(1024);
-            var writer = new BufferWriter<byte>(buffer);
-
-            WriteHashData(ref writer, tx);
 
             Span<byte> hashBuffer = stackalloc byte[Hash256Size];
             if (TryHash256(buffer.WrittenSpan, hashBuffer))

@@ -40,11 +40,17 @@ namespace NeoFx.Storage
             return GetVarSize((ulong)size) + size;
         }
 
+        public static int GetVarSize(this ImmutableArray<byte> array)
+            => array.AsSpan().GetVarSize();
+
         public static int GetVarSize(this ReadOnlyMemory<byte> value)
             => value.Span.GetVarSize();
 
         public static int GetVarSize(this ReadOnlySpan<byte> value)
             => GetVarSize((ulong)value.Length) + value.Length;
+
+        public static int GetVarSize<T>(this ImmutableArray<T> array, Func<T, int> getSize)
+            => array.AsSpan().GetVarSize(getSize);
 
         public static int GetVarSize<T>(this ReadOnlyMemory<T> memory, Func<T, int> getSize)
             => memory.Span.GetVarSize(getSize);
@@ -58,6 +64,9 @@ namespace NeoFx.Storage
             }
             return GetVarSize((ulong)span.Length) + size;
         }
+
+        public static int GetVarSize<T>(this ImmutableArray<T> array, int size)
+            => array.AsSpan().GetVarSize(size);
 
         public static int GetVarSize<T>(this ReadOnlyMemory<T> memory, int size)
             => memory.Span.GetVarSize(size);

@@ -43,10 +43,15 @@ namespace NeoFx.Models
             return false;
         }
 
+        public override int GetTransactionDataSize()
+        {
+            return 2 + Claims.GetVarSize(CoinReference.Size);
+        }
+
         public override void WriteTransactionData(ref BufferWriter<byte> writer)
         {
             writer.Write((byte)TransactionType.Claim);
-            writer.WriteLittleEndian(Version);
+            writer.Write(Version);
             writer.WriteVarArray(Claims);
         }
     }

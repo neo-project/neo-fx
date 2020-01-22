@@ -74,11 +74,17 @@ namespace NeoFx.Models
             return false;
         }
 
+        public override int GetTransactionDataSize()
+        {
+            const int @const = 2 + sizeof(AssetType) + Fixed8.Size + sizeof(byte) + UInt160.Size;
+            return @const + Name.GetVarSize() + Owner.Size;
+        }
+
         public override void WriteTransactionData(ref BufferWriter<byte> writer)
         {
-            writer.WriteLittleEndian((byte)TransactionType.Register);
-            writer.WriteLittleEndian(Version);
-            writer.WriteLittleEndian((byte)AssetType);
+            writer.Write((byte)TransactionType.Register);
+            writer.Write(Version);
+            writer.Write((byte)AssetType);
             Debug.Assert(Name.Length <= 1024);
             writer.WriteVarString(Name);
             writer.Write(Amount);

@@ -59,6 +59,8 @@ namespace NeoFx.Models
         public readonly UsageType Usage;
         public readonly ImmutableArray<byte> Data;
 
+        public int Size => Data.GetVarSize() + 1;
+
         public TransactionAttribute(UsageType usage, ImmutableArray<byte> data)
         {
             Usage = usage;

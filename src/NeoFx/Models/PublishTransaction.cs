@@ -114,8 +114,23 @@ namespace NeoFx.Models
             return false;
         }
 
+        public override int GetTransactionDataSize()
+        {
+            return 2 + Script.GetVarSize() 
+                + ParameterList.GetVarSize(1)
+                + sizeof(byte) // return type
+                + (Version >= 1 ? sizeof(byte) : 0) // need storage
+                + Name.GetVarSize()
+                + CodeVersion.GetVarSize()
+                + Author.GetVarSize()
+                + Email.GetVarSize()
+                + Description.GetVarSize();
+        }
+
         public override void WriteTransactionData(ref BufferWriter<byte> writer)
         {
+            writer.Write((byte)TransactionType.Publish);
+            writer.Write(Version);
             writer.WriteVarArray(Script);
             var byteParameterList = Unsafe.As<ImmutableArray<ContractParameterType>, byte[]>(ref ParameterList);
             writer.WriteVarArray(byteParameterList);

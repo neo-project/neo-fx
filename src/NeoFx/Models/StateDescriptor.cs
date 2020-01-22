@@ -18,6 +18,8 @@ namespace NeoFx.Models
         public readonly string Field;
         public readonly ImmutableArray<byte> Value;
 
+        public int Size => sizeof(StateType) + Key.GetVarSize() + Field.GetVarSize() + Value.GetVarSize();
+
         public StateDescriptor(StateType type, ImmutableArray<byte> key, string field, ImmutableArray<byte> value)
         {
             Type = type;

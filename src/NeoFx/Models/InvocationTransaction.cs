@@ -62,11 +62,16 @@ namespace NeoFx.Models
             return false;
         }
 
+        public override int GetTransactionDataSize()
+        {
+            return 2 + Script.GetVarSize() + Fixed8.Size;
+        }
+
         public override void WriteTransactionData(ref BufferWriter<byte> writer)
         {
             Debug.Assert(Script.Length <= 65536);
-            writer.WriteLittleEndian((byte)TransactionType.Invocation);
-            writer.WriteLittleEndian(Version);
+            writer.Write((byte)TransactionType.Invocation);
+            writer.Write(Version);
             writer.WriteVarArray(Script);
             writer.Write(Gas);
         }
