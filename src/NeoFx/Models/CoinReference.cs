@@ -32,7 +32,7 @@ namespace NeoFx.Models
 
         bool IFactoryReader<CoinReference>.TryReadItem(ref BufferReader<byte> reader, out CoinReference value) => TryRead(ref reader, out value);
 
-        public void Write(IBufferWriter<byte> writer)
+        public void Write(ref BufferWriter<byte> writer)
         {
             writer.Write(PrevHash);
             writer.WriteLittleEndian(PrevIndex);

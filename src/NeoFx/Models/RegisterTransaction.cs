@@ -74,17 +74,17 @@ namespace NeoFx.Models
             return false;
         }
 
-        public override void WriteTransactionData(IBufferWriter<byte> writer)
+        public override void WriteTransactionData(ref BufferWriter<byte> writer)
         {
             writer.WriteLittleEndian((byte)TransactionType.Register);
             writer.WriteLittleEndian(Version);
             writer.WriteLittleEndian((byte)AssetType);
             Debug.Assert(Name.Length <= 1024);
             writer.WriteVarString(Name);
-            writer.WriteLittleEndian(Amount);
+            writer.Write(Amount);
             writer.WriteLittleEndian(Precision);
             writer.Write(Owner);
-            writer.WriteLittleEndian(Admin);
+            writer.Write(Admin);
         }
     }
 }

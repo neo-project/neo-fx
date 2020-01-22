@@ -33,7 +33,7 @@ namespace NeoFx.Models
 
         bool IFactoryReader<TransactionOutput>.TryReadItem(ref BufferReader<byte> reader, out TransactionOutput value) => TryRead(ref reader, out value);
 
-        public void Write(IBufferWriter<byte> writer)
+        public void Write(ref BufferWriter<byte> writer)
         {
             writer.Write(AssetId);
             writer.Write(Value);

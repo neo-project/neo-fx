@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -33,9 +33,10 @@
 
   <ItemGroup>
     <Compile Include="Storage\IBlockchainStorage.cs" />
-    <Compile Include="Storage\IBufferWriterHelpers.cs" />
     <Compile Include="Storage\IFactoryReader.cs" />
+    <Compile Include="Storage\IWritable.cs" />
     <Compile Include="Storage\VarSizeHelpers.cs" />
+    <Compile Include="Storage\WritableHelpers.cs" />
   </ItemGroup>
 
   <ItemGroup>

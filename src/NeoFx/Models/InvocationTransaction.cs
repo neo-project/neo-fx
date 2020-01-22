@@ -62,7 +62,7 @@ namespace NeoFx.Models
             return false;
         }
 
-        public override void WriteTransactionData(IBufferWriter<byte> writer)
+        public override void WriteTransactionData(ref BufferWriter<byte> writer)
         {
             Debug.Assert(Script.Length <= 65536);
             writer.WriteLittleEndian((byte)TransactionType.Invocation);

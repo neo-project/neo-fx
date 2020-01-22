@@ -84,11 +84,9 @@ namespace NeoFx
             return false;
         }
 
-        public void Write(IBufferWriter<byte> writer)
+        public void Write(ref BufferWriter<byte> writer)
         {
-            var span = writer.GetSpan(Key.Length);
-            Key.AsSpan().CopyTo(span);
-            writer.Advance(Key.Length);
+            writer.Write(Key.AsSpan());
         }
     }
 }

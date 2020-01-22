@@ -1,4 +1,5 @@
-﻿using NeoFx.Models;
+﻿using DevHawk.Buffers;
+using NeoFx.Models;
 using NeoFx.Storage;
 using SimpleBase;
 using System;
@@ -144,18 +145,20 @@ namespace NeoFx
             return false;
         }
 
-        public static void WriteHashData(in Transaction tx, IBufferWriter<byte> buffer)
+        public static void WriteHashData(ref BufferWriter<byte> writer, Transaction tx)
         {
-            tx.WriteTransactionData(buffer);
-            buffer.WriteVarArray(tx.Attributes.AsSpan());
-            buffer.WriteVarArray(tx.Inputs.AsSpan());
-            buffer.WriteVarArray(tx.Outputs.AsSpan());
+            //tx.WriteTransactionData(buffer);
+            //buffer.WriteVarArray(tx.Attributes.AsSpan());
+            //buffer.WriteVarArray(tx.Inputs.AsSpan());
+            //buffer.WriteVarArray(tx.Outputs.AsSpan());
         }
 
-        public static bool TryHash(in Transaction tx, out UInt256 hash)
+        public static bool TryHash(Transaction tx, out UInt256 hash)
         {
             var buffer = new ArrayBufferWriter<byte>(1024);
-            WriteHashData(tx, buffer);
+            var writer = new BufferWriter<byte>(buffer);
+
+            WriteHashData(ref writer, tx);
 
             Span<byte> hashBuffer = stackalloc byte[Hash256Size];
             if (TryHash256(buffer.WrittenSpan, hashBuffer))

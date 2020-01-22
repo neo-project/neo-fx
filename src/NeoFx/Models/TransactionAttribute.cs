@@ -125,7 +125,7 @@ namespace NeoFx.Models
 
         bool IFactoryReader<TransactionAttribute>.TryReadItem(ref BufferReader<byte> reader, out TransactionAttribute value) => TryRead(ref reader, out value);
 
-        public void Write(IBufferWriter<byte> writer)
+        public void Write(ref BufferWriter<byte> writer)
         {
             writer.WriteLittleEndian((byte)Usage);
             writer.WriteVarArray(Data.AsSpan());

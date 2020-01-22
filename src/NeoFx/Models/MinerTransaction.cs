@@ -41,7 +41,7 @@ namespace NeoFx.Models
             return false;
         }
 
-        public override void WriteTransactionData(IBufferWriter<byte> writer)
+        public override void WriteTransactionData(ref BufferWriter<byte> writer)
         {
             writer.WriteLittleEndian((byte)TransactionType.Miner);
             writer.WriteLittleEndian(Version);

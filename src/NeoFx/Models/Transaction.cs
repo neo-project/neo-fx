@@ -183,6 +183,6 @@ namespace NeoFx.Models
             return false;
         }
 
-        public abstract void WriteTransactionData(IBufferWriter<byte> writer);
+        public abstract void WriteTransactionData(ref BufferWriter<byte> writer);
     }
 }
