@@ -16,7 +16,7 @@ namespace NeoFx
         public const int Hash160Size = 20;
 
         private static readonly Lazy<SHA256> _sha256 = new Lazy<SHA256>(() => SHA256.Create());
-        private static readonly Lazy<RIPEMD160> _ripemd160 = new Lazy<RIPEMD160>(() => RIPEMD160.Create());
+        private static readonly Lazy<RIPEMD160> _ripemd160 = new Lazy<RIPEMD160>(() => new RIPEMD160());
 
         public static bool TryBase58CheckDecode(ReadOnlySpan<char> input, Span<byte> output, out int bytesWritten)
         {
@@ -82,12 +82,27 @@ namespace NeoFx
             throw new ArgumentException(nameof(scriptHash));
         }
 
+        public static bool TryHash256(ReadOnlySequence<byte> sequence, Span<byte> hash)
+        {
+            var hasher = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+            foreach (var segment in sequence)
+            {
+                hasher.AppendData(segment.Span);
+            }
+
+            Span<byte> tempBuffer = stackalloc byte[Hash256Size];
+            if (hasher.TryGetHashAndReset(tempBuffer, out var written1)
+                && _sha256.Value.TryComputeHash(tempBuffer, hash, out var written2))
+            {
+                Debug.Assert(written1 == Hash256Size && written2 == Hash256Size);
+                return true;
+            }
+
+            return false;
+        }
+
         public static bool TryHash256(ReadOnlySpan<byte> message, Span<byte> hash)
         {
-
-            var foo = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-
-
             Span<byte> tempBuffer = stackalloc byte[Hash256Size];
             if (_sha256.Value.TryComputeHash(message, tempBuffer, out var written1)
                 && _sha256.Value.TryComputeHash(tempBuffer, hash, out var written2))
@@ -98,13 +113,32 @@ namespace NeoFx
             return false;
         }
 
+        public static bool TryHash160(ReadOnlySequence<byte> sequence, Span<byte> hash)
+        {
+            var hasher = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+            foreach (var segment in sequence)
+            {
+                hasher.AppendData(segment.Span);
+            }
+
+            Span<byte> tempBuffer = stackalloc byte[Hash256Size];
+            if (hasher.TryGetHashAndReset(tempBuffer, out var written1)
+                && _ripemd160.Value.TryComputeHash(tempBuffer, hash, out var written2))
+            {
+                Debug.Assert(written1 == Hash256Size && written2 == Hash160Size);
+                return true;
+            }
+
+            return false;
+        }
+
         public static bool TryHash160(ReadOnlySpan<byte> message, Span<byte> hash)
         {
             Span<byte> tempBuffer = stackalloc byte[Hash256Size];
             if (_sha256.Value.TryComputeHash(message, tempBuffer, out var written1)
                 && _ripemd160.Value.TryComputeHash(tempBuffer, hash, out var written2))
             {
-                Debug.Assert(written1 == 32 && written2 == 20);
+                Debug.Assert(written1 == Hash256Size && written2 == Hash160Size);
                 return true;
             }
             return false;

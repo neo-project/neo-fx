@@ -1,4 +1,6 @@
-﻿namespace NeoFx.Storage
+﻿using DevHawk.Buffers;
+
+namespace NeoFx.Storage
 {
     public interface IFactoryReader<T>
     {

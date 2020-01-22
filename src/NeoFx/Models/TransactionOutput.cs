@@ -1,4 +1,5 @@
-﻿using NeoFx.Storage;
+﻿using DevHawk.Buffers;
+using NeoFx.Storage;
 using System.Buffers;
 
 namespace NeoFx.Models

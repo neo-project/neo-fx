@@ -34,14 +34,13 @@
   <ItemGroup>
     <Compile Include="Storage\IBlockchainStorage.cs" />
     <Compile Include="Storage\IBufferWriterHelpers.cs" />
-    <Compile Include="Storage\BufferReader.cs" />
-    <Compile Include="Storage\BufferReaderExtensions.cs" />
     <Compile Include="Storage\IFactoryReader.cs" />
     <Compile Include="Storage\VarSizeHelpers.cs" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="DevHawk.RIPEMD160" Version="2.0.4" />
+    <PackageReference Include="DevHawk.RIPEMD160" Version="3.0.11-preview" />
+    <PackageReference Include="DevHawk.Buffers" Version="1.0.12-preview" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" />
     <PackageReference Include="SimpleBase" Version="3.0.0" />
     <PackageReference Include="System.Collections.Immutable" Version="1.7.0" />
