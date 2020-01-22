@@ -116,7 +116,7 @@ namespace NeoFx.Models
 
         public override void WriteTransactionData(ref BufferWriter<byte> writer)
         {
-            writer.WriteVarArray(Script.AsSpan());
+            writer.WriteVarArray(Script);
             var byteParameterList = Unsafe.As<ImmutableArray<ContractParameterType>, byte[]>(ref ParameterList);
             writer.WriteVarArray(byteParameterList);
             writer.WriteLittleEndian((byte)ReturnType);

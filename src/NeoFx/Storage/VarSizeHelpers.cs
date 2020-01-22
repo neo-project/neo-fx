@@ -236,10 +236,21 @@ namespace NeoFx.Storage
             writer.WriteLittleEndian(value);
         }
 
+        public static void WriteVarArray(ref this BufferWriter<byte> writer, ImmutableArray<byte> array)
+        {
+            WriteVarArray(ref writer, array.AsSpan());
+        }
+
         public static void WriteVarArray(ref this BufferWriter<byte> writer, ReadOnlySpan<byte> span)
         {
             writer.WriteVarInt(span.Length);
             writer.Write(span);
+        }
+
+        public static void WriteVarArray<T>(ref this BufferWriter<byte> writer, ImmutableArray<T> array)
+            where T : IWritable<T>
+        {
+            WriteVarArray<T>(ref writer, array.AsSpan());
         }
 
         public static void WriteVarArray<T>(ref this BufferWriter<byte> writer, ReadOnlySpan<T> span)

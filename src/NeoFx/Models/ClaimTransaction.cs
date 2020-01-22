@@ -47,7 +47,7 @@ namespace NeoFx.Models
         {
             writer.Write((byte)TransactionType.Claim);
             writer.WriteLittleEndian(Version);
-            writer.WriteVarArray(Claims.AsSpan());
+            writer.WriteVarArray(Claims);
         }
     }
 }

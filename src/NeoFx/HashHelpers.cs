@@ -147,10 +147,10 @@ namespace NeoFx
 
         public static void WriteHashData(ref BufferWriter<byte> writer, Transaction tx)
         {
-            //tx.WriteTransactionData(buffer);
-            //buffer.WriteVarArray(tx.Attributes.AsSpan());
-            //buffer.WriteVarArray(tx.Inputs.AsSpan());
-            //buffer.WriteVarArray(tx.Outputs.AsSpan());
+            tx.WriteTransactionData(ref writer);
+            writer.WriteVarArray(tx.Attributes);
+            writer.WriteVarArray(tx.Inputs);
+            writer.WriteVarArray(tx.Outputs);
         }
 
         public static bool TryHash(Transaction tx, out UInt256 hash)

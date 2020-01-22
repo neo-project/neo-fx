@@ -67,7 +67,7 @@ namespace NeoFx.Models
             Debug.Assert(Script.Length <= 65536);
             writer.WriteLittleEndian((byte)TransactionType.Invocation);
             writer.WriteLittleEndian(Version);
-            writer.WriteVarArray(Script.AsSpan());
+            writer.WriteVarArray(Script);
             writer.Write(Gas);
         }
     }

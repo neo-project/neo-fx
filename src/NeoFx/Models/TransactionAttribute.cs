@@ -128,7 +128,7 @@ namespace NeoFx.Models
         public void Write(ref BufferWriter<byte> writer)
         {
             writer.WriteLittleEndian((byte)Usage);
-            writer.WriteVarArray(Data.AsSpan());
+            writer.WriteVarArray(Data);
         }
     }
 }
