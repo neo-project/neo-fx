@@ -58,5 +58,35 @@ namespace NeoFx.Models
 
             //scriptHash = new Lazy<UInt160>(() => CalculateScriptHash(script));
         }
+
+        //public static bool TryRead(ref this SpanReader<byte> reader, out DeployedContract value)
+        //{
+        //    if (reader.TryReadVarArray(out var script)
+        //        && reader.TryReadVarArray(out var parameterTypes)
+        //        && reader.TryRead(out byte returnType)
+        //        && reader.TryRead(out byte propertyState)
+        //        && reader.TryReadVarString(out var name)
+        //        && reader.TryReadVarString(out var version)
+        //        && reader.TryReadVarString(out var author)
+        //        && reader.TryReadVarString(out var email)
+        //        && reader.TryReadVarString(out var description))
+        //    {
+        //        value = new DeployedContract(
+        //            script,
+        //            ConvertContractParameterTypeMemory(parameterTypes),
+        //            (ContractParameterType)returnType,
+        //            (DeployedContract.PropertyState)propertyState,
+        //            name,
+        //            version,
+        //            author,
+        //            email,
+        //            description);
+        //        return true;
+        //    }
+
+        //    value = default;
+        //    return false;
+        //}
+
     }
 }

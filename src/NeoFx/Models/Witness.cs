@@ -9,6 +9,8 @@ namespace NeoFx.Models
         public readonly ImmutableArray<byte> InvocationScript;
         public readonly ImmutableArray<byte> VerificationScript;
 
+        public int Size => InvocationScript.GetVarSize() + VerificationScript.GetVarSize();
+
         public Witness(ImmutableArray<byte> invocationScript, ImmutableArray<byte> verificationScript)
         {
             InvocationScript = invocationScript;

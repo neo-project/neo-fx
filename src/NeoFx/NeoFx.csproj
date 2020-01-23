@@ -16,12 +16,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="Storage\**" />
-    <EmbeddedResource Remove="Storage\**" />
-    <None Remove="Storage\**" />
-  </ItemGroup>
-
-  <ItemGroup>
     <None Include="../neo-logo-72.png" Pack="true" Visible="false" PackagePath="" />
   </ItemGroup>
 
@@ -29,14 +23,6 @@
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
       <_Parameter1>NeoFxTests</_Parameter1>
     </AssemblyAttribute>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Include="Storage\IBlockchainStorage.cs" />
-    <Compile Include="Storage\IFactoryReader.cs" />
-    <Compile Include="Storage\IWritable.cs" />
-    <Compile Include="Storage\VarSizeHelpers.cs" />
-    <Compile Include="Storage\WritableHelpers.cs" />
   </ItemGroup>
 
   <ItemGroup>

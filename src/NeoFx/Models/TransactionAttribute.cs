@@ -59,7 +59,25 @@ namespace NeoFx.Models
         public readonly UsageType Usage;
         public readonly ImmutableArray<byte> Data;
 
-        public int Size => Data.GetVarSize() + 1;
+        public int Size
+        {
+            get
+            {
+                var size = 1;
+
+                if (Usage == UsageType.DescriptionUrl)
+                    size += 1;
+                else if (Usage == UsageType.Description || Usage >= UsageType.Remark)
+                    size += VarSizeHelpers.GetVarSize((ulong)Data.Length);
+
+                if (Usage == UsageType.ECDH02 || Usage == UsageType.ECDH03)
+                    size += 32;
+                else
+                    size += Data.Length;
+
+                return size;
+            }
+        }
 
         public TransactionAttribute(UsageType usage, ImmutableArray<byte> data)
         {
