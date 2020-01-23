@@ -6,8 +6,13 @@ using System.Collections.Immutable;
 
 namespace NeoFx.Models
 {
-    public readonly struct TransactionAttribute : IFactoryReader<TransactionAttribute>, IWritable<TransactionAttribute>
+    public readonly struct TransactionAttribute : IWritable<TransactionAttribute>
     {
+        public readonly struct Factory : IFactoryReader<TransactionAttribute>
+        {
+            public bool TryReadItem(ref BufferReader<byte> reader, out TransactionAttribute value) => TransactionAttribute.TryRead(ref reader, out value);
+        }
+
         public enum UsageType : byte
         {
             ContractHash = 0x00,
@@ -85,53 +90,53 @@ namespace NeoFx.Models
             Data = data;
         }
 
-        private static bool TryReadAttributeData(ref BufferReader<byte> reader, UsageType usage, out ImmutableArray<byte> value)
-        {
-            switch (usage)
-            {
-                case UsageType.ContractHash:
-                case UsageType.Vote:
-                case UsageType.ECDH02:
-                case UsageType.ECDH03:
-                case var _ when usage >= UsageType.Hash1 && usage <= UsageType.Hash15:
-                    {
-                        if (reader.TryReadByteArray(32, out var buffer))
-                        {
-                            value = buffer;
-                            return true;
-                        }
-                    }
-                    break;
-                case UsageType.Script:
-                    {
-                        if (reader.TryReadByteArray(20, out var buffer))
-                        {
-                            value = buffer;
-                            return true;
-                        }
-                    }
-                    break;
-                case UsageType.Description:
-                case var _ when usage >= UsageType.Remark:
-                    return reader.TryReadVarArray(ushort.MaxValue, out value);
-                case UsageType.DescriptionUrl:
-                    {
-                        if (reader.TryRead(out byte length)
-                            && reader.TryReadByteArray(length, out var data))
-                        {
-                            value = data;
-                            return true;
-                        }
-                    }
-                    break;
-            }
-
-            value = default;
-            return false;
-        }
-
         public static bool TryRead(ref BufferReader<byte> reader, out TransactionAttribute value)
         {
+            static bool TryReadAttributeData(ref BufferReader<byte> reader, UsageType usage, out ImmutableArray<byte> value)
+            {
+                switch (usage)
+                {
+                    case UsageType.ContractHash:
+                    case UsageType.Vote:
+                    case UsageType.ECDH02:
+                    case UsageType.ECDH03:
+                    case var _ when usage >= UsageType.Hash1 && usage <= UsageType.Hash15:
+                        {
+                            if (reader.TryReadByteArray(32, out var buffer))
+                            {
+                                value = buffer;
+                                return true;
+                            }
+                        }
+                        break;
+                    case UsageType.Script:
+                        {
+                            if (reader.TryReadByteArray(20, out var buffer))
+                            {
+                                value = buffer;
+                                return true;
+                            }
+                        }
+                        break;
+                    case UsageType.Description:
+                    case var _ when usage >= UsageType.Remark:
+                        return reader.TryReadVarArray(ushort.MaxValue, out value);
+                    case UsageType.DescriptionUrl:
+                        {
+                            if (reader.TryRead(out byte length)
+                                && reader.TryReadByteArray(length, out var data))
+                            {
+                                value = data;
+                                return true;
+                            }
+                        }
+                        break;
+                }
+
+                value = default;
+                return false;
+            }
+
             if (reader.TryRead(out byte usage)
                 && TryReadAttributeData(ref reader, (UsageType)usage, out var data))
             {
@@ -142,8 +147,6 @@ namespace NeoFx.Models
             value = default;
             return false;
         }
-
-        bool IFactoryReader<TransactionAttribute>.TryReadItem(ref BufferReader<byte> reader, out TransactionAttribute value) => TryRead(ref reader, out value);
 
         public void WriteTo(ref BufferWriter<byte> writer)
         {

@@ -5,8 +5,13 @@ using System.Collections.Immutable;
 
 namespace NeoFx.Models
 {
-    public readonly struct StateDescriptor : IFactoryReader<StateDescriptor>, IWritable<StateDescriptor>
+    public readonly struct StateDescriptor : IWritable<StateDescriptor>
     {
+        public readonly struct Factory : IFactoryReader<StateDescriptor>
+        {
+            public bool TryReadItem(ref BufferReader<byte> reader, out StateDescriptor value) => StateDescriptor.TryRead(ref reader, out value);
+        }
+
         public enum StateType : byte
         {
             Account = 0x40,
@@ -42,8 +47,6 @@ namespace NeoFx.Models
             descriptor = default;
             return false;
         }
-
-        bool IFactoryReader<StateDescriptor>.TryReadItem(ref BufferReader<byte> reader, out StateDescriptor value) => TryRead(ref reader, out value);
 
         public void WriteTo(ref BufferWriter<byte> writer)
         {

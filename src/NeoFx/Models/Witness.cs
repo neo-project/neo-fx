@@ -4,8 +4,13 @@ using System.Collections.Immutable;
 
 namespace NeoFx.Models
 {
-    public readonly struct Witness : IFactoryReader<Witness>
+    public readonly struct Witness 
     {
+        public readonly struct Factory : IFactoryReader<Witness>
+        {
+            public bool TryReadItem(ref BufferReader<byte> reader, out Witness value) => Witness.TryRead(ref reader, out value);
+        }
+
         public readonly ImmutableArray<byte> InvocationScript;
         public readonly ImmutableArray<byte> VerificationScript;
 
@@ -29,7 +34,5 @@ namespace NeoFx.Models
             value = default;
             return false;
         }
-
-        bool IFactoryReader<Witness>.TryReadItem(ref BufferReader<byte> reader, out Witness value) => TryRead(ref reader, out value);
     }
 }

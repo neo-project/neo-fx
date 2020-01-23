@@ -182,17 +182,27 @@ namespace NeoFx.Storage
             return false;
         }
 
-        public static bool TryReadVarArray<T>(ref this BufferReader<byte> reader, out ImmutableArray<T> value)
-            where T : struct, IFactoryReader<T>
+        public static bool TryReadVarArray<T, F>(ref this BufferReader<byte> reader, out ImmutableArray<T> value)
+            where F : struct, IFactoryReader<T>
         {
-            return TryReadVarArray<T>(ref reader, 0x1000000, out value);
+            return TryReadVarArray<T, F>(ref reader, 0x1000000, default(F), out value);
         }
 
-        public static bool TryReadVarArray<T>(ref this BufferReader<byte> reader, uint max, out ImmutableArray<T> value)
-            where T : struct, IFactoryReader<T>
+        public static bool TryReadVarArray<T, F>(ref this BufferReader<byte> reader, uint max, out ImmutableArray<T> value)
+            where F : struct, IFactoryReader<T>
         {
-            var factory = default(T);
+            return TryReadVarArray<T, F>(ref reader, max, default(F), out value);
+        }
 
+        public static bool TryReadVarArray<T, F>(ref this BufferReader<byte> reader, F factory, out ImmutableArray<T> value)
+            where F : IFactoryReader<T>
+        {
+            return TryReadVarArray<T, F>(ref reader, 0x1000000, factory, out value);
+        }
+
+        public static bool TryReadVarArray<T, F>(ref this BufferReader<byte> reader, uint max, F factory, out ImmutableArray<T> value)
+            where F : IFactoryReader<T>
+        {
             if (reader.TryReadVarInt(max, out var length))
             {
                 Debug.Assert(length <= int.MaxValue);
