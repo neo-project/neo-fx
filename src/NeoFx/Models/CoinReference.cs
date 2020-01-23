@@ -8,7 +8,7 @@ namespace NeoFx.Models
     {
         public readonly struct Factory : IFactoryReader<CoinReference>
         {
-            public bool TryReadItem(ref BufferReader<byte> reader, out CoinReference value) => CoinReference.TryRead(ref reader, out value);
+            public bool TryReadItem(ref BufferReader<byte> reader, out CoinReference value) => TryRead(ref reader, out value);
         }
         
         public readonly UInt256 PrevHash;

@@ -1,4 +1,6 @@
-﻿using System.Collections.Immutable;
+﻿using DevHawk.Buffers;
+using NeoFx.Storage;
+using System.Collections.Immutable;
 
 namespace NeoFx.Models
 {
@@ -13,17 +15,17 @@ namespace NeoFx.Models
             IsConstant = isConstant;
         }
 
-        //public static bool TryRead(ref this SpanReader<byte> reader, out StorageItem value)
-        //{
-        //    if (reader.TryReadVarArray(out var _value)
-        //        && reader.TryRead(out var isConstant))
-        //    {
-        //        value = new StorageItem(_value, isConstant != 0);
-        //        return true;
-        //    }
+        public static bool TryRead(ref BufferReader<byte> reader, out StorageItem value)
+        {
+            if (reader.TryReadVarArray(out var _value)
+                && reader.TryRead(out var isConstant))
+            {
+                value = new StorageItem(_value, isConstant != 0);
+                return true;
+            }
 
-        //    value = default;
-        //    return false;
-        //}
+            value = default;
+            return false;
+        }
     }
 }

@@ -7,6 +7,7 @@ using System.Linq;
 using NeoFx.Storage;
 using System.Diagnostics.CodeAnalysis;
 using System.Collections.Immutable;
+using System.Runtime.CompilerServices;
 
 namespace NeoFx.RocksDb
 {
@@ -85,11 +86,11 @@ namespace NeoFx.RocksDb
             {
                 for (var i = 0; i < hashes.Length; i++)
                 {
-                    if (TryGetTransaction(hashes.Span[i], out var _, out var tx)
+                    if (TryGetTransaction(hashes[i], out var _, out var tx)
                         && tx is RegisterTransaction register
                         && register.AssetType == assetType)
                     {
-                        return hashes.Span[i];
+                        return hashes[i];
                     }
                 }
             }
@@ -139,7 +140,7 @@ namespace NeoFx.RocksDb
 
         public UInt256 UtilityTokenHash => utilityTokenHash.Value;
 
-        public IEnumerable<(ReadOnlyMemory<byte> key, StorageItem item)> EnumerateStorage(in UInt160 scriptHash)
+        public IEnumerable<(ImmutableArray<byte> key, StorageItem item)> EnumerateStorage(in UInt160 scriptHash)
         {
             //if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
@@ -175,8 +176,11 @@ namespace NeoFx.RocksDb
             var columnFamily = db.GetColumnFamily(ACCOUNT_FAMILY);
             Span<byte> keybuffer = stackalloc byte[UInt160.Size];
 
+            //Span<UInt256> keySpan = stackalloc UInt256[] { key };
+            //Span<byte> keyBuffer = MemoryMarshal.AsBytes(keySpan).Slice(0, UInt256.Size);
+
             if (key.TryWrite(keybuffer)
-                && db.TryGet(keybuffer, columnFamily, TryReadAccountState, out Account account))
+                && db.TryGet<Account, AccountStateReader>(keybuffer, columnFamily, out Account account))
             {
                 value = account;
                 return true;
@@ -194,7 +198,7 @@ namespace NeoFx.RocksDb
             Span<byte> keybuffer = stackalloc byte[UInt256.Size];
 
             if (key.TryWrite(keybuffer)
-                && db.TryGet(keybuffer, columnFamily, TryReadAssetState, out Asset asset))
+                && db.TryGet<Asset, AssetStateReader>(keybuffer, columnFamily, out Asset asset))
             {
                 value = asset;
                 return true;
@@ -213,7 +217,7 @@ namespace NeoFx.RocksDb
                 var transactions = ImmutableArray.CreateBuilder<Transaction>(hashes.Length);
                 for (int i = 0; i < hashes.Length; i++)
                 {
-                    if (TryGetTransaction(hashes.Span[i], out var _, out var tx))
+                    if (TryGetTransaction(hashes[i], out var _, out var tx))
                     {
                         transactions.Add(tx);
                     }
@@ -245,7 +249,7 @@ namespace NeoFx.RocksDb
             return false;
         }
 
-        public bool TryGetBlock(in UInt256 key, out BlockHeader header, out ReadOnlyMemory<UInt256> hashes)
+        public bool TryGetBlock(in UInt256 key, out BlockHeader header, out ImmutableArray<UInt256> hashes)
         {
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
@@ -253,7 +257,7 @@ namespace NeoFx.RocksDb
             Span<byte> keybuffer = stackalloc byte[UInt256.Size];
 
             if (key.TryWrite(keybuffer)
-                && db.TryGet(keybuffer, columnFamily, TryReadBlockState, out (long systemFee, BlockHeader header, ReadOnlyMemory<UInt256> hashes) value))
+                && db.TryGet<(long systemFee, BlockHeader header, ImmutableArray<UInt256> hashes), BlockStateReader>(keybuffer, columnFamily, out var value))
             {
                 header = value.header;
                 hashes = value.hashes;
@@ -287,7 +291,7 @@ namespace NeoFx.RocksDb
             Span<byte> keybuffer = stackalloc byte[UInt160.Size];
 
             if (key.TryWrite(keybuffer)
-                && db.TryGet(keybuffer, columnFamily, TryReadContractState, out DeployedContract contract))
+                && db.TryGet<DeployedContract, ContractStateReader>(keybuffer, columnFamily, out DeployedContract contract))
             {
                 value = contract;
                 return true;
@@ -305,7 +309,7 @@ namespace NeoFx.RocksDb
             Span<byte> keybuffer = stackalloc byte[1];
             keybuffer[0] = CURRENT_BLOCK_KEY;
 
-            if (db.TryGet(keybuffer, columnFamily, TryReadHashIndexState, out (UInt256 hash, uint index) currentBlock))
+            if (db.TryGet<(UInt256 hash, uint index), HashIndexStateReader>(keybuffer, columnFamily, out var currentBlock))
             {
                 value = currentBlock.hash;
                 return false;
@@ -342,7 +346,7 @@ namespace NeoFx.RocksDb
             Span<byte> keybuffer = stackalloc byte[UInt256.Size];
 
             if (key.TryWrite(keybuffer)
-                && db.TryGet(keybuffer, columnFamily, TryReadTransactionState, out (uint blockIndex, Transaction tx) txState))
+                && db.TryGet<(uint blockIndex, Transaction tx), TransactionStateReader>(keybuffer, columnFamily, out var txState))
             {
                 index = txState.blockIndex;
                 value = txState.tx;
@@ -354,7 +358,7 @@ namespace NeoFx.RocksDb
             return false;
         }
 
-        public bool TryGetUnspentCoins(in UInt256 key, out ReadOnlyMemory<CoinState> value)
+        public bool TryGetUnspentCoins(in UInt256 key, out ImmutableArray<CoinState> value)
         {
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
@@ -362,7 +366,7 @@ namespace NeoFx.RocksDb
             Span<byte> keybuffer = stackalloc byte[UInt256.Size];
 
             if (key.TryWrite(keybuffer)
-                && db.TryGet(keybuffer, columnFamily, TryReadUnspentCoinsState, out CoinState[]? item))
+                && db.TryGet<ImmutableArray<CoinState>, UnspentCoinsStateReader>(keybuffer, columnFamily, out var item))
             {
                 value = item;
                 return true;
@@ -377,10 +381,7 @@ namespace NeoFx.RocksDb
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
             var columnFamily = db.GetColumnFamily(VALIDATOR_FAMILY);
-            Span<byte> keybuffer = stackalloc byte[key.Key.Length];
-
-            if (key.Key.AsSpan().TryCopyTo(keybuffer)
-                && db.TryGet(keybuffer, columnFamily, TryReadValidatorState, out Validator validator))
+            if (db.TryGet<Validator, ValidatorStateReader>(key.Key.AsSpan(), columnFamily, out Validator validator))
             {
                 value = validator;
                 return true;
@@ -396,7 +397,8 @@ namespace NeoFx.RocksDb
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
             var columnFamily = db.GetColumnFamily(ACCOUNT_FAMILY);
-            return db.Iterate<UInt160, Account>(columnFamily, UInt160.TryRead, TryReadAccountState);
+            //return db.Iterate<UInt160, Account>(columnFamily, UInt160.TryRead, TryReadAccountState);
+            return null!;
         }
 
         public IEnumerable<(UInt256 key, Asset assetState)> GetAssets()
@@ -404,7 +406,8 @@ namespace NeoFx.RocksDb
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
             var columnFamily = db.GetColumnFamily(ASSET_FAMILY);
-            return db.Iterate<UInt256, Asset>(columnFamily, UInt256.TryRead, TryReadAssetState);
+            //return db.Iterate<UInt256, Asset>(columnFamily, UInt256.TryRead, TryReadAssetState);
+            return null!;
         }
 
         public IEnumerable<(UInt256 key, (long systemFee, BlockHeader header, ReadOnlyMemory<UInt256> hashes) blockState)> GetBlocks()
@@ -412,7 +415,8 @@ namespace NeoFx.RocksDb
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
             var columnFamily = db.GetColumnFamily(BLOCK_FAMILY);
-            return db.Iterate<UInt256, (long, BlockHeader, ReadOnlyMemory<UInt256>)>(columnFamily, UInt256.TryRead, TryReadBlockState);
+            //return db.Iterate<UInt256, (long, BlockHeader, ReadOnlyMemory<UInt256>)>(columnFamily, UInt256.TryRead, TryReadBlockState);
+            return null!;
         }
 
         public IEnumerable<(UInt160 key, DeployedContract contractState)> GetContracts()
@@ -420,7 +424,8 @@ namespace NeoFx.RocksDb
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
             var columnFamily = db.GetColumnFamily(CONTRACT_FAMILY);
-            return db.Iterate<UInt160, DeployedContract>(columnFamily, UInt160.TryRead, TryReadContractState);
+            //return db.Iterate<UInt160, DeployedContract>(columnFamily, UInt160.TryRead, TryReadContractState);
+            return null!;
         }
 
         public IEnumerable<(StorageKey key, StorageItem contractState)> GetStorages()
@@ -437,7 +442,8 @@ namespace NeoFx.RocksDb
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
             var columnFamily = db.GetColumnFamily(TX_FAMILY);
-            return db.Iterate<UInt256, (uint, Transaction)>(columnFamily, UInt256.TryRead, TryReadTransactionState);
+            //return db.Iterate<UInt256, (uint, Transaction)>(columnFamily, UInt256.TryRead, TryReadTransactionState);
+            return null!;
         }
 
         public IEnumerable<(UInt256 key, CoinState[] coinState)> GetUnspentCoins()
@@ -445,7 +451,8 @@ namespace NeoFx.RocksDb
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
             var columnFamily = db.GetColumnFamily(UNSPENT_COIN_FAMILY);
-            return db.Iterate<UInt256, CoinState[]>(columnFamily, UInt256.TryRead, TryReadUnspentCoinsState);
+            //return db.Iterate<UInt256, CoinState[]>(columnFamily, UInt256.TryRead, TryReadUnspentCoinsState);
+            return null!;
         }
 
         public IEnumerable<(EncodedPublicKey key, Validator validatorState)> GetValidators()
@@ -463,166 +470,190 @@ namespace NeoFx.RocksDb
             return null!;
         }
 
+        #region Converter Structs
         private static bool TryReadStateVersion(ref BufferReader<byte> reader, byte expectedVersion)
         {
-            //if (reader.TryPeek(out var value)
-            //    && value == expectedVersion
-            //    && reader.TryAdvance(1))
-            //{
-            //    return true;
-            //}
+            if (reader.TryPeek(out var value)
+                && value == expectedVersion)
+            {
+                reader.Advance(1);
+                return true;
+            }
 
             return false;
         }
 
-        private static bool TryReadAccountState(ReadOnlySpan<byte> span, out Account value)
+        private readonly struct AccountStateReader : ISpanReader<Account>
         {
-            var reader = new BufferReader<byte>(span);
+            public bool TryReadSpan(ReadOnlySpan<byte> span, out Account value)
+            {
+                var reader = new BufferReader<byte>(span);
+                if (TryReadStateVersion(ref reader, 0)
+                    && Account.TryRead(ref reader, out value))
+                {
+                    Debug.Assert(reader.Length == 0);
+                    return true;
+                }
 
-            //if (TryReadStateVersion(ref reader, 0)
-            //    && reader.TryRead(out Account account))
-            //{
-            //    Debug.Assert(reader.Length == 0);
-
-            //    value = account;
-            //    return true;
-            //}
-
-            value = default;
-            return false;
+                value = default;
+                return false;
+            }
         }
 
-        private static bool TryReadAssetState(ReadOnlySpan<byte> span, out Asset value)
+        private readonly struct AssetStateReader : ISpanReader<Asset>
         {
-            var reader = new BufferReader<byte>(span);
+            public bool TryReadSpan(ReadOnlySpan<byte> span, out Asset value)
+            {
+                var reader = new BufferReader<byte>(span);
 
-            //if (TryReadStateVersion(ref reader, 0)
-            //    && reader.TryRead(out Asset asset))
-            //{
-            //    Debug.Assert(reader.Length == 0);
+                if (TryReadStateVersion(ref reader, 0)
+                    && Asset.TryRead(ref reader, out value))
+                {
+                    Debug.Assert(reader.Length == 0);
+                    return true;
+                }
 
-            //    value = asset;
-            //    return true;
-            //}
-
-            value = default;
-            return false;
+                value = default;
+                return false;
+            }
         }
 
-        private static bool TryReadBlockState(ReadOnlySpan<byte> span, out (long systemFee, BlockHeader header, ReadOnlyMemory<UInt256> hashes) value)
+
+        private readonly struct BlockStateReader : ISpanReader<(long systemFee, BlockHeader header, ImmutableArray<UInt256> hashes)>
         {
-            var reader = new BufferReader<byte>(span);
+            public bool TryReadSpan(ReadOnlySpan<byte> span, out (long systemFee, BlockHeader header, ImmutableArray<UInt256> hashes) value)
+            {
+                var reader = new BufferReader<byte>(span);
 
-            //if (TryReadStateVersion(ref reader, 0)
-            //    && reader.TryRead(out long systemFee)
-            //    && reader.TryRead(out BlockHeader header)
-            //    && reader.TryReadVarArray<UInt256>(BinaryFormat.TryRead, out var hashes))
-            //{
-            //    Debug.Assert(reader.Length == 0);
-            //    value = (systemFee, header, hashes);
-            //    return true;
-            //}
+                if (TryReadStateVersion(ref reader, 0)
+                    && reader.TryReadLittleEndian(out long systemFee)
+                    && BlockHeader.TryRead(ref reader, out var header)
+                    && reader.TryReadVarArray<UInt256, UInt256.Factory>(out var hashes))
+                {
+                    Debug.Assert(reader.Length == 0);
+                    value = (systemFee, header, hashes);
+                    return true;
+                }
 
-            value = default;
-            return false;
+                value = default;
+                return false;
+            }
         }
 
-        private static bool TryReadContractState(ReadOnlySpan<byte> span, out DeployedContract value)
+
+        private readonly struct ContractStateReader : ISpanReader<DeployedContract>
         {
-            var reader = new BufferReader<byte>(span);
+            public bool TryReadSpan(ReadOnlySpan<byte> span, out DeployedContract value)
+            {
+                var reader = new BufferReader<byte>(span);
 
-            //if (TryReadStateVersion(ref reader, 0)
-            //    && reader.TryRead(out DeployedContract contract))
-            //{
-            //    Debug.Assert(reader.Length == 0);
-            //    value = contract;
-            //    return true;
-            //}
+                if (TryReadStateVersion(ref reader, 0)
+                    && DeployedContract.TryRead(ref reader, out value))
+                {
+                    Debug.Assert(reader.Length == 0);
+                    return true;
+                }
 
-            value = default;
-            return false;
+                value = default;
+                return false;
+            }
         }
 
-        private static bool TryReadHashIndexState(ReadOnlySpan<byte> span, out (UInt256 hash, uint index) value)
+        private readonly struct HashIndexStateReader : ISpanReader<(UInt256 hash, uint index)>
         {
-            var reader = new BufferReader<byte>(span);
+            public bool TryReadSpan(ReadOnlySpan<byte> span, out (UInt256 hash, uint index) value)
+            {
+                var reader = new BufferReader<byte>(span);
 
-            //if (TryReadStateVersion(ref reader, 0)
-            //    && reader.TryRead(out UInt256 hash)
-            //    && reader.TryRead(out uint index))
-            //{
-            //    Debug.Assert(reader.Length == 0);
-            //    value = (hash, index);
-            //    return true;
-            //}
+                if (TryReadStateVersion(ref reader, 0)
+                    && UInt256.TryRead(ref reader, out var hash)
+                    && reader.TryReadLittleEndian(out uint index))
+                {
+                    Debug.Assert(reader.Length == 0);
+                    value = (hash, index);
+                    return true;
+                }
 
-            value = default;
-            return false;
+                value = default;
+                return false;
+            }
         }
 
-        private static bool TryReadStorageItem(ReadOnlySpan<byte> span, out StorageItem value)
+        private readonly struct StorageItemReader : ISpanReader<StorageItem>
         {
-            var reader = new BufferReader<byte>(span);
+            public bool TryReadSpan(ReadOnlySpan<byte> span, out StorageItem value)
+            {
+                var reader = new BufferReader<byte>(span);
 
-            //if (TryReadStateVersion(ref reader, 0)
-            //    && reader.TryRead(out StorageItem item))
-            //{
-            //    Debug.Assert(reader.Length == 0);
-            //    value = item;
-            //    return true;
-            //}
+                if (TryReadStateVersion(ref reader, 0)
+                    && StorageItem.TryRead(ref reader, out var item))
+                {
+                    Debug.Assert(reader.Length == 0);
+                    value = item;
+                    return true;
+                }
 
-            value = default;
-            return false;
+                value = default;
+                return false;
+            }
         }
 
-        private static bool TryReadTransactionState(ReadOnlySpan<byte> span, out (uint blockIndex, Transaction tx) value)
+        private readonly struct TransactionStateReader : ISpanReader<(uint blockIndex, Transaction tx)>
         {
-            var reader = new BufferReader<byte>(span);
+            public bool TryReadSpan(ReadOnlySpan<byte> span, out (uint blockIndex, Transaction tx) value)
+            {
+                var reader = new BufferReader<byte>(span);
 
-            //if (TryReadStateVersion(ref reader, 0)
-            //    && reader.TryRead(out uint blockIndex)
-            //    && reader.TryRead(out Transaction? tx))
-            //{
-            //    Debug.Assert(reader.Length == 0);
-            //    value = (blockIndex, tx);
-            //    return true;
-            //}
+                if (TryReadStateVersion(ref reader, 0)
+                    && reader.TryReadLittleEndian(out uint blockIndex)
+                    && Transaction.TryRead(ref reader, out var tx))
+                {
+                    Debug.Assert(reader.Length == 0);
+                    value = (blockIndex, tx);
+                    return true;
+                }
 
-            value = default;
-            return false;
+                value = default;
+                return false;
+            }
         }
 
-        private static bool TryReadUnspentCoinsState(ReadOnlySpan<byte> span, [MaybeNullWhen(false)] out CoinState[] value)
+        private readonly struct UnspentCoinsStateReader : ISpanReader<ImmutableArray<CoinState>>
         {
-            var reader = new BufferReader<byte>(span);
+            public bool TryReadSpan(ReadOnlySpan<byte> span, out ImmutableArray<CoinState> value)
+            {
+                var reader = new BufferReader<byte>(span);
 
-            //if (TryReadStateVersion(ref reader, 0)
-            //    && reader.TryReadVarArray(BinaryFormat.TryRead, out CoinState[]? coins))
-            //{
-            //    Debug.Assert(reader.Length == 0);
-            //    value = coins;
-            //    return true;
-            //}
+                if (TryReadStateVersion(ref reader, 0)
+                    && reader.TryReadVarArray(out var array))
+                {
+                    Debug.Assert(reader.Length == 0);
+                    value = Unsafe.As<ImmutableArray<byte>, ImmutableArray<CoinState>>(ref array);
+                    return true;
+                }
 
-            value = default!;
-            return false;
+                value = default!;
+                return false;
+            }
         }
 
-        private static bool TryReadValidatorState(ReadOnlySpan<byte> span, out Validator value)
+        private readonly struct ValidatorStateReader : ISpanReader<Validator>
         {
-            var reader = new BufferReader<byte>(span);
+            public bool TryReadSpan(ReadOnlySpan<byte> span, out Validator value)
+            {
+                var reader = new BufferReader<byte>(span);
 
-            //if (TryReadStateVersion(ref reader, 0)
-            //    && reader.TryRead(out Validator validator))
-            //{
-            //    Debug.Assert(reader.Length == 0);
-            //    value = validator;
-            //    return true;
-            //}
+                if (TryReadStateVersion(ref reader, 0)
+                    && Validator.TryRead(ref reader, out value))
+                {
+                    Debug.Assert(reader.Length == 0);
+                    return true;
+                }
 
-            value = default;
-            return false;
+                value = default;
+                return false;
+            }
         }
+        #endregion
     }
 }

@@ -182,26 +182,26 @@ namespace NeoFx.Storage
             return false;
         }
 
-        public static bool TryReadVarArray<T, F>(ref this BufferReader<byte> reader, out ImmutableArray<T> value)
-            where F : struct, IFactoryReader<T>
+        public static bool TryReadVarArray<T, TFactory>(ref this BufferReader<byte> reader, out ImmutableArray<T> value)
+            where TFactory : struct, IFactoryReader<T>
         {
-            return TryReadVarArray<T, F>(ref reader, 0x1000000, default(F), out value);
+            return TryReadVarArray(ref reader, 0x1000000, default(TFactory), out value);
         }
 
-        public static bool TryReadVarArray<T, F>(ref this BufferReader<byte> reader, uint max, out ImmutableArray<T> value)
-            where F : struct, IFactoryReader<T>
+        public static bool TryReadVarArray<T, TFactory>(ref this BufferReader<byte> reader, uint max, out ImmutableArray<T> value)
+            where TFactory : struct, IFactoryReader<T>
         {
-            return TryReadVarArray<T, F>(ref reader, max, default(F), out value);
+            return TryReadVarArray(ref reader, max, default(TFactory), out value);
         }
 
-        public static bool TryReadVarArray<T, F>(ref this BufferReader<byte> reader, F factory, out ImmutableArray<T> value)
-            where F : IFactoryReader<T>
+        public static bool TryReadVarArray<T, TFactory>(ref this BufferReader<byte> reader, TFactory factory, out ImmutableArray<T> value)
+            where TFactory : IFactoryReader<T>
         {
-            return TryReadVarArray<T, F>(ref reader, 0x1000000, factory, out value);
+            return TryReadVarArray(ref reader, 0x1000000, factory, out value);
         }
 
-        public static bool TryReadVarArray<T, F>(ref this BufferReader<byte> reader, uint max, F factory, out ImmutableArray<T> value)
-            where F : IFactoryReader<T>
+        public static bool TryReadVarArray<T, TFactory>(ref this BufferReader<byte> reader, uint max, TFactory factory, out ImmutableArray<T> value)
+            where TFactory : IFactoryReader<T>
         {
             if (reader.TryReadVarInt(max, out var length))
             {

@@ -1,5 +1,8 @@
-﻿using System;
+﻿using DevHawk.Buffers;
+using NeoFx.Storage;
+using System;
 using System.Collections.Immutable;
+using System.Runtime.CompilerServices;
 
 namespace NeoFx.Models
 {
@@ -59,34 +62,33 @@ namespace NeoFx.Models
             //scriptHash = new Lazy<UInt160>(() => CalculateScriptHash(script));
         }
 
-        //public static bool TryRead(ref this SpanReader<byte> reader, out DeployedContract value)
-        //{
-        //    if (reader.TryReadVarArray(out var script)
-        //        && reader.TryReadVarArray(out var parameterTypes)
-        //        && reader.TryRead(out byte returnType)
-        //        && reader.TryRead(out byte propertyState)
-        //        && reader.TryReadVarString(out var name)
-        //        && reader.TryReadVarString(out var version)
-        //        && reader.TryReadVarString(out var author)
-        //        && reader.TryReadVarString(out var email)
-        //        && reader.TryReadVarString(out var description))
-        //    {
-        //        value = new DeployedContract(
-        //            script,
-        //            ConvertContractParameterTypeMemory(parameterTypes),
-        //            (ContractParameterType)returnType,
-        //            (DeployedContract.PropertyState)propertyState,
-        //            name,
-        //            version,
-        //            author,
-        //            email,
-        //            description);
-        //        return true;
-        //    }
+        public static bool TryRead(ref BufferReader<byte> reader, out DeployedContract value)
+        {
+            if (reader.TryReadVarArray(out var script)
+                && reader.TryReadVarArray(out var parameterTypes)
+                && reader.TryRead(out byte returnType)
+                && reader.TryRead(out byte propertyState)
+                && reader.TryReadVarString(out var name)
+                && reader.TryReadVarString(out var version)
+                && reader.TryReadVarString(out var author)
+                && reader.TryReadVarString(out var email)
+                && reader.TryReadVarString(out var description))
+            {
+                value = new DeployedContract(
+                    script,
+                    Unsafe.As<ImmutableArray<byte>, ImmutableArray<ContractParameterType>>(ref parameterTypes),
+                    (ContractParameterType)returnType,
+                    (PropertyState)propertyState,
+                    name,
+                    version,
+                    author,
+                    email,
+                    description);
+                return true;
+            }
 
-        //    value = default;
-        //    return false;
-        //}
-
+            value = default;
+            return false;
+        }
     }
 }

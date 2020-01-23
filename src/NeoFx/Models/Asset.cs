@@ -1,4 +1,7 @@
-﻿namespace NeoFx.Models
+﻿using DevHawk.Buffers;
+using NeoFx.Storage;
+
+namespace NeoFx.Models
 {
     public readonly struct Asset
     {
@@ -33,42 +36,42 @@
             IsFrozen = isFrozen;
         }
 
-        //public static bool TryRead(ref this SpanReader<byte> reader, out Asset value)
-        //{
-        //    if (reader.TryRead(out UInt256 assetId)
-        //        && reader.TryRead(out byte assetType)
-        //        && reader.TryReadVarString(out var name)
-        //        && reader.TryRead(out Fixed8 amount)
-        //        && reader.TryRead(out Fixed8 available)
-        //        && reader.TryRead(out byte precision)
-        //        && reader.TryRead(out byte _) // feeMode
-        //        && reader.TryRead(out Fixed8 fee)
-        //        && reader.TryRead(out UInt160 feeAddress)
-        //        && reader.TryRead(out EncodedPublicKey owner)
-        //        && reader.TryRead(out UInt160 admin)
-        //        && reader.TryRead(out UInt160 issuer)
-        //        && reader.TryRead(out uint expiration)
-        //        && reader.TryRead(out byte isFrozen))
-        //    {
-        //        value = new Asset(
-        //            assetId: assetId,
-        //            assetType: (AssetType)assetType,
-        //            name: name,
-        //            amount: amount,
-        //            available: available,
-        //            precision: precision,
-        //            fee: fee,
-        //            feeAddress: feeAddress,
-        //            owner: owner,
-        //            admin: admin,
-        //            issuer: issuer,
-        //            expiration: expiration,
-        //            isFrozen: isFrozen != 0);
-        //        return true;
-        //    }
+        public static bool TryRead(ref BufferReader<byte> reader, out Asset value)
+        {
+            if (UInt256.TryRead(ref reader, out var assetId)
+                && reader.TryRead(out byte assetType)
+                && reader.TryReadVarString(out var name)
+                && Fixed8.TryRead(ref reader, out Fixed8 amount)
+                && Fixed8.TryRead(ref reader, out Fixed8 available)
+                && reader.TryRead(out byte precision)
+                && reader.TryRead(out byte _) // feeMode
+                && Fixed8.TryRead(ref reader, out Fixed8 fee)
+                && UInt160.TryRead(ref reader, out UInt160 feeAddress)
+                && EncodedPublicKey.TryRead(ref reader, out EncodedPublicKey owner)
+                && UInt160.TryRead(ref reader, out UInt160 admin)
+                && UInt160.TryRead(ref reader, out UInt160 issuer)
+                && reader.TryReadLittleEndian(out uint expiration)
+                && reader.TryRead(out byte isFrozen))
+            {
+                value = new Asset(
+                    assetId: assetId,
+                    assetType: (AssetType)assetType,
+                    name: name,
+                    amount: amount,
+                    available: available,
+                    precision: precision,
+                    fee: fee,
+                    feeAddress: feeAddress,
+                    owner: owner,
+                    admin: admin,
+                    issuer: issuer,
+                    expiration: expiration,
+                    isFrozen: isFrozen != 0);
+                return true;
+            }
 
-        //    value = default;
-        //    return false;
-        //}
+            value = default;
+            return false;
+        }
     }
 }
