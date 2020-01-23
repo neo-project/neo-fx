@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Linq;
 using NeoFx.Storage;
 using System.Diagnostics.CodeAnalysis;
+using System.Collections.Immutable;
 
 namespace NeoFx.RocksDb
 {
@@ -209,12 +210,12 @@ namespace NeoFx.RocksDb
 
             if (TryGetBlock(key, out BlockHeader header, out var hashes))
             {
-                var transactions = new Transaction[hashes.Length];
+                var transactions = ImmutableArray.CreateBuilder<Transaction>(hashes.Length);
                 for (int i = 0; i < hashes.Length; i++)
                 {
                     if (TryGetTransaction(hashes.Span[i], out var _, out var tx))
                     {
-                        transactions[i] = tx;
+                        transactions.Add(tx);
                     }
                     else
                     {
@@ -223,8 +224,8 @@ namespace NeoFx.RocksDb
                     }
                 }
 
-                //value = new Block(header, transactions);
-                //return true;
+                value = new Block(header, transactions.MoveToImmutable());
+                return true;
             }
 
             value = default;
