@@ -45,7 +45,7 @@ namespace NeoFx.Models
 
         bool IFactoryReader<StateDescriptor>.TryReadItem(ref BufferReader<byte> reader, out StateDescriptor value) => TryRead(ref reader, out value);
 
-        public void Write(ref BufferWriter<byte> writer)
+        public void WriteTo(ref BufferWriter<byte> writer)
         {
             writer.Write((byte)Type);
             writer.WriteVarArray(Key);

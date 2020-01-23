@@ -80,7 +80,7 @@ namespace NeoFx
                 throw new ArgumentException(nameof(buffer));
         }
 
-        public void Write(ref BufferWriter<byte> writer)
+        public void WriteTo(ref BufferWriter<byte> writer)
         {
             writer.WriteLittleEndian(value);
         }

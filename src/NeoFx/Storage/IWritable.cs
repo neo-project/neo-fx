@@ -4,6 +4,6 @@ namespace NeoFx.Storage
 {
     public interface IWritable<T>
     {
-        void Write(ref BufferWriter<byte> writer);
+        void WriteTo(ref BufferWriter<byte> writer);
     }
 }

@@ -75,7 +75,7 @@ namespace NeoFx.Models
             writer.WriteVarArray(Script);
             if (Version >= 1)
             {
-                writer.Write(Gas);
+                Gas.WriteTo(ref writer);
             }
         }
     }

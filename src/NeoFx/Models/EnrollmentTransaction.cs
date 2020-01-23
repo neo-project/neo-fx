@@ -49,7 +49,7 @@ namespace NeoFx.Models
         {
             writer.Write((byte)TransactionType.Enrollment);
             writer.Write(Version);
-            writer.Write(PublicKey);
+            PublicKey.WriteTo(ref writer);
         }
     }
 }

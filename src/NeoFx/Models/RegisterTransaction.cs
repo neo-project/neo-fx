@@ -87,10 +87,10 @@ namespace NeoFx.Models
             writer.Write((byte)AssetType);
             Debug.Assert(Name.Length <= 1024);
             writer.WriteVarString(Name);
-            writer.Write(Amount);
+            Amount.WriteTo(ref writer);
             writer.Write(Precision);
-            writer.Write(Owner);
-            writer.Write(Admin);
+            Owner.WriteTo(ref writer);
+            Admin.WriteTo(ref writer);
         }
     }
 }

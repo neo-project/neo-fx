@@ -1,7 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <AssemblyName>NeoFx</AssemblyName>
     <Authors>Neo Global Development Seattle</Authors>
     <LangVersion>8.0</LangVersion>

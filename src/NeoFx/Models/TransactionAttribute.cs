@@ -145,7 +145,7 @@ namespace NeoFx.Models
 
         bool IFactoryReader<TransactionAttribute>.TryReadItem(ref BufferReader<byte> reader, out TransactionAttribute value) => TryRead(ref reader, out value);
 
-        public void Write(ref BufferWriter<byte> writer)
+        public void WriteTo(ref BufferWriter<byte> writer)
         {
             writer.Write((byte)Usage);
 

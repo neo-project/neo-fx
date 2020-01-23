@@ -270,7 +270,7 @@ namespace NeoFx.Storage
             writer.WriteVarInt(span.Length);
             for (int i = 0; i < span.Length; i++)
             {
-                span[i].Write(ref writer);
+                span[i].WriteTo(ref writer);
             }
         }
 
