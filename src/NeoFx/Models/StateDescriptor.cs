@@ -47,7 +47,7 @@ namespace NeoFx.Models
 
         public void Write(ref BufferWriter<byte> writer)
         {
-            writer.WriteLittleEndian((byte)Type);
+            writer.Write((byte)Type);
             writer.WriteVarArray(Key);
             writer.WriteVarString(Field);
             writer.WriteVarArray(Value);

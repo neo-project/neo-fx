@@ -129,8 +129,17 @@ namespace NeoFx.Models
 
         public void Write(ref BufferWriter<byte> writer)
         {
-            writer.WriteLittleEndian((byte)Usage);
-            writer.WriteVarArray(Data);
+            writer.Write((byte)Usage);
+
+            if (Usage == UsageType.DescriptionUrl)
+                writer.Write((byte)Data.Length);
+            else if (Usage == UsageType.Description || Usage >= UsageType.Remark)
+                writer.WriteVarInt(Data.Length);
+
+            if (Usage == UsageType.ECDH02 || Usage == UsageType.ECDH03)
+                writer.Write(Data.AsSpan().Slice(1, 32));
+            else
+                writer.Write(Data.AsSpan());
         }
     }
 }

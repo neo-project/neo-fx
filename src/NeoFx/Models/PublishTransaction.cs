@@ -134,10 +134,10 @@ namespace NeoFx.Models
             writer.WriteVarArray(Script);
             var byteParameterList = Unsafe.As<ImmutableArray<ContractParameterType>, byte[]>(ref ParameterList);
             writer.WriteVarArray(byteParameterList);
-            writer.WriteLittleEndian((byte)ReturnType);
+            writer.Write((byte)ReturnType);
             if (Version >= 1)
             {
-                writer.WriteLittleEndian(NeedStorage ? (byte)1 : (byte)0);
+                writer.Write(NeedStorage ? (byte)1 : (byte)0);
             }
             writer.WriteVarString(Name);
             writer.WriteVarString(CodeVersion);

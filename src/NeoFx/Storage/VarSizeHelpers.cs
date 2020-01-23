@@ -226,6 +226,7 @@ namespace NeoFx.Storage
             if (value < 0xfd)
             {
                 writer.Write((byte)value);
+                return;
             }
 
             if (value < 0xffff)
@@ -239,6 +240,7 @@ namespace NeoFx.Storage
             {
                 writer.Write(0xfe);
                 writer.WriteLittleEndian((uint)value);
+                return;
             }
 
             writer.Write(0xff);

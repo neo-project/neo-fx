@@ -159,6 +159,7 @@ namespace NeoFx
             writer.WriteVarArray(tx.Attributes);
             writer.WriteVarArray(tx.Inputs);
             writer.WriteVarArray(tx.Outputs);
+            writer.Commit();
 
             Span<byte> hashBuffer = stackalloc byte[Hash256Size];
             if (TryHash256(buffer.WrittenSpan, hashBuffer))

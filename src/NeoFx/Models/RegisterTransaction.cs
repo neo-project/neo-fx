@@ -88,7 +88,7 @@ namespace NeoFx.Models
             Debug.Assert(Name.Length <= 1024);
             writer.WriteVarString(Name);
             writer.Write(Amount);
-            writer.WriteLittleEndian(Precision);
+            writer.Write(Precision);
             writer.Write(Owner);
             writer.Write(Admin);
         }

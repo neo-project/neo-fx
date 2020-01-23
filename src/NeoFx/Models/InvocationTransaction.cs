@@ -73,7 +73,10 @@ namespace NeoFx.Models
             writer.Write((byte)TransactionType.Invocation);
             writer.Write(Version);
             writer.WriteVarArray(Script);
-            writer.Write(Gas);
+            if (Version >= 1)
+            {
+                writer.Write(Gas);
+            }
         }
     }
 }
