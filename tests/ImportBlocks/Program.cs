@@ -9,6 +9,8 @@ using System.IO.Compression;
 
 namespace ImportBlocks
 {
+    using NeoBlock = Neo.Network.P2P.Payloads.Block;
+
     class Program
     {
         static void Main(string[] args) => CommandLineApplication.Execute<Program>(args);
@@ -18,6 +20,35 @@ namespace ImportBlocks
 
         [Argument(1)]
         public string DatabaseDirectory { get; } = string.Empty;
+
+        static NeoBlock DeserializeNeoBlock(byte[] array)
+        {
+            return Neo.IO.Helper.AsSerializable<NeoBlock>(array);
+        }
+
+        static bool CompareUInt256(in NeoFx.UInt256 fx, Neo.UInt256 neo)
+        {
+            Span<byte> fxBuffer = stackalloc byte[32];
+            fx.Write(fxBuffer);
+            return fxBuffer.SequenceEqual(neo.ToArray());
+        }
+
+        static bool CompareBlock(in NeoFx.Models.Block fxBlock, byte[] array)
+        {
+            var neoBlock = DeserializeNeoBlock(array);
+            if (!CompareUInt256(fxBlock.CalculateHash(), neoBlock.Hash)) return false;
+            if (fxBlock.Transactions.Length != neoBlock.Transactions.Length) return false;
+
+            for (var i = 0; i < fxBlock.Transactions.Length; i++)
+            {
+                var fxTx = fxBlock.Transactions[i];
+                var neoTx = neoBlock.Transactions[i];
+
+                if (!CompareUInt256(fxTx.CalculateHash(), neoTx.Hash)) return false;
+            }
+
+            return true;
+        }
 
         public void OnExecute()
         {
@@ -47,10 +78,9 @@ namespace ImportBlocks
                 var succeeded = NeoFx.Models.Block.TryRead(ref reader, out var block);
                 Debug.Assert(succeeded);
                 Debug.Assert(reader.End);
+                Debug.Assert(CompareBlock(block, array));
 
-                var blockHash = block.CalculateHash();
-
-                if (index % 1000 == 0) Console.WriteLine($"{index}\t\t{blockHash}");
+                if (index % 1000 == 0) Console.WriteLine($"{index}");
 
                 pool.Return(array);
             }
