@@ -89,23 +89,12 @@ namespace NeoFx.RocksDb
             }
         }
 
-        public static IEnumerable<(TKey key, TValue value)> Iterate<TKey, TKeyFactory, TValue, TValueFactory>(this RocksDb db,
-                                                                                                              ColumnFamilyHandle columnFamily)
-            where TKeyFactory : struct, ISpanReader<TKey>
-            where TValueFactory : struct, ISpanReader<TValue>
-        {
-            return Iterate<TKey, TKeyFactory, TValue, TValueFactory>(db, columnFamily, default, default);
-        }
-        
-        public static IEnumerable<(TKey key, TValue value)> Iterate<TKey, TKeyFactory, TValue, TValueFactory>(this RocksDb db,
-                                                                                                              ColumnFamilyHandle columnFamily,
-                                                                                                              TKeyFactory keyFactory,
-                                                                                                              TValueFactory valueFactory)
+        private static IEnumerable<(TKey key, TValue value)> Iterate<TKey, TKeyFactory, TValue, TValueFactory>(RocksDbSharp.Iterator iterator,
+                                                                                                               TKeyFactory keyFactory,
+                                                                                                               TValueFactory valueFactory)
             where TKeyFactory : ISpanReader<TKey>
             where TValueFactory : ISpanReader<TValue>
         {
-            using var iterator = db.NewIterator(columnFamily);
-            iterator.SeekToFirst();
             while (iterator.Valid())
             {
                 IntPtr keyPtr = Instance.rocksdb_iter_key(iterator.Handle, out UIntPtr keyLength);
@@ -118,6 +107,51 @@ namespace NeoFx.RocksDb
 
                 yield return (key, value);
                 iterator.Next();
+            }
+        }
+
+        public static IEnumerable<(TKey key, TValue value)> Iterate<TKey, TKeyFactory, TValue, TValueFactory>(this RocksDb db,
+                                                                                                              ColumnFamilyHandle columnFamily)
+            where TKeyFactory : struct, ISpanReader<TKey>
+            where TValueFactory : struct, ISpanReader<TValue>
+        {
+            return Iterate<TKey, TKeyFactory, TValue, TValueFactory>(db, columnFamily, default, default);
+        }
+
+        public static IEnumerable<(TKey key, TValue value)> Iterate<TKey, TKeyFactory, TValue, TValueFactory>(this RocksDb db,
+                                                                                                              ColumnFamilyHandle columnFamily,
+                                                                                                              TKeyFactory keyFactory,
+                                                                                                              TValueFactory valueFactory)
+            where TKeyFactory : ISpanReader<TKey>
+            where TValueFactory : ISpanReader<TValue>
+        {
+            using var iterator = db.NewIterator(columnFamily);
+            iterator.SeekToFirst();
+            return Iterate<TKey, TKeyFactory, TValue, TValueFactory>(iterator, keyFactory, valueFactory);
+        }
+
+        public static unsafe IEnumerable<(TKey key, TValue value)> Search<TKey, TKeyFactory, TValue, TValueFactory>(this RocksDb db,
+                                                                                                                    ColumnFamilyHandle columnFamily,
+                                                                                                                    Span<byte> prefix)
+            where TKeyFactory : struct, ISpanReader<TKey>
+            where TValueFactory : struct, ISpanReader<TValue>
+        {
+            return Search<TKey, TKeyFactory, TValue, TValueFactory>(db, columnFamily, prefix, default, default);
+        }
+
+        public static unsafe IEnumerable<(TKey key, TValue value)> Search<TKey, TKeyFactory, TValue, TValueFactory>(this RocksDb db,
+                                                                                                                    ColumnFamilyHandle columnFamily,
+                                                                                                                    Span<byte> prefix,
+                                                                                                                    TKeyFactory keyFactory,
+                                                                                                                    TValueFactory valueFactory)
+            where TKeyFactory : ISpanReader<TKey>
+            where TValueFactory : ISpanReader<TValue>
+        {
+            fixed (byte* prefixPtr = prefix)
+            {
+                using var iterator = db.NewIterator(columnFamily);
+                iterator.Seek(prefixPtr, (ulong)prefix.Length);
+                return Iterate<TKey, TKeyFactory, TValue, TValueFactory>(iterator, keyFactory, valueFactory);
             }
         }
     }

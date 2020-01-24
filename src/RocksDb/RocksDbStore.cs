@@ -142,31 +142,14 @@ namespace NeoFx.RocksDb
 
         public IEnumerable<(ImmutableArray<byte> key, StorageItem item)> EnumerateStorage(in UInt160 scriptHash)
         {
-            //if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
+            if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
-            //static IEnumerable<(ReadOnlyMemory<byte> key, StorageItem item)> EnumerateStorage(RocksDb db, UInt160 scriptHash)
-            //{
-            //    var keyPrefix = new byte[UInt160.Size];
-            //    scriptHash.TryWrite(keyPrefix);
+            var columnFamily = db.GetColumnFamily(STORAGE_FAMILY);
+            Span<byte> keyPrefix = stackalloc byte[UInt160.Size];
+            scriptHash.Write(keyPrefix);
 
-            //    using var iterator = db.NewIterator(db.GetColumnFamily(STORAGE_FAMILY));
-            //    iterator.Seek(keyPrefix);
-            //    while (iterator.Valid())
-            //    {
-            //        var keyReadResult = BinaryFormat.TryReadBytes(iterator.Key(), out StorageKey key);
-            //        var valueReadResult = TryReadStorageItem(iterator.Value(), out var value);
-
-            //        Debug.Assert(keyReadResult);
-            //        Debug.Assert(valueReadResult);
-
-            //        yield return (key.Key, value);
-            //        iterator.Next();
-            //    }
-            //}
-
-            //return EnumerateStorage(db, scriptHash);
-
-            return null!;
+            return db.Search<StorageKey, StorageKeyReader, StorageItem, StorageItemReader>(columnFamily, keyPrefix)
+                .Select(t => (t.key.Key, t.value));
         }
 
         public bool TryGetAccount(in UInt160 key, out Account value)
@@ -175,9 +158,6 @@ namespace NeoFx.RocksDb
 
             var columnFamily = db.GetColumnFamily(ACCOUNT_FAMILY);
             Span<byte> keybuffer = stackalloc byte[UInt160.Size];
-
-            //Span<UInt256> keySpan = stackalloc UInt256[] { key };
-            //Span<byte> keyBuffer = MemoryMarshal.AsBytes(keySpan).Slice(0, UInt256.Size);
 
             if (key.TryWrite(keybuffer)
                 && db.TryGet<Account, AccountStateReader>(keybuffer, columnFamily, out Account account))
@@ -196,6 +176,10 @@ namespace NeoFx.RocksDb
 
             var columnFamily = db.GetColumnFamily(ACCOUNT_FAMILY);
             Span<byte> keybuffer = stackalloc byte[UInt256.Size];
+
+            // TODO: get key buffer w/o copy
+            //  Span<UInt256> keySpan = stackalloc UInt256[] { key };
+            //  Span<byte> keyBuffer = MemoryMarshal.AsBytes(keySpan).Slice(0, UInt256.Size);
 
             if (key.TryWrite(keybuffer)
                 && db.TryGet<Asset, AssetStateReader>(keybuffer, columnFamily, out Asset asset))
@@ -324,15 +308,15 @@ namespace NeoFx.RocksDb
         {
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
-            //var columnFamily = db.GetColumnFamily(STORAGE_FAMILY);
-            //Span<byte> keybuffer = stackalloc byte[key.GetSize()];
+            var columnFamily = db.GetColumnFamily(STORAGE_FAMILY);
+            Span<byte> keybuffer = stackalloc byte[key.Size];
 
-            //if (key.TryWrite(keybuffer, out var _)
-            //    && db.TryGet(keybuffer, columnFamily, TryReadStorageItem, out StorageItem item))
-            //{
-            //    value = item;
-            //    return true;
-            //}
+            if (key.TryWrite(keybuffer, out var _)
+                && db.TryGet<StorageItem, StorageItemReader>(keybuffer, columnFamily, out StorageItem item))
+            {
+                value = item;
+                return true;
+            }
 
             value = default;
             return false;
@@ -397,8 +381,7 @@ namespace NeoFx.RocksDb
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
             var columnFamily = db.GetColumnFamily(ACCOUNT_FAMILY);
-            //return db.Iterate<UInt160, Account>(columnFamily, UInt160.TryRead, TryReadAccountState);
-            return null!;
+            return db.Iterate<UInt160, UInt160Reader, Account, AccountStateReader>(columnFamily);
         }
 
         public IEnumerable<(UInt256 key, Asset assetState)> GetAssets()
@@ -406,17 +389,15 @@ namespace NeoFx.RocksDb
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
             var columnFamily = db.GetColumnFamily(ASSET_FAMILY);
-            //return db.Iterate<UInt256, Asset>(columnFamily, UInt256.TryRead, TryReadAssetState);
-            return null!;
+            return db.Iterate<UInt256, UInt256Reader, Asset, AssetStateReader>(columnFamily);
         }
 
-        public IEnumerable<(UInt256 key, (long systemFee, BlockHeader header, ReadOnlyMemory<UInt256> hashes) blockState)> GetBlocks()
+        public IEnumerable<(UInt256 key, (long systemFee, BlockHeader header, ImmutableArray<UInt256> hashes) blockState)> GetBlocks()
         {
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
             var columnFamily = db.GetColumnFamily(BLOCK_FAMILY);
-            //return db.Iterate<UInt256, (long, BlockHeader, ReadOnlyMemory<UInt256>)>(columnFamily, UInt256.TryRead, TryReadBlockState);
-            return null!;
+            return db.Iterate<UInt256, UInt256Reader, (long, BlockHeader, ImmutableArray<UInt256>), BlockStateReader>(columnFamily);
         }
 
         public IEnumerable<(UInt160 key, DeployedContract contractState)> GetContracts()
@@ -424,17 +405,15 @@ namespace NeoFx.RocksDb
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
             var columnFamily = db.GetColumnFamily(CONTRACT_FAMILY);
-            //return db.Iterate<UInt160, DeployedContract>(columnFamily, UInt160.TryRead, TryReadContractState);
-            return null!;
+            return db.Iterate<UInt160, UInt160Reader, DeployedContract, ContractStateReader>(columnFamily);
         }
 
-        public IEnumerable<(StorageKey key, StorageItem contractState)> GetStorages()
+        public IEnumerable<(StorageKey key, StorageItem storageItem)> GetStorages()
         {
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
             var columnFamily = db.GetColumnFamily(STORAGE_FAMILY);
-            //return db.Iterate<StorageKey, StorageItem>(columnFamily, BinaryFormat.TryReadBytes, TryReadStorageItem);
-            return null!;
+            return db.Iterate<StorageKey, StorageKeyReader, StorageItem, StorageItemReader>(columnFamily);
         }
 
         public IEnumerable<(UInt256 key, (uint blockIndex, Transaction tx) transactionState)> GetTransactions()
@@ -442,35 +421,61 @@ namespace NeoFx.RocksDb
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
             var columnFamily = db.GetColumnFamily(TX_FAMILY);
-            //return db.Iterate<UInt256, (uint, Transaction)>(columnFamily, UInt256.TryRead, TryReadTransactionState);
-            return null!;
+            return db.Iterate<UInt256, UInt256Reader, (uint, Transaction), TransactionStateReader>(columnFamily);
         }
 
-        public IEnumerable<(UInt256 key, CoinState[] coinState)> GetUnspentCoins()
+        public IEnumerable<(UInt256 key, ImmutableArray<CoinState> coinState)> GetUnspentCoins()
         {
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
             var columnFamily = db.GetColumnFamily(UNSPENT_COIN_FAMILY);
-            //return db.Iterate<UInt256, CoinState[]>(columnFamily, UInt256.TryRead, TryReadUnspentCoinsState);
-            return null!;
+            return db.Iterate<UInt256, UInt256Reader, ImmutableArray<CoinState>, UnspentCoinsStateReader>(columnFamily);
         }
 
         public IEnumerable<(EncodedPublicKey key, Validator validatorState)> GetValidators()
         {
-            //static bool TryReadEncodedPublicKey(ReadOnlySpan<byte> span, out EncodedPublicKey value)
-            //{
-            //    var reader = new SpanReader<byte>(span);
-            //    return BinaryFormat.TryRead(ref reader, out value);
-            //}
-
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
             var columnFamily = db.GetColumnFamily(VALIDATOR_FAMILY);
-            //return db.Iterate<EncodedPublicKey, Validator>(columnFamily, TryReadEncodedPublicKey, TryReadValidatorState);
-            return null!;
+            return db.Iterate<EncodedPublicKey, EncodedPublicKeyReader, Validator, ValidatorStateReader>(columnFamily);
         }
 
-        #region Converter Structs
+        #region Reader Structs
+        private readonly struct UInt160Reader : ISpanReader<UInt160>
+        {
+            public bool TryReadSpan(ReadOnlySpan<byte> span, out UInt160 value)
+            {
+                var reader = new BufferReader<byte>(span);
+                return UInt160.TryRead(ref reader, out value);
+            }
+        }
+
+        private readonly struct UInt256Reader : ISpanReader<UInt256>
+        {
+            public bool TryReadSpan(ReadOnlySpan<byte> span, out UInt256 value)
+            {
+                var reader = new BufferReader<byte>(span);
+                return UInt256.TryRead(ref reader, out value);
+            }
+        }
+
+        private readonly struct StorageKeyReader : ISpanReader<StorageKey>
+        {
+            public bool TryReadSpan(ReadOnlySpan<byte> span, out StorageKey value)
+            {
+                return StorageKey.TryReadBytes(span, out value);
+            }
+        }
+
+        private readonly struct EncodedPublicKeyReader : ISpanReader<EncodedPublicKey>
+        {
+            public bool TryReadSpan(ReadOnlySpan<byte> span, out EncodedPublicKey value)
+            {
+                var reader = new BufferReader<byte>(span);
+                return EncodedPublicKey.TryRead(ref reader, out value);
+            }
+        }
+
         private static bool TryReadStateVersion(ref BufferReader<byte> reader, byte expectedVersion)
         {
             if (reader.TryPeek(out var value)
