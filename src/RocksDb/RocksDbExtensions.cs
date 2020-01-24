@@ -178,21 +178,55 @@ namespace NeoFx.RocksDb
             Put<TKey, TKeyWriter, TValue, TValueWriter>(batch, columnFamily, key, value, default, default);
         }
 
-        public static void Put<TKey, TKeyWriter, TValue, TValueWriter>(this WriteBatch batch, ColumnFamilyHandle columnFamily, in TKey key, in TValue value,
-                TKeyWriter keyWriter, TValueWriter valueWriter)
+        public static void Put<TKey, TKeyWriter, TValue, TValueWriter>(this WriteBatch batch,
+                                                                       ColumnFamilyHandle columnFamily,
+                                                                       in TKey key,
+                                                                       in TValue value,
+                                                                       TKeyWriter keyWriter,
+                                                                       TValueWriter valueWriter)
             where TKeyWriter : ISpanWriter<TKey>
             where TValueWriter : ISpanWriter<TValue>
         {
-            static IMemoryOwner<byte> GetMemory<T, TWriter>(in T value, TWriter writer, out int bytesWritten) where TWriter : ISpanWriter<T>
+            const int MAX_STACKALLOC_SIZE = 1024;
+
+            static void PutValue(WriteBatch batch, ColumnFamilyHandle columnFamily, ReadOnlySpan<byte> keySpan,
+                in TValue value, Span<byte> valueSpan, TValueWriter valueWriter)
             {
-                var owner = MemoryPool<byte>.Shared.Rent(writer.GetSize(value));
-                bytesWritten = writer.Write(value, owner.Memory.Span);
-                return owner;
+                var valueWritten = valueWriter.Write(value, valueSpan);
+                batch.Put(columnFamily, keySpan, valueSpan.Slice(0, valueWritten));
             }
 
-            using var keyOwner = GetMemory(key, keyWriter, out var keyWritten);
-            using var valueOwner = GetMemory(value, valueWriter, out var valueWritten);
-            Put(batch, columnFamily, keyOwner.Memory.Span.Slice(0, keyWritten), valueOwner.Memory.Span.Slice(0,valueWritten));
+            static void PutKey(WriteBatch batch, ColumnFamilyHandle columnFamily, in TKey key, Span<byte> keySpan,
+                in TValue value, TKeyWriter keyWriter, TValueWriter valueWriter)
+            {
+                var keyWritten = keyWriter.Write(key, keySpan);
+                keySpan = keySpan.Slice(0, keyWritten);
+
+                var valueSize = valueWriter.GetSize(value);
+                if (valueSize <= MAX_STACKALLOC_SIZE)
+                {
+                    Span<byte> span = stackalloc byte[valueSize];
+                    PutValue(batch, columnFamily, keySpan, value, span, valueWriter);
+
+                }
+                else
+                {
+                    using var owner = MemoryPool<byte>.Shared.Rent(valueSize);
+                    PutValue(batch, columnFamily, keySpan, value, owner.Memory.Span, valueWriter);
+                }
+            }
+
+            var keySize = keyWriter.GetSize(key);
+            if (keySize <= MAX_STACKALLOC_SIZE)
+            {
+                Span<byte> span = stackalloc byte[keySize];
+                PutKey(batch, columnFamily, key, span, value, keyWriter, valueWriter);
+            }
+            else
+            {
+                using var owner = MemoryPool<byte>.Shared.Rent(keySize);
+                PutKey(batch, columnFamily, key, owner.Memory.Span, value, keyWriter, valueWriter);
+            }
         }
     }
 }
