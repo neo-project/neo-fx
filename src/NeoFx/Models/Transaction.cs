@@ -9,7 +9,15 @@ namespace NeoFx.Models
 {
     public abstract class Transaction
     {
-        protected struct CommonData
+        public readonly struct Factory : IFactoryReader<Transaction>
+        {
+            public bool TryReadItem(ref BufferReader<byte> reader, [MaybeNullWhen(false)] out Transaction value)
+            {
+                return TryRead(ref reader, out value!);
+            }
+        }
+
+        protected readonly struct CommonData
         {
             public readonly ImmutableArray<TransactionAttribute> Attributes;
             public readonly ImmutableArray<CoinReference> Inputs;

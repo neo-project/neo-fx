@@ -15,6 +15,11 @@ namespace NeoFx.Models
         public readonly UInt160 NextConsensus;
         public readonly Witness Witness;
 
+        public const int ConstSize =
+            (sizeof(uint) * 3) + (UInt256.Size * 2) + sizeof(ulong) + UInt160.Size;
+
+        public int Size => ConstSize + Witness.Size;
+
         public BlockHeader(uint version, in UInt256 previousHash, in UInt256 merkleRoot, uint timestamp, uint index, ulong consensusData, in UInt160 nextConsensus, in Witness witness)
             : this(version, previousHash, merkleRoot, DateTimeOffset.FromUnixTimeSeconds(timestamp), index, consensusData, nextConsensus, witness)
         {

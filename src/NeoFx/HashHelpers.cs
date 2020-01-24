@@ -1,4 +1,5 @@
 ﻿using DevHawk.Buffers;
+using DevHawk.Security.Cryptography;
 using NeoFx.Models;
 using NeoFx.Storage;
 using SimpleBase;
@@ -145,7 +146,7 @@ namespace NeoFx
             return false;
         }
 
-        public static bool TryHash(Transaction tx, out UInt256 hash)
+        public static UInt256 CalculateHash(this Transaction tx)
         {
             var txSize = tx.GetTransactionDataSize() +
                 + tx.Inputs.GetVarSize(CoinReference.Size)
@@ -164,13 +165,40 @@ namespace NeoFx
             Span<byte> hashBuffer = stackalloc byte[Hash256Size];
             if (TryHash256(buffer.WrittenSpan, hashBuffer))
             {
-                hash = new UInt256(hashBuffer);
-                return true;
+                return new UInt256(hashBuffer);
             }
 
-            hash = default;
-            return false;
+            throw new ArgumentException(nameof(tx));
         }
+
+        public static UInt256 CalculateHash(in this Block block)
+        {
+            return block.Header.CalculateHash();
+        }
+        
+        public static UInt256 CalculateHash(in this BlockHeader header)
+        {
+            var buffer = new ArrayBufferWriter<byte>(BlockHeader.ConstSize);
+            var writer = new BufferWriter<byte>(buffer);
+
+            writer.WriteLittleEndian(header.Version);
+            header.PreviousHash.WriteTo(ref writer);
+            header.MerkleRoot.WriteTo(ref writer);
+            writer.WriteLittleEndian((uint)header.Timestamp.ToUnixTimeSeconds());
+            writer.WriteLittleEndian(header.Index);
+            writer.WriteLittleEndian(header.ConsensusData);
+            header.NextConsensus.WriteTo(ref writer);
+            writer.Commit();
+
+            Span<byte> hashBuffer = stackalloc byte[Hash256Size];
+            if (TryHash256(buffer.WrittenSpan, hashBuffer))
+            {
+                return new UInt256(hashBuffer);
+            }
+
+            throw new ArgumentException(nameof(header));
+        }
+
 
         public static bool TryInteropMethodHash(string methodName, out uint value)
         {

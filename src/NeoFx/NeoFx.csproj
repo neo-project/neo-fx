@@ -25,8 +25,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="DevHawk.RIPEMD160" Version="3.0.11-preview" />
-    <PackageReference Include="DevHawk.Buffers" Version="1.0.13-preview" />
+    <PackageReference Include="DevHawk.RIPEMD160" Version="3.0.21" />
+    <PackageReference Include="DevHawk.Buffers" Version="1.0.18" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" />
     <PackageReference Include="SimpleBase" Version="3.0.0" />
     <PackageReference Include="System.Collections.Immutable" Version="1.7.0" />

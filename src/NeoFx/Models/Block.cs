@@ -1,4 +1,6 @@
-﻿using System;
+﻿using DevHawk.Buffers;
+using NeoFx.Storage;
+using System;
 using System.Collections.Immutable;
 
 namespace NeoFx.Models
@@ -23,9 +25,16 @@ namespace NeoFx.Models
             Transactions = transactions;
         }
 
-        public static bool TryRead(ReadOnlySpan<byte> buffer, out Block result)
+        public static bool TryRead(ref BufferReader<byte> reader, out Block value)
         {
-            result = default;
+            if (BlockHeader.TryRead(ref reader, out var header)
+                && reader.TryReadVarArray<Transaction, Transaction.Factory>(out var transactions))
+            {
+                value = new Block(header, transactions);
+                return true;
+            }
+
+            value = default;
             return false;
         }
 
