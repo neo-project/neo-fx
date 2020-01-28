@@ -27,11 +27,11 @@ namespace NeoFx.P2P.Messages
             {
                 switch (header.Command)
                 {
-                    case VerAckMessage.CommandText:
-                        message = new VerAckMessage(header);
-                        return true;
                     case GetAddrMessage.CommandText:
                         message = new GetAddrMessage(header);
+                        return true;
+                    case VerAckMessage.CommandText:
+                        message = new VerAckMessage(header);
                         return true;
                 }
             }
@@ -40,6 +40,105 @@ namespace NeoFx.P2P.Messages
                 var reader = new BufferReader<byte>(sequence);
                 switch (header.Command)
                 {
+                    case AddrMessage.CommandText:
+                        {
+                            if (AddrMessage.TryRead(ref reader, header, out var _message))
+                            {
+                                message = _message;
+                                return true;
+                            }
+                        }
+                        break;
+                    case BlockMessage.CommandText:
+                        {
+                            if (BlockMessage.TryRead(ref reader, header, out var _message))
+                            {
+                                message = _message;
+                                return true;
+                            }
+                        }
+                        break;
+                    case ConsensusMessage.CommandText:
+                        {
+                            if (ConsensusMessage.TryRead(ref reader, header, out var _message))
+                            {
+                                message = _message;
+                                return true;
+                            }
+                        }
+                        break;
+                    case GetBlocksMessage.CommandText:
+                        {
+                            if (GetBlocksMessage.TryRead(ref reader, header, out var _message))
+                            {
+                                message = _message;
+                                return true;
+                            }
+                        }
+                        break;
+                    case GetDataMessage.CommandText:
+                        {
+                            if (GetDataMessage.TryRead(ref reader, header, out var _message))
+                            {
+                                message = _message;
+                                return true;
+                            }
+                        }
+                        break;
+                    case GetHeadersMessage.CommandText:
+                        {
+                            if (GetHeadersMessage.TryRead(ref reader, header, out var _message))
+                            {
+                                message = _message;
+                                return true;
+                            }
+                        }
+                        break;
+                    case HeadersMessage.CommandText:
+                        {
+                            if (HeadersMessage.TryRead(ref reader, header, out var _message))
+                            {
+                                message = _message;
+                                return true;
+                            }
+                        }
+                        break;
+                    case InvMessage.CommandText:
+                        {
+                            if (InvMessage.TryRead(ref reader, header, out var _message))
+                            {
+                                message = _message;
+                                return true;
+                            }
+                        }
+                        break;
+                    case PingMessage.CommandText:
+                        {
+                            if (PingMessage.TryRead(ref reader, header, out var _message))
+                            {
+                                message = _message;
+                                return true;
+                            }
+                        }
+                        break;
+                    case PongMessage.CommandText:
+                        {
+                            if (PongMessage.TryRead(ref reader, header, out var _message))
+                            {
+                                message = _message;
+                                return true;
+                            }
+                        }
+                        break;
+                    case TransactionMessage.CommandText:
+                        {
+                            if (TransactionMessage.TryRead(ref reader, header, out var _message))
+                            {
+                                message = _message;
+                                return true;
+                            }
+                        }
+                        break;
                     case VersionMessage.CommandText:
                         {
                             if (VersionMessage.TryRead(ref reader, header, out var _message))
@@ -49,25 +148,7 @@ namespace NeoFx.P2P.Messages
                             }
                         }
                         break;
-                    //     return TryReadVersionMsg(ref reader, header, out message);
-                    // case GetBlocksMessage.CommandText:
-                    //     return TryReadGetBlocksMsg(ref reader, header, out message);
-                    // case GetHeadersMessage.CommandText:
-                    //     return TryReadGetHeadersMsg(ref reader, header, out message);
-                    // case InvMessage.CommandText:
-                    //     return TryReadInvMsg(ref reader, header, out message);
-                    // case GetDataMessage.CommandText:
-                    //     return TryReadGetDataMsg(ref reader, header, out message);
-                    // case AddrMessage.CommandText:
-                    //     return TryReadAddrMsg(ref reader, header, out message);
-                    // case BlockMessage.CommandText:
-                    //     return TryReadBlockMsg(ref reader, header, out message);
-                    // case ConsensusMessage.CommandText:
-                    //     return TryReadConsensusMsg(ref reader, header, out message);
-                    // case HeadersMessage.CommandText:
-                    //     return TryReadHeadersMsg(ref reader, header, out message);
-                    // case TransactionMessage.CommandText:
-                    //     return TryReadTransactionMessage(ref reader, header, out message);
+
                         // filteradd, filterclear, filterload
                         // mempool
                 }
