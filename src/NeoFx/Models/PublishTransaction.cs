@@ -114,9 +114,11 @@ namespace NeoFx.Models
             return false;
         }
 
+        public override TransactionType GetTransactionType() => TransactionType.Publish;
+
         public override int GetTransactionDataSize()
         {
-            return 2 + Script.GetVarSize() 
+            return Script.GetVarSize() 
                 + ParameterList.GetVarSize(1)
                 + sizeof(byte) // return type
                 + (Version >= 1 ? sizeof(byte) : 0) // need storage
@@ -129,8 +131,6 @@ namespace NeoFx.Models
 
         public override void WriteTransactionData(ref BufferWriter<byte> writer)
         {
-            writer.Write((byte)TransactionType.Publish);
-            writer.Write(Version);
             writer.WriteVarArray(Script);
             var byteParameterList = Unsafe.As<ImmutableArray<ContractParameterType>, byte[]>(ref ParameterList);
             writer.WriteVarArray(byteParameterList);

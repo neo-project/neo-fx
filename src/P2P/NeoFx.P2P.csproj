@@ -16,10 +16,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="NeoClient.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
     <None Include="../neo-logo-72.png" Pack="true" Visible="false" PackagePath="" />
   </ItemGroup>
   

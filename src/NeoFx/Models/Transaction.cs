@@ -191,7 +191,8 @@ namespace NeoFx.Models
             return false;
         }
 
-        public abstract int GetTransactionDataSize();
+        public abstract TransactionType GetTransactionType();
         public abstract void WriteTransactionData(ref BufferWriter<byte> writer);
+        public abstract int GetTransactionDataSize();
     }
 }

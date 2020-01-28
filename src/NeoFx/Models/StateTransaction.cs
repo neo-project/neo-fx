@@ -42,15 +42,15 @@ namespace NeoFx.Models
             return false;
         }
 
+        public override TransactionType GetTransactionType() => TransactionType.State;
+
         public override int GetTransactionDataSize()
         {
-            return 2 + Descriptors.GetVarSize(d => d.Size);
+            return Descriptors.GetVarSize(d => d.Size);
         }
 
         public override void WriteTransactionData(ref BufferWriter<byte> writer)
         {
-            writer.Write((byte)TransactionType.State);
-            writer.Write(Version);
             writer.WriteVarArray(Descriptors);
         }
     }

@@ -41,12 +41,12 @@ namespace NeoFx.Models
             return false;
         }
 
-        public override int GetTransactionDataSize() => 2 + sizeof(uint);
+        public override TransactionType GetTransactionType() => TransactionType.Miner;
+
+        public override int GetTransactionDataSize() => sizeof(uint);
 
         public override void WriteTransactionData(ref BufferWriter<byte> writer)
         {
-            writer.Write((byte)TransactionType.Miner);
-            writer.Write(Version);
             writer.WriteLittleEndian(Nonce);
         }
     }
