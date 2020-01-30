@@ -18,6 +18,15 @@ namespace NeoFx.P2P.Messages
         public readonly uint StartHeight;
         public readonly bool Relay;
 
+        public int Size
+        {
+            get
+            {
+                const int size = (sizeof(uint) * 4) + sizeof(ulong) + sizeof(ushort) + sizeof(byte);
+                return size + UserAgent.GetVarSize();
+            }
+        }
+        
         public VersionPayload(uint nonce, string userAgent, ushort port = 0,
             uint startHeight = 0, bool relay = true, uint version = PROTOCOL_VERSION, ulong services = NODE_NETWORK,
             DateTimeOffset timestamp = default)

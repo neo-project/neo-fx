@@ -45,6 +45,29 @@ namespace NeoFx.P2P
             await duplexPipe.Output.FlushAsync(token);
         }
 
+        private ValueTask<FlushResult> SendMessage(uint magic, string command, ReadOnlySpan<byte> payload,
+            CancellationToken token = default)
+        {
+            var checksum = CalculateChecksum(payload);
+            log.LogDebug("SendMessage {command} {magic} {length} {checksum}",
+                command, magic, payload.Length, checksum);
+
+            using var owner = MemoryPool<byte>.Shared.Rent(MessageHeader.CommandSize);
+            var span = owner.Memory.Span.Slice(0, MessageHeader.CommandSize);
+            span.Clear();
+            System.Text.Encoding.ASCII.GetBytes(command, span);
+
+            var writer = new BufferWriter<byte>(duplexPipe.Output);
+            writer.Ensure(MessageHeader.CommandSize)
+            writer.WriteLittleEndian(magic);
+            writer.Write(span);
+            writer.WriteLittleEndian((uint)payload.Length);
+            writer.WriteLittleEndian(checksum);
+            writer.Commit();
+
+            return duplexPipe.Output.FlushAsync(token);
+        }
+
         // private MemoryBufferWriter<byte> GetPayloadWriter(int payloadSize)
         // {
         //     var messageSize = MessageHeader.Size + payloadSize;
@@ -54,38 +77,20 @@ namespace NeoFx.P2P
         //     return new MemoryBufferWriter<byte>(payloadMemory);
         // }
 
-        // private ValueTask<FlushResult> SendMessage(uint magic, string command, ReadOnlySpan<byte> payload,
-        //     CancellationToken token = default)
-        // {
-        //     var checksum = CalculateChecksum(payload);
-        //     log.LogDebug("SendMessage {command} {magic} {length} {checksum}",
-        //         command, magic, payload.Length, checksum);
 
-        //     duplexPipe.Output.Write(magic);
-        //     var cmdSpan = duplexPipe.Output.GetSpan(MessageHeader.CommandSize)
-        //         .Slice(0, MessageHeader.CommandSize);
-        //     cmdSpan.Clear();
-        //     System.Text.Encoding.UTF8.GetBytes(command, cmdSpan);
-        //     duplexPipe.Output.Advance(MessageHeader.CommandSize);
-        //     duplexPipe.Output.Write((uint)payload.Length);
-        //     duplexPipe.Output.Write(checksum);
-        //     duplexPipe.Output.Advance(payload.Length);
-        //     return duplexPipe.Output.FlushAsync(token);
-        // }
+        public ValueTask<FlushResult> SendVersion(uint magic, in VersionPayload payload)
+        {
+            var payloadWriter = GetPayloadWriter(payload.GetSize());
+            payloadWriter.Write(payload);
+            Debug.Assert(payloadWriter.FreeCapacity == 0);
 
-        // public ValueTask<FlushResult> SendVersion(uint magic, in VersionPayload payload)
-        // {
-        //     var payloadWriter = GetPayloadWriter(payload.GetSize());
-        //     payloadWriter.Write(payload);
-        //     Debug.Assert(payloadWriter.FreeCapacity == 0);
+            return SendMessage(magic, VersionMessage.CommandText, payloadWriter.WrittenSpan);
+        }
 
-        //     return SendMessage(magic, VersionMessage.CommandText, payloadWriter.WrittenSpan);
-        // }
-
-        // public ValueTask<FlushResult> SendVerAck(uint magic)
-        // {
-        //     return SendMessage(magic, VerAckMessage.CommandText, ReadOnlySpan<byte>.Empty);
-        // }
+        public ValueTask<FlushResult> SendVerAck(uint magic)
+        {
+            return SendMessage(magic, VerAckMessage.CommandText, ReadOnlySpan<byte>.Empty);
+        }
 
         // public ValueTask<FlushResult> SendGetAddr(uint magic)
         // {
