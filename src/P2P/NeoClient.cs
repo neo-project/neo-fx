@@ -11,7 +11,6 @@ using DevHawk.Buffers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NeoFx.P2P.Messages;
-using NeoFx.Storage;
 
 namespace NeoFx.P2P
 {
@@ -40,90 +39,85 @@ namespace NeoFx.P2P
             return BitConverter.ToUInt32(buf2.Slice(0, 4));
         }
 
-        public async ValueTask Flush(CancellationToken token = default)
-        {
-            await duplexPipe.Output.FlushAsync(token);
-        }
-
-        private ValueTask<FlushResult> SendMessage(uint magic, string command, ReadOnlySpan<byte> payload,
-            CancellationToken token = default)
+        private static void WriteHeader(ref BufferWriter<byte> writer, uint magic, string command, ReadOnlySpan<byte> payload)
         {
             var checksum = CalculateChecksum(payload);
-            log.LogDebug("SendMessage {command} {magic} {length} {checksum}",
-                command, magic, payload.Length, checksum);
 
-            using var owner = MemoryPool<byte>.Shared.Rent(MessageHeader.CommandSize);
-            var span = owner.Memory.Span.Slice(0, MessageHeader.CommandSize);
-            span.Clear();
-            System.Text.Encoding.ASCII.GetBytes(command, span);
+            using var commandOwner = MemoryPool<byte>.Shared.Rent(MessageHeader.CommandSize);
+            var commandSpan = commandOwner.Memory.Span.Slice(0, MessageHeader.CommandSize);
+            commandSpan.Clear();
+            System.Text.Encoding.ASCII.GetBytes(command, commandSpan);
 
-            var writer = new BufferWriter<byte>(duplexPipe.Output);
-            writer.Ensure(MessageHeader.CommandSize)
             writer.WriteLittleEndian(magic);
-            writer.Write(span);
+            writer.Write(commandSpan);
             writer.WriteLittleEndian((uint)payload.Length);
             writer.WriteLittleEndian(checksum);
             writer.Commit();
+        }
 
+        private struct NullPayload : IPayload<NullPayload>
+        {
+            public int Size => 0;
+
+            public void WriteTo(ref BufferWriter<byte> writer)
+            {
+            }
+        }
+
+        private ValueTask<FlushResult> SendMessage<T>(uint magic, string command, in T payload, CancellationToken token)
+            where T : IPayload<T>
+        {
+            var payloadSize = payload.Size;
+            var messageSize = MessageHeader.Size + payloadSize;
+            var messageMemory = duplexPipe.Output.GetMemory(messageSize);
+
+            Span<byte> payloadSpan = default;
+            if (payloadSize > 0)
+            {
+                payloadSpan = messageMemory.Slice(MessageHeader.Size, payloadSize).Span;
+                var payloadWriter = new BufferWriter<byte>(payloadSpan);
+                payload.WriteTo(ref payloadWriter);
+                Debug.Assert(payloadWriter.Span.IsEmpty);
+            }
+
+            var headerWriter = new BufferWriter<byte>(messageMemory.Slice(0, MessageHeader.Size).Span);
+            WriteHeader(ref headerWriter, magic, command, payloadSpan);
+            Debug.Assert(headerWriter.Span.IsEmpty);
+
+            duplexPipe.Output.Advance(messageSize);
             return duplexPipe.Output.FlushAsync(token);
         }
 
-        // private MemoryBufferWriter<byte> GetPayloadWriter(int payloadSize)
-        // {
-        //     var messageSize = MessageHeader.Size + payloadSize;
-        //     var messageMemory = duplexPipe.Output.GetMemory(messageSize);
 
-        //     var payloadMemory = messageMemory.Slice(MessageHeader.Size, payloadSize);
-        //     return new MemoryBufferWriter<byte>(payloadMemory);
-        // }
-
-
-        public ValueTask<FlushResult> SendVersion(uint magic, in VersionPayload payload)
+        public ValueTask<FlushResult> SendVersion(uint magic, in VersionPayload payload, CancellationToken token = default)
         {
-            var payloadWriter = GetPayloadWriter(payload.GetSize());
-            payloadWriter.Write(payload);
-            Debug.Assert(payloadWriter.FreeCapacity == 0);
-
-            return SendMessage(magic, VersionMessage.CommandText, payloadWriter.WrittenSpan);
+            return SendMessage<VersionPayload>(magic, VersionMessage.CommandText, payload, token);
         }
 
-        public ValueTask<FlushResult> SendVerAck(uint magic)
+        public ValueTask<FlushResult> SendVerAck(uint magic, CancellationToken token = default)
         {
-            return SendMessage(magic, VerAckMessage.CommandText, ReadOnlySpan<byte>.Empty);
+            return SendMessage<NullPayload>(magic, VerAckMessage.CommandText, default, token);
         }
 
-        // public ValueTask<FlushResult> SendGetAddr(uint magic)
-        // {
-        //     return SendMessage(magic, GetAddrMessage.CommandText, ReadOnlySpan<byte>.Empty);
-        // }
+        public ValueTask<FlushResult> SendGetAddr(uint magic, CancellationToken token = default)
+        {
+            return SendMessage<NullPayload>(magic, GetAddrMessage.CommandText, default, token);
+        }
 
-        // public ValueTask<FlushResult> SendGetData(uint magic, in InventoryPayload payload)
-        // {
-        //     var payloadWriter = GetPayloadWriter(payload.GetSize());
-        //     payloadWriter.Write(payload);
-        //     Debug.Assert(payloadWriter.FreeCapacity == 0);
+        public ValueTask<FlushResult> SendGetData(uint magic, in InventoryPayload payload, CancellationToken token = default)
+        {
+            return SendMessage<InventoryPayload>(magic, GetDataMessage.CommandText, payload, token);
+        }
 
-        //     return SendMessage(magic, GetDataMessage.CommandText, payloadWriter.WrittenSpan);
-        // }
+        public ValueTask<FlushResult> SendGetBlocks(uint magic, in HashListPayload payload, CancellationToken token = default)
+        {
+            return SendMessage<HashListPayload>(magic, GetBlocksMessage.CommandText, payload, token);
+        }
 
-        // public ValueTask<FlushResult> SendHashListMessage(uint magic, string commandText, in HashListPayload payload)
-        // {
-        //     var payloadWriter = GetPayloadWriter(payload.GetSize());
-        //     payloadWriter.Write(payload);
-        //     Debug.Assert(payloadWriter.FreeCapacity == 0);
-
-        //     return SendMessage(magic, commandText, payloadWriter.WrittenSpan);
-        // }
-
-        // public ValueTask<FlushResult> SendGetBlocks(uint magic, in HashListPayload payload)
-        // {
-        //     return SendHashListMessage(magic, GetBlocksMessage.CommandText, payload);
-        // }
-
-        // public ValueTask<FlushResult> SendGetHeaders(uint magic, in HashListPayload payload)
-        // {
-        //     return SendHashListMessage(magic, GetHeadersMessage.CommandText, payload);
-        // }
+        public ValueTask<FlushResult> SendGetHeaders(uint magic, in HashListPayload payload, CancellationToken token = default)
+        {
+            return SendMessage<HashListPayload>(magic, GetHeadersMessage.CommandText, payload, token);
+        }
 
         public async IAsyncEnumerable<Message> GetMessages([EnumeratorCancellation] CancellationToken token = default)
         {

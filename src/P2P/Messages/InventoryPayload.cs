@@ -6,7 +6,7 @@ using System.Collections.Immutable;
 namespace NeoFx.P2P.Messages
 {
     // Used for inv and getdata messages
-    public readonly struct InventoryPayload
+    public readonly struct InventoryPayload : IPayload<InventoryPayload>
     {
         public enum InventoryType : byte
         {
@@ -17,6 +17,8 @@ namespace NeoFx.P2P.Messages
 
         public readonly InventoryType Type;
         public readonly ImmutableArray<UInt256> Hashes;
+
+        public int Size => 1 + Hashes.GetVarSize(UInt256.Size);
 
         public InventoryPayload(InventoryType type, ImmutableArray<UInt256> hashes)
         {
@@ -36,6 +38,12 @@ namespace NeoFx.P2P.Messages
 
             payload = default;
             return false;
+        }
+
+        public void WriteTo(ref BufferWriter<byte> writer)
+        {
+            writer.Write((byte)Type);
+            writer.WriteVarArray(Hashes);
         }
     }
 }

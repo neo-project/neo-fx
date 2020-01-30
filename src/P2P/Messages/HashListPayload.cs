@@ -6,7 +6,7 @@ using System.Collections.Immutable;
 namespace NeoFx.P2P.Messages
 {
     // used for getblocks and getheaders messages
-    public readonly struct HashListPayload
+    public readonly struct HashListPayload : IPayload<HashListPayload>
     {
         public readonly ImmutableArray<UInt256> HashStart;
         public readonly UInt256 HashStop;
@@ -23,6 +23,8 @@ namespace NeoFx.P2P.Messages
             HashStop = hashStop;
         }
 
+        public int Size => HashStart.GetVarSize(UInt256.Size) + UInt256.Size;
+
         public static bool TryRead(ref BufferReader<byte> reader, out HashListPayload payload)
         {
             if (reader.TryReadVarArray<UInt256, UInt256.Factory>(out var hashStart)
@@ -34,6 +36,12 @@ namespace NeoFx.P2P.Messages
 
             payload = default;
             return false;
+        }
+
+        public void WriteTo(ref BufferWriter<byte> writer)
+        {
+            writer.WriteVarArray(HashStart);
+            HashStop.WriteTo(ref writer);
         }
     }
 }

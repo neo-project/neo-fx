@@ -1,10 +1,11 @@
 ﻿using System;
+using System.Diagnostics;
 using DevHawk.Buffers;
 using NeoFx.Storage;
 
 namespace NeoFx.P2P.Messages
 {
-    public readonly struct VersionPayload
+    public readonly struct VersionPayload : IWritable<VersionPayload>, IPayload<VersionPayload>
     {
         public const uint PROTOCOL_VERSION = 0;
         public const ulong NODE_NETWORK = 1;
@@ -22,8 +23,8 @@ namespace NeoFx.P2P.Messages
         {
             get
             {
-                const int size = (sizeof(uint) * 4) + sizeof(ulong) + sizeof(ushort) + sizeof(byte);
-                return size + UserAgent.GetVarSize();
+                const int constSize = (sizeof(uint) * 4) + sizeof(ulong) + sizeof(ushort) + sizeof(byte);
+                return constSize + UserAgent.GetVarSize();
             }
         }
         
@@ -66,7 +67,21 @@ namespace NeoFx.P2P.Messages
 
             payload = default;
             return false;
+        }
 
+        public void WriteTo(ref BufferWriter<byte> writer)
+        {
+            var timestamp = Timestamp.ToUnixTimeSeconds();
+            Debug.Assert(timestamp <= uint.MaxValue);
+
+            writer.WriteLittleEndian(Version);
+            writer.WriteLittleEndian(Services);
+            writer.WriteLittleEndian((uint)timestamp);
+            writer.WriteLittleEndian(Port);
+            writer.WriteLittleEndian(Nonce);
+            writer.WriteVarString(UserAgent);
+            writer.Write(Relay ? (byte)1 : (byte)0);
+            writer.Commit();
         }
     }
 }
