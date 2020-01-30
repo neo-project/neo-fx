@@ -80,6 +80,7 @@ namespace NeoFx.P2P.Messages
             writer.WriteLittleEndian(Port);
             writer.WriteLittleEndian(Nonce);
             writer.WriteVarString(UserAgent);
+            writer.WriteLittleEndian(StartHeight);
             writer.Write(Relay ? (byte)1 : (byte)0);
             writer.Commit();
         }

@@ -19,13 +19,13 @@ namespace NeoFx.P2P
         static SHA256 _hash = SHA256.Create();
 
         private readonly IDuplexPipe duplexPipe;
-        private readonly ILogger log;
+        private readonly ILogger<NeoClient> log;
         private readonly string errorLogDirectory;
 
         public NeoClient(IDuplexPipe duplexPipe, ILoggerFactory? loggerFactory = null, string? errorLogDirectory = null)
         {
             this.duplexPipe = duplexPipe;
-            log = loggerFactory?.CreateLogger(nameof(NeoClient)) ?? NullLogger.Instance;
+            log = loggerFactory?.CreateLogger<NeoClient>() ?? NullLogger<NeoClient>.Instance;
             this.errorLogDirectory = errorLogDirectory ?? string.Empty;
         }
 
@@ -67,6 +67,7 @@ namespace NeoFx.P2P
         private ValueTask<FlushResult> SendMessage<T>(uint magic, string command, in T payload, CancellationToken token)
             where T : IPayload<T>
         {
+            log.LogDebug("SendMessage {magic} {command}", magic, command);
             var payloadSize = payload.Size;
             var messageSize = MessageHeader.Size + payloadSize;
             var messageMemory = duplexPipe.Output.GetMemory(messageSize);
@@ -87,7 +88,6 @@ namespace NeoFx.P2P
             duplexPipe.Output.Advance(messageSize);
             return duplexPipe.Output.FlushAsync(token);
         }
-
 
         public ValueTask<FlushResult> SendVersion(uint magic, in VersionPayload payload, CancellationToken token = default)
         {
@@ -119,7 +119,7 @@ namespace NeoFx.P2P
             return SendMessage<HashListPayload>(magic, GetHeadersMessage.CommandText, payload, token);
         }
 
-        public async IAsyncEnumerable<Message> GetMessages([EnumeratorCancellation] CancellationToken token = default)
+        public async Task<Message?> GetMessage(CancellationToken token = default)
         {
             var inputPipe = duplexPipe.Input;
 
@@ -130,7 +130,7 @@ namespace NeoFx.P2P
                     read.Buffer.Length, read.IsCompleted, read.IsCanceled);
                 if (read.IsCompleted || read.IsCanceled || token.IsCancellationRequested)
                 {
-                    break;
+                    return null;
                 }
 
                 var buffer = read.Buffer;
@@ -159,9 +159,9 @@ namespace NeoFx.P2P
 
                 if (Message.TryRead(buffer, header, out var message))
                 {
-                    message.LogMessage(log);
+                    log.LogDebug("Receive {message}", message.GetType().Name);
                     inputPipe.AdvanceTo(buffer.GetPosition(MessageHeader.Size + message.Length));
-                    yield return message;
+                    return message;
                 }
                 else
                 {
@@ -180,6 +180,22 @@ namespace NeoFx.P2P
                         header.Command, header.Length, header.Checksum);
 
                     throw new Exception($"could not parse message {header.Command}");
+                }
+            }
+        }
+
+        public async IAsyncEnumerable<Message> GetMessages([EnumeratorCancellation] CancellationToken token = default)
+        {
+            while (true)
+            {
+                var message = await GetMessage(token);
+                if (message == null)
+                {
+                    break;
+                }
+                else
+                {
+                    yield return message;
                 }
             }
         }

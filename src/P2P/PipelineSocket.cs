@@ -13,11 +13,11 @@ namespace NeoFx.P2P
         private readonly Socket socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
         private readonly Pipe sendPipe = new Pipe();
         private readonly Pipe recvPipe = new Pipe();
-        private readonly ILogger log;
+        private readonly ILogger<PipelineSocket> log;
 
         public PipelineSocket(ILoggerFactory? loggerFactory = null)
         {
-            log = loggerFactory?.CreateLogger(nameof(PipelineSocket)) ?? NullLogger.Instance;
+            log = loggerFactory?.CreateLogger<PipelineSocket>() ?? NullLogger<PipelineSocket>.Instance;
         }
 
         public PipeReader Input => recvPipe.Reader;
@@ -111,7 +111,7 @@ namespace NeoFx.P2P
                     }
 
                     sendPipe.Reader.AdvanceTo(buffer.End);
-                    log.LogDebug("sendPipe advanced to {end}", buffer.End);
+                    log.LogDebug("sendPipe advanced to {end}", buffer.End.GetInteger());
                 }
 
                 sendPipe.Reader.Complete();

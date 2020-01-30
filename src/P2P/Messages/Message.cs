@@ -38,6 +38,7 @@ namespace NeoFx.P2P.Messages
             else
             {
                 var reader = new BufferReader<byte>(sequence);
+                reader.Advance(MessageHeader.Size);
                 switch (header.Command)
                 {
                     case AddrMessage.CommandText:
