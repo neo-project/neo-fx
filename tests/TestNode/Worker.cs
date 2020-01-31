@@ -17,23 +17,24 @@ namespace NeoFx.TestNode
     {
         private readonly IHostApplicationLifetime hostApplicationLifetime;
         private readonly ILogger<Worker> log;
-        private readonly ILoggerFactory loggerFactory;
         private readonly NetworkOptions networkOptions;
         private readonly NodeOptions nodeOptions;
-        private readonly PipelineSocket pipelineSocket;
+        private readonly NeoClient neoClient;
         private readonly IHeaderStorage headerStorage;
 
-
-        public Worker(IHostApplicationLifetime hostApplicationLifetime, ILoggerFactory loggerFactory, IOptions<NetworkOptions> networkOptions, IOptions<NodeOptions> nodeOptions)
+        public Worker(NeoClient neoClient,
+                      IHostApplicationLifetime hostApplicationLifetime,
+                      ILogger<Worker> log,
+                      IOptions<NetworkOptions> networkOptions,
+                      IOptions<NodeOptions> nodeOptions,
+                      IHeaderStorage headerStorage)
         {
             this.hostApplicationLifetime = hostApplicationLifetime;
-            this.loggerFactory = loggerFactory;
+            this.log = log;
             this.networkOptions = networkOptions.Value;
             this.nodeOptions = nodeOptions.Value;
-
-            log = loggerFactory?.CreateLogger<Worker>() ?? NullLogger<Worker>.Instance;
-            pipelineSocket = new PipelineSocket(loggerFactory);
-            headerStorage = new MemoryHeaderStorage();
+            this.neoClient = neoClient;
+            this.headerStorage = headerStorage;
 
             if (headerStorage.Count == 0)
             {
@@ -46,7 +47,7 @@ namespace NeoFx.TestNode
 
         public override void Dispose()
         {
-            pipelineSocket.Dispose();
+            neoClient.Dispose();
             base.Dispose();
         }
 
@@ -58,10 +59,10 @@ namespace NeoFx.TestNode
             return System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(span);
         }
 
-        async Task<T> ReceiveMessage<T>(NeoClient client, CancellationToken token)
+        async Task<T> ReceiveMessage<T>(CancellationToken token)
             where T : Message
         {
-            var message = await client.GetMessage(token).ConfigureAwait(false);
+            var message = await neoClient.GetMessage(token).ConfigureAwait(false);
             if (message == null)
             {
                 log.LogError("Expected {} received nothing", typeof(T).Name);
@@ -93,34 +94,32 @@ namespace NeoFx.TestNode
             try
             {
                 var (address, port) = networkOptions.GetRandomSeed();
-                await pipelineSocket.ConnectAsync(address, port, token).ConfigureAwait(false);
-
-                var client = new NeoClient(pipelineSocket, loggerFactory);
+                await neoClient.ConnectAsync(address, port, token).ConfigureAwait(false);
 
                 if (token.IsCancellationRequested) return;
                 log.LogInformation("Sending version message {magic}", Magic);
-                await client.SendVersion(Magic, new VersionPayload(GetNonce(), nodeOptions.UserAgent)).ConfigureAwait(false);
+                await neoClient.SendVersion(Magic, new VersionPayload(GetNonce(), nodeOptions.UserAgent)).ConfigureAwait(false);
 
                 if (token.IsCancellationRequested) return;
-                var verMsg = await ReceiveMessage<VersionMessage>(client, token);
+                var verMsg = await ReceiveMessage<VersionMessage>(token);
                 log.LogInformation("Received version message {startHeight} {userAgent}", verMsg.StartHeight, verMsg.UserAgent);
 
                 if (token.IsCancellationRequested) return;
                 log.LogInformation("Sending verack message {magic}", Magic);
-                await client.SendVerAck(Magic).ConfigureAwait(false);
+                await neoClient.SendVerAck(Magic).ConfigureAwait(false);
 
                 if (token.IsCancellationRequested) return;
-                var verAck = await ReceiveMessage<VerAckMessage>(client, token);
+                var verAck = await ReceiveMessage<VerAckMessage>(token);
                 log.LogInformation("Received verack message");
 
                 {
                     if (headerStorage.TryGetLastHash(out var lastHash))
                     {
-                        await client.SendGetHeaders(Magic, new HashListPayload(lastHash)).ConfigureAwait(false);
+                        await neoClient.SendGetHeaders(Magic, new HashListPayload(lastHash)).ConfigureAwait(false);
                     }
                 }
 
-                await foreach (var msg in client.GetMessages(token))
+                await foreach (var msg in neoClient.GetMessages(token))
                 {
                     if (token.IsCancellationRequested) break;
                     Debug.Assert(msg.Magic == Magic);
@@ -137,7 +136,7 @@ namespace NeoFx.TestNode
 
                                 if (headerStorage.TryGetLastHash(out var lastHash))
                                 {
-                                    await client.SendGetHeaders(Magic, new HashListPayload(lastHash)).ConfigureAwait(false);
+                                    await neoClient.SendGetHeaders(Magic, new HashListPayload(lastHash)).ConfigureAwait(false);
                                 }
                             }
                             break;

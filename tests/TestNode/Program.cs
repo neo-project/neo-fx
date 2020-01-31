@@ -8,10 +8,6 @@ using NeoFx.TestNode.Options;
 
 namespace NeoFx.TestNode
 {
-    static class foo
-    {
-
-    }
     class Program
     {
         private static readonly Dictionary<string, string> nodeConfig =
@@ -58,6 +54,9 @@ namespace NeoFx.TestNode
                 })
                 .ConfigureServices((context, services) =>
                 {
+                    services.AddTransient<NeoFx.P2P.PipelineSocket>();
+                    services.AddTransient<NeoFx.P2P.NeoClient>();
+                    services.AddTransient<IHeaderStorage, MemoryHeaderStorage>();
                     services.Configure<NodeOptions>(context.Configuration.GetSection("NodeOptions"));
                     services.Configure<NetworkOptions>(context.Configuration.GetSection("NetworkOptions"));
                     services.AddHostedService<Worker>();

@@ -14,19 +14,37 @@ using NeoFx.P2P.Messages;
 
 namespace NeoFx.P2P
 {
-    public sealed class NeoClient
+    public sealed class NodeConnection
+    {
+
+    }
+
+    public sealed class NeoClient : IDisposable
     {
         static SHA256 _hash = SHA256.Create();
 
-        private readonly IDuplexPipe duplexPipe;
+        private readonly PipelineSocket pipelineSocket;
         private readonly ILogger<NeoClient> log;
-        private readonly string errorLogDirectory;
+        private readonly string errorLogDirectory = string.Empty;
 
-        public NeoClient(IDuplexPipe duplexPipe, ILoggerFactory? loggerFactory = null, string? errorLogDirectory = null)
+        public NeoClient(PipelineSocket pipelineSocket, ILogger<NeoClient> log)
         {
-            this.duplexPipe = duplexPipe;
-            log = loggerFactory?.CreateLogger<NeoClient>() ?? NullLogger<NeoClient>.Instance;
-            this.errorLogDirectory = errorLogDirectory ?? string.Empty;
+            this.pipelineSocket = pipelineSocket;
+            this.log = log;
+            // log = loggerFactory?.CreateLogger<NeoClient>() ?? NullLogger<NeoClient>.Instance;
+            // this.errorLogDirectory = errorLogDirectory ?? string.Empty;
+        }
+
+        public void Dispose()
+        {
+            pipelineSocket.Dispose();
+        }
+
+        public async Task ConnectAsync(string host, int port, CancellationToken token = default)
+        {
+            log.LogTrace("connecting to {host} : {port}", host, port);
+
+            await pipelineSocket.ConnectAsync(host, port, token).ConfigureAwait(false);
         }
 
         internal static uint CalculateChecksum(ReadOnlySpan<byte> source)
@@ -67,10 +85,12 @@ namespace NeoFx.P2P
         private ValueTask<FlushResult> SendMessage<T>(uint magic, string command, in T payload, CancellationToken token)
             where T : IPayload<T>
         {
+            var output = pipelineSocket.Output;
+
             log.LogDebug("SendMessage {magic} {command}", magic, command);
             var payloadSize = payload.Size;
             var messageSize = MessageHeader.Size + payloadSize;
-            var messageMemory = duplexPipe.Output.GetMemory(messageSize);
+            var messageMemory = output.GetMemory(messageSize);
 
             Span<byte> payloadSpan = default;
             if (payloadSize > 0)
@@ -85,8 +105,8 @@ namespace NeoFx.P2P
             WriteHeader(ref headerWriter, magic, command, payloadSpan);
             Debug.Assert(headerWriter.Span.IsEmpty);
 
-            duplexPipe.Output.Advance(messageSize);
-            return duplexPipe.Output.FlushAsync(token);
+            output.Advance(messageSize);
+            return output.FlushAsync(token);
         }
 
         public ValueTask<FlushResult> SendVersion(uint magic, in VersionPayload payload, CancellationToken token = default)
@@ -121,7 +141,7 @@ namespace NeoFx.P2P
 
         public async Task<Message?> GetMessage(CancellationToken token = default)
         {
-            var inputPipe = duplexPipe.Input;
+            var inputPipe = pipelineSocket.Input;
 
             while (true)
             {
