@@ -29,7 +29,7 @@ namespace NeoFx.P2P.Messages
 
         public static bool TryRead(ReadOnlySequence<byte> sequence, out MessageHeader value)
         {
-            static bool TryReadCommandString(ref BufferReader<byte> reader, out string command) 
+            static bool TryReadCommandString(ref BufferReader<byte> reader, out string command)
             {
                 Span<byte> commandBytes = stackalloc byte[CommandSize];
                 if (reader.TryCopyTo(commandBytes))

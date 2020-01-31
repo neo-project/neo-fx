@@ -27,7 +27,7 @@ namespace NeoFx.P2P.Messages
                 return constSize + UserAgent.GetVarSize();
             }
         }
-        
+
         public VersionPayload(uint nonce, string userAgent, ushort port = 0,
             uint startHeight = 0, bool relay = true, uint version = PROTOCOL_VERSION, ulong services = NODE_NETWORK,
             DateTimeOffset timestamp = default)

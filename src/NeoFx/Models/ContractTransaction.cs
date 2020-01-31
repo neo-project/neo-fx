@@ -17,7 +17,7 @@ namespace NeoFx.Models
             : base(version, attributes, inputs, outputs, witnesses)
         {
         }
-        
+
         private ContractTransaction(byte version, in CommonData commonData)
             : base(version, commonData)
         {

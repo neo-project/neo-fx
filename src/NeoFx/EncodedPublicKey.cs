@@ -19,7 +19,7 @@ namespace NeoFx
             public bool TryReadItem(ref BufferReader<byte> reader, out EncodedPublicKey value) => EncodedPublicKey.TryRead(ref reader, out value);
         }
 
-        public static readonly EncodedPublicKey Infinity 
+        public static readonly EncodedPublicKey Infinity
             = new EncodedPublicKey(ImmutableArray.Create<byte>(0));
 
         public readonly ImmutableArray<byte> Key;
@@ -65,7 +65,7 @@ namespace NeoFx
 
             throw new ArgumentException(nameof(point));
         }
-        
+
         public bool TryCompress(out EncodedPublicKey value)
         {
             if (Key.Length == 1 && Key[0] == 0x00)

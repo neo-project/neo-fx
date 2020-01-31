@@ -10,7 +10,7 @@ namespace NeoFx
     {
         public const byte PUSH0 = 0x00;
         public const byte PUSHF = 0x00;
-        public const byte PUSHBYTES75= 0x4B;
+        public const byte PUSHBYTES75 = 0x4B;
         public const byte PUSHDATA1 = 0x4C;
         public const byte PUSHDATA2 = 0x4D;
         public const byte PUSHDATA4 = 0x4E;

@@ -147,7 +147,7 @@ namespace NeoFx
         public static bool TryCalculateHash(this Transaction tx, Span<byte> hashBuffer)
         {
             var txSize = 2 + tx.GetTransactionDataSize() +
-                + tx.Inputs.GetVarSize(CoinReference.Size)
+                +tx.Inputs.GetVarSize(CoinReference.Size)
                 + tx.Outputs.GetVarSize(TransactionOutput.Size)
                 + tx.Attributes.GetVarSize(a => a.Size);
 

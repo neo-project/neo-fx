@@ -104,7 +104,7 @@ namespace NeoFx.Models
                 && reader.TryReadVarString(out var description)
                 && TryReadCommonData(ref reader, out var commonData))
             {
-                var parameterList = Unsafe.As<ImmutableArray<byte>, ImmutableArray<ContractParameterType>> (ref byteParameterList);
+                var parameterList = Unsafe.As<ImmutableArray<byte>, ImmutableArray<ContractParameterType>>(ref byteParameterList);
                 tx = new PublishTransaction(script, parameterList, (ContractParameterType)returnType, needStorage, name,
                                             codeVersion, author, email, description, version, commonData);
                 return true;
@@ -118,7 +118,7 @@ namespace NeoFx.Models
 
         public override int GetTransactionDataSize()
         {
-            return Script.GetVarSize() 
+            return Script.GetVarSize()
                 + ParameterList.GetVarSize(1)
                 + sizeof(byte) // return type
                 + (Version >= 1 ? sizeof(byte) : 0) // need storage

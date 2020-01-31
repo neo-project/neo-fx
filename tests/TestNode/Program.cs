@@ -46,7 +46,7 @@ namespace NeoFx.TestNode
         private static async Task Main()
         {
             var host = Host.CreateDefaultBuilder()
-                .ConfigureLogging(logging => 
+                .ConfigureLogging(logging =>
                 {
                     // logging.AddFilter("NeoFx.P2P.NeoClient", LogLevel.Trace);
                     // logging.AddFilter("NeoFx.P2P.PipelineSocket", LogLevel.Trace);

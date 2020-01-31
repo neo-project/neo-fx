@@ -4,7 +4,7 @@ using System.Collections.Immutable;
 
 namespace NeoFx.Models
 {
-    public readonly struct Witness 
+    public readonly struct Witness
     {
         public readonly struct Factory : IFactoryReader<Witness>
         {

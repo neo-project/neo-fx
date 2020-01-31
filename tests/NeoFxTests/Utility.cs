@@ -28,7 +28,7 @@ namespace NeoFxTests
                 Assert.True(neoBytes.AsSpan().SequenceEqual(fxBytes.AsSpan()));
             }
         }
-        
+
         public static Neo.Cryptography.ECC.ECPoint[] GetNeoValidators()
         {
             return Neo.ProtocolSettings.Default.StandbyValidators

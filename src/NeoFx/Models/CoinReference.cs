@@ -10,7 +10,7 @@ namespace NeoFx.Models
         {
             public bool TryReadItem(ref BufferReader<byte> reader, out CoinReference value) => TryRead(ref reader, out value);
         }
-        
+
         public readonly UInt256 PrevHash;
         public readonly ushort PrevIndex;
 

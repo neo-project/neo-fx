@@ -50,11 +50,11 @@ namespace NeoFx.TestNode.Options
 
                     for (int i = 0; i < bytesLength; ++i)
                     {
-                        var charIndex = i << 1; 
+                        var charIndex = i << 1;
                         array[i] = (byte)((GetHexVal(hex[charIndex]) << 4) + (GetHexVal(hex[charIndex + 1])));
                     }
 
-                    value = Unsafe.As<byte[], ImmutableArray<byte>>(ref array); 
+                    value = Unsafe.As<byte[], ImmutableArray<byte>>(ref array);
                     return true;
                 }
 
