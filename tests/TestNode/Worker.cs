@@ -6,14 +6,14 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using NeoFx;
+using NeoFx.Models;
 using NeoFx.P2P;
 using NeoFx.P2P.Messages;
 using NeoFx.TestNode.Options;
 
 namespace NeoFx.TestNode
 {
-    internal class Worker : BackgroundService
+    class Worker : BackgroundService
     {
         private readonly IHostApplicationLifetime hostApplicationLifetime;
         private readonly ILogger<Worker> log;
@@ -21,6 +21,8 @@ namespace NeoFx.TestNode
         private readonly NetworkOptions networkOptions;
         private readonly NodeOptions nodeOptions;
         private readonly PipelineSocket pipelineSocket;
+        private readonly IHeaderStorage headerStorage;
+
 
         public Worker(IHostApplicationLifetime hostApplicationLifetime, ILoggerFactory loggerFactory, IOptions<NetworkOptions> networkOptions, IOptions<NodeOptions> nodeOptions)
         {
@@ -31,6 +33,13 @@ namespace NeoFx.TestNode
 
             log = loggerFactory?.CreateLogger<Worker>() ?? NullLogger<Worker>.Instance;
             pipelineSocket = new PipelineSocket(loggerFactory);
+            headerStorage = new MemoryHeaderStorage();
+
+            if (headerStorage.Count == 0)
+            {
+                var genesisBlock = Genesis.CreateGenesisBlock(this.networkOptions.GetValidators());
+                headerStorage.Add(genesisBlock.Header);
+            }
         }
 
         private uint Magic => networkOptions.Magic;
@@ -53,7 +62,7 @@ namespace NeoFx.TestNode
             where T : Message
         {
             var message = await client.GetMessage(token).ConfigureAwait(false);
-            if (message == null) 
+            if (message == null)
             {
                 log.LogError("Expected {} received nothing", typeof(T).Name);
                 throw new Exception();
@@ -70,15 +79,24 @@ namespace NeoFx.TestNode
                 throw new Exception();
             }
         }
+
         protected override async Task ExecuteAsync(CancellationToken token)
         {
+            static void AddRange(IHeaderStorage headerStorage, ReadOnlySpan<BlockHeader> headers)
+            {
+                for (var i = 0; i < headers.Length; i++)
+                {
+                    headerStorage.Add(headers[i]);
+                }
+            }
+
             try
             {
                 var (address, port) = networkOptions.GetRandomSeed();
                 await pipelineSocket.ConnectAsync(address, port, token).ConfigureAwait(false);
 
                 var client = new NeoClient(pipelineSocket, loggerFactory);
-                
+
                 if (token.IsCancellationRequested) return;
                 log.LogInformation("Sending version message {magic}", Magic);
                 await client.SendVersion(Magic, new VersionPayload(GetNonce(), nodeOptions.UserAgent)).ConfigureAwait(false);
@@ -95,6 +113,13 @@ namespace NeoFx.TestNode
                 var verAck = await ReceiveMessage<VerAckMessage>(client, token);
                 log.LogInformation("Received verack message");
 
+                {
+                    if (headerStorage.TryGetLastHash(out var lastHash))
+                    {
+                        await client.SendGetHeaders(Magic, new HashListPayload(lastHash)).ConfigureAwait(false);
+                    }
+                }
+
                 await foreach (var msg in client.GetMessages(token))
                 {
                     if (token.IsCancellationRequested) break;
@@ -104,6 +129,17 @@ namespace NeoFx.TestNode
                     {
                         case InvMessage invMessage:
                             log.LogInformation("Received InvMessage {type} {count}", invMessage.Type, invMessage.Hashes.Length);
+                            break;
+                        case HeadersMessage headersMessage:
+                            {
+                                AddRange(headerStorage, headersMessage.Headers.AsSpan());
+                                log.LogInformation("Received HeadersMessage {messageCount} {totalCount}", headersMessage.Headers.Length, headerStorage.Count);
+
+                                if (headerStorage.TryGetLastHash(out var lastHash))
+                                {
+                                    await client.SendGetHeaders(Magic, new HashListPayload(lastHash)).ConfigureAwait(false);
+                                }
+                            }
                             break;
                     }
                 }
