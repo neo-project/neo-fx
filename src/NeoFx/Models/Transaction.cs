@@ -45,7 +45,7 @@ namespace NeoFx.Models
         public readonly ImmutableArray<Witness> Witnesses;
 
         public int Size => (sizeof(byte) * 2)
-            + GetTransactionDataSize()    
+            + GetTransactionDataSize()
             + Attributes.GetVarSize(a => a.Size)
             + Inputs.GetVarSize(CoinReference.Size)
             + Outputs.GetVarSize(TransactionOutput.Size)

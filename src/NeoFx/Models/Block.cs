@@ -20,7 +20,7 @@ namespace NeoFx.Models
         public readonly Witness Witness => Header.Witness;
 
         public int Size => Header.Size + Transactions.GetVarSize(tx => tx.Size);
-        
+
         public Block(in BlockHeader header, in ImmutableArray<Transaction> transactions)
         {
             Header = header;

@@ -202,73 +202,45 @@ namespace NeoFx.P2P
         }
 
         private ValueTask SendVersion(in VersionPayload payload, CancellationToken token = default)
-        {
-            return SendMessage<VersionPayload>(VersionMessage.CommandText, payload, token);
-        }
+            => SendMessage<VersionPayload>(VersionMessage.CommandText, payload, token);
 
         private ValueTask SendVerAck(CancellationToken token = default)
-        {
-            return SendMessage<NullPayload>(VerAckMessage.CommandText, default, token);
-        }
+            => SendMessage<NullPayload>(VerAckMessage.CommandText, default, token);
 
         public ValueTask SendAddrMessage(in AddrPayload payload, CancellationToken token = default)
-        {
-            return SendMessage<AddrPayload>(AddrMessage.CommandText, payload, token);
-        }
+            => SendMessage<AddrPayload>(AddrMessage.CommandText, payload, token);
 
         public ValueTask SendBlockMessage(in BlockPayload payload, CancellationToken token = default)
-        {
-            return SendMessage<BlockPayload>(BlockMessage.CommandText, payload, token);
-        }
+            => SendMessage<BlockPayload>(BlockMessage.CommandText, payload, token);
 
         public ValueTask SendConsensusMessage(in ConsensusPayload payload, CancellationToken token = default)
-        {
-            return SendMessage<ConsensusPayload>(ConsensusMessage.CommandText, payload, token);
-        }
+            => SendMessage<ConsensusPayload>(ConsensusMessage.CommandText, payload, token);
 
         public ValueTask SendGetAddrMessage(CancellationToken token = default)
-        {
-            return SendMessage<NullPayload>(GetAddrMessage.CommandText, default, token);
-        }
+            => SendMessage<NullPayload>(GetAddrMessage.CommandText, default, token);
 
         public ValueTask SendGetBlocksMessage(in HashListPayload payload, CancellationToken token = default)
-        {
-            return SendMessage<HashListPayload>(GetBlocksMessage.CommandText, payload, token);
-        }
+            => SendMessage<HashListPayload>(GetBlocksMessage.CommandText, payload, token);
 
         public ValueTask SendGetDataMessage(in InventoryPayload payload, CancellationToken token = default)
-        {
-            return SendMessage<InventoryPayload>(GetDataMessage.CommandText, payload, token);
-        }
+            => SendMessage<InventoryPayload>(GetDataMessage.CommandText, payload, token);
 
         public ValueTask SendGetHeadersMessage(in HashListPayload payload, CancellationToken token = default)
-        {
-            return SendMessage<HashListPayload>(GetHeadersMessage.CommandText, payload, token);
-        }
+            => SendMessage<HashListPayload>(GetHeadersMessage.CommandText, payload, token);
 
         public ValueTask SendHeadersMessage(in HeadersPayload payload, CancellationToken token = default)
-        {
-            return SendMessage<HeadersPayload>(HeadersMessage.CommandText, payload, token);
-        }
+            => SendMessage<HeadersPayload>(HeadersMessage.CommandText, payload, token);
 
         public ValueTask SendInvMessage(in InventoryPayload payload, CancellationToken token = default)
-        {
-            return SendMessage<InventoryPayload>(InvMessage.CommandText, payload, token);
-        }
+            => SendMessage<InventoryPayload>(InvMessage.CommandText, payload, token);
 
         public ValueTask SendPingMessage(in PingPongPayload payload, CancellationToken token = default)
-        {
-            return SendMessage<PingPongPayload>(PingMessage.CommandText, payload, token);
-        }
+            => SendMessage<PingPongPayload>(PingMessage.CommandText, payload, token);
 
         public ValueTask SendPongMessage(in PingPongPayload payload, CancellationToken token = default)
-        {
-            return SendMessage<PingPongPayload>(PongMessage.CommandText, payload, token);
-        }
+            => SendMessage<PingPongPayload>(PongMessage.CommandText, payload, token);
 
         public ValueTask SendTransactionMessage(in TransactionPayload payload, CancellationToken token = default)
-        {
-            return SendMessage<TransactionPayload>(TransactionMessage.CommandText, payload, token);
-        }
+            => SendMessage<TransactionPayload>(TransactionMessage.CommandText, payload, token);
     }
 }
