@@ -21,10 +21,10 @@ namespace NeoFx.Models
 
         public int Size => Header.Size + Transactions.GetVarSize(tx => tx.Size);
 
-        public Block(in BlockHeader header, in ImmutableArray<Transaction> transactions)
+        public Block(in BlockHeader header, ImmutableArray<Transaction> transactions)
         {
             Header = header;
-            Transactions = transactions;
+            Transactions = transactions == default ? ImmutableArray.Create<Transaction>() : transactions;
         }
 
         public static bool TryRead(ref BufferReader<byte> reader, out Block value)

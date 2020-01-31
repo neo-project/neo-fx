@@ -16,8 +16,8 @@ namespace NeoFx.Models
         {
             ScriptHash = scriptHash;
             IsFrozen = isFrozen;
-            Votes = votes;
-            Balances = balances;
+            Votes = votes == default ? ImmutableArray.Create<EncodedPublicKey>() : votes;
+            Balances = balances ?? ImmutableDictionary<UInt256, Fixed8>.Empty;
         }
 
         public Account(UInt160 scriptHash)

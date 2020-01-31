@@ -87,7 +87,7 @@ namespace NeoFx.Models
         public TransactionAttribute(UsageType usage, ImmutableArray<byte> data)
         {
             Usage = usage;
-            Data = data;
+            Data = data == default ? ImmutableArray.Create<byte>() : data;
         }
 
         public static bool TryRead(ref BufferReader<byte> reader, out TransactionAttribute value)

@@ -22,7 +22,7 @@ namespace NeoFx.Models
                                      IEnumerable<Witness>? witnesses = null)
             : base(version, attributes, inputs, outputs, witnesses)
         {
-            Script = script;
+            Script = script == default ? ImmutableArray.Create<byte>() : script;
             Gas = gas;
         }
 
@@ -32,7 +32,7 @@ namespace NeoFx.Models
                                      CommonData commonData)
             : base(version, commonData)
         {
-            Script = script;
+            Script = script == default ? ImmutableArray.Create<byte>() : script;
             Gas = gas;
         }
 

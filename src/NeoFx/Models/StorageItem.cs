@@ -11,7 +11,7 @@ namespace NeoFx.Models
 
         public StorageItem(ImmutableArray<byte> value, bool isConstant)
         {
-            Value = value;
+            Value = value == default ? ImmutableArray.Create<byte>() : value;
             IsConstant = isConstant;
         }
 

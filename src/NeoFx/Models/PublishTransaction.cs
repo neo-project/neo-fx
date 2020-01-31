@@ -38,8 +38,8 @@ namespace NeoFx.Models
                                   IEnumerable<Witness>? witnesses = null)
             : base(version, attributes, inputs, outputs, witnesses)
         {
-            Script = script;
-            ParameterList = parameterList;
+            Script = script == default ? ImmutableArray.Create<byte>() : script;
+            ParameterList = parameterList == default ? ImmutableArray.Create<ContractParameterType>() : parameterList;
             ReturnType = returnType;
             NeedStorage = needStorage;
             Name = name;
@@ -62,8 +62,8 @@ namespace NeoFx.Models
                           CommonData commonData)
             : base(version, commonData)
         {
-            Script = script;
-            ParameterList = parameterList;
+            Script = script == default ? ImmutableArray.Create<byte>() : script;
+            ParameterList = parameterList == default ? ImmutableArray.Create<ContractParameterType>() : parameterList;
             ReturnType = returnType;
             NeedStorage = needStorage;
             Name = name;

@@ -28,7 +28,14 @@ namespace NeoFx
 
         public EncodedPublicKey(ImmutableArray<byte> key)
         {
-            Key = key;
+            if (key == default)
+            {
+                this = Infinity;
+            }
+            else
+            {
+                Key = key;
+            }
         }
 
         public EncodedPublicKey(ECPoint point, bool compressed)

@@ -17,7 +17,7 @@ namespace NeoFx.Models
         public StorageKey(UInt160 scriptHash, ImmutableArray<byte> key)
         {
             ScriptHash = scriptHash;
-            Key = key;
+            Key = key == default ? ImmutableArray.Create<byte>() : key;
         }
 
         public static bool TryReadBytes(ReadOnlySpan<byte> span, out StorageKey value)

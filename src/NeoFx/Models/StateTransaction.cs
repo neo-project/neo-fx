@@ -26,7 +26,7 @@ namespace NeoFx.Models
                         byte version, CommonData commonData)
             : base(version, commonData)
         {
-            Descriptors = descriptors;
+            Descriptors = descriptors == default ? ImmutableArray.Create<StateDescriptor>() : descriptors;
         }
 
         public static bool TryRead(ref BufferReader<byte> reader, byte version, [NotNullWhen(true)] out StateTransaction? tx)

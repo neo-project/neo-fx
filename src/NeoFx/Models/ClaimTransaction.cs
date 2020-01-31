@@ -19,7 +19,7 @@ namespace NeoFx.Models
                                 IEnumerable<Witness>? witnesses = null)
             : base(version, attributes, inputs, outputs, witnesses)
         {
-            Claims = claims;
+            Claims = claims == default ? ImmutableArray.Create<CoinReference>() : claims;
         }
 
         private ClaimTransaction(ImmutableArray<CoinReference> claims,
@@ -27,7 +27,7 @@ namespace NeoFx.Models
                                  in CommonData commonData)
             : base(version, commonData)
         {
-            Claims = claims;
+            Claims = claims == default ? ImmutableArray.Create<CoinReference>() : claims;
         }
 
         public static bool TryRead(ref BufferReader<byte> reader, byte version, [NotNullWhen(true)] out ClaimTransaction? tx)

@@ -49,8 +49,8 @@ namespace NeoFx.Models
 
         public DeployedContract(ImmutableArray<byte> script, ImmutableArray<ContractParameterType> parameterList, ContractParameterType returnType, PropertyState contractProperties, string name, string codeVersion, string author, string email, string description)
         {
-            Script = script;
-            ParameterList = parameterList;
+            Script = script == default ? ImmutableArray.Create<byte>() : script;
+            ParameterList = parameterList == default ? ImmutableArray.Create<ContractParameterType>() : parameterList;
             ReturnType = returnType;
             ContractProperties = contractProperties;
             Name = name;

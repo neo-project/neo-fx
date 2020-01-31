@@ -28,9 +28,9 @@ namespace NeoFx.Models
         public StateDescriptor(StateType type, ImmutableArray<byte> key, string field, ImmutableArray<byte> value)
         {
             Type = type;
-            Key = key;
+            Key = key == default ? ImmutableArray.Create<byte>() : key;
             Field = field;
-            Value = value;
+            Value = value == default ? ImmutableArray.Create<byte>() : value;
         }
 
         public static bool TryRead(ref BufferReader<byte> reader, out StateDescriptor descriptor)

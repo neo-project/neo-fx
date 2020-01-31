@@ -21,6 +21,9 @@ namespace NeoFx.Models
 
         public Witness(ImmutableArray<byte> invocationScript, ImmutableArray<byte> verificationScript)
         {
+            invocationScript = invocationScript == default ? ImmutableArray.Create<byte>() : invocationScript;
+            verificationScript = verificationScript == default ? ImmutableArray.Create<byte>() : verificationScript;
+
             Debug.Assert(invocationScript.Length <= MAX_SCRIPT_LENGTH);
             Debug.Assert(verificationScript.Length <= MAX_SCRIPT_LENGTH);
 
