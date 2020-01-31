@@ -3,9 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using NeoFx.P2P;
-using NeoFx.TestNode.Options;
 
 namespace NeoFx.TestNode
 {
@@ -55,9 +53,10 @@ namespace NeoFx.TestNode
                 })
                 .ConfigureServices((context, services) =>
                 {
+                    // services.AddTransient<IHeaderStorage, MemoryHeaderStorage>();
+                    services.AddSingleton<IHeaderStorage>(_ => new RocksDbHeaderStorage(@"C:\Users\harry\.neofx-testnode"));
                     services.AddTransient<PipelineSocket>();
                     services.AddTransient<INodeConnection, NodeConnection>();
-                    services.AddTransient<IHeaderStorage, MemoryHeaderStorage>();
                     services.Configure<NodeOptions>(context.Configuration.GetSection("NodeOptions"));
                     services.Configure<NetworkOptions>(context.Configuration.GetSection("NetworkOptions"));
                     services.AddHostedService<Worker>();

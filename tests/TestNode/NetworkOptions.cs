@@ -4,7 +4,7 @@ using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 
-namespace NeoFx.TestNode.Options
+namespace NeoFx.TestNode
 {
     public class NetworkOptions
     {

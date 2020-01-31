@@ -183,7 +183,6 @@ namespace NeoFx.P2P
             var task = output.FlushAsync(token);
             if (task.IsCompletedSuccessfully)
             {
-                log.LogInformation("NOT converting valuetask to task");
                 return default;
             }
 

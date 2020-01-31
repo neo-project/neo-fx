@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using NeoFx;
 
-namespace NeoFx.TestNode.Options
+namespace NeoFx.TestNode
 {
     public class NodeOptions
     {

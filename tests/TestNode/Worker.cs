@@ -4,12 +4,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NeoFx.Models;
 using NeoFx.P2P;
 using NeoFx.P2P.Messages;
-using NeoFx.TestNode.Options;
 
 namespace NeoFx.TestNode
 {
@@ -36,6 +34,7 @@ namespace NeoFx.TestNode
             this.nodeConnection = nodeConnection;
             this.headerStorage = headerStorage;
 
+            log.LogInformation("header storage {type} {count}", headerStorage.GetType().Name, headerStorage.Count);
             if (headerStorage.Count == 0)
             {
                 var genesisBlock = Genesis.CreateGenesisBlock(this.networkOptions.GetValidators());
