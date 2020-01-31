@@ -1,9 +1,11 @@
 ﻿using System;
+using System.Diagnostics;
 using DevHawk.Buffers;
+using NeoFx.Storage;
 
 namespace NeoFx.P2P.Messages
 {
-    public readonly struct PingPongPayload
+    public readonly struct PingPongPayload : IPayload<PingPongPayload>
     {
         public readonly uint LastBlockIndex;
         public readonly DateTimeOffset Timestamp;
@@ -21,6 +23,10 @@ namespace NeoFx.P2P.Messages
             Nonce = nonce;
         }
 
+        public const int Size = sizeof(uint) * 3;
+
+        int IPayload<PingPongPayload>.Size => Size;
+
         public static bool TryRead(ref BufferReader<byte> reader, out PingPongPayload payload)
         {
             if (reader.TryReadLittleEndian(out uint lastBlockIndex)
@@ -35,6 +41,16 @@ namespace NeoFx.P2P.Messages
             }
             payload = default;
             return false;
+        }
+
+        public void WriteTo(ref BufferWriter<byte> writer)
+        {
+            var timestamp = Timestamp.ToUnixTimeSeconds();
+            Debug.Assert(timestamp <= uint.MaxValue);
+
+            writer.WriteLittleEndian(LastBlockIndex);
+            writer.WriteLittleEndian((uint)timestamp);
+            writer.WriteLittleEndian(Nonce);
         }
     }
 }

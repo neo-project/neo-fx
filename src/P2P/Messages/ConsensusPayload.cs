@@ -3,10 +3,11 @@ using NeoFx.Models;
 using NeoFx.Storage;
 using System;
 using System.Collections.Immutable;
+using System.Diagnostics;
 
 namespace NeoFx.P2P.Messages
 {
-    public readonly struct ConsensusPayload
+    public readonly struct ConsensusPayload : IPayload<ConsensusPayload>
     {
         public readonly uint Version;
         public readonly UInt256 PrevHash;
@@ -28,6 +29,9 @@ namespace NeoFx.P2P.Messages
             Witness = witness;
         }
 
+        const int ConstSize = sizeof(uint) * 3 + UInt256.Size;
+
+        public int Size => ConstSize + Data.GetVarSize() + Witness.Size;
 
         public static bool TryRead(ref BufferReader<byte> reader, out ConsensusPayload payload)
         {
@@ -52,6 +56,19 @@ namespace NeoFx.P2P.Messages
 
             payload = default;
             return false;
+        }
+
+        public void WriteTo(ref BufferWriter<byte> writer)
+        {
+            var timestamp = Timestamp.ToUnixTimeSeconds();
+            Debug.Assert(timestamp <= uint.MaxValue);
+
+            writer.WriteLittleEndian(Version);
+            PrevHash.WriteTo(ref writer);
+            writer.WriteLittleEndian(BlockIndex);
+            writer.WriteLittleEndian((uint)timestamp);
+            writer.WriteVarArray(Data);
+            Witness.WriteTo(ref writer);
         }
     }
 }

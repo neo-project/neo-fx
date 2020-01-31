@@ -7,7 +7,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace NeoFx.Models
 {
-    public abstract class Transaction
+    public abstract class Transaction : IWritable<Transaction>
     {
         public readonly struct Factory : IFactoryReader<Transaction>
         {
@@ -43,6 +43,13 @@ namespace NeoFx.Models
         public readonly ImmutableArray<CoinReference> Inputs;
         public readonly ImmutableArray<TransactionOutput> Outputs;
         public readonly ImmutableArray<Witness> Witnesses;
+
+        public int Size => (sizeof(byte) * 2)
+            + GetTransactionDataSize()    
+            + Attributes.GetVarSize(a => a.Size)
+            + Inputs.GetVarSize(CoinReference.Size)
+            + Outputs.GetVarSize(TransactionOutput.Size)
+            + Witnesses.GetVarSize(w => w.Size);
 
         protected Transaction(byte version, in CommonData commonData)
         {
@@ -199,5 +206,16 @@ namespace NeoFx.Models
         public abstract TransactionType GetTransactionType();
         public abstract void WriteTransactionData(ref BufferWriter<byte> writer);
         public abstract int GetTransactionDataSize();
+
+        public void WriteTo(ref BufferWriter<byte> writer)
+        {
+            writer.Write((byte)GetTransactionType());
+            writer.Write(Version);
+            WriteTransactionData(ref writer);
+            writer.WriteVarArray(Attributes);
+            writer.WriteVarArray(Inputs);
+            writer.WriteVarArray(Outputs);
+            writer.WriteVarArray(Witnesses);
+        }
     }
 }

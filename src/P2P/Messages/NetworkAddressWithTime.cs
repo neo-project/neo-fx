@@ -1,11 +1,13 @@
 ﻿using System;
+using System.Buffers;
+using System.Diagnostics;
 using System.Net;
 using DevHawk.Buffers;
 using NeoFx.Storage;
 
 namespace NeoFx.P2P.Messages
 {
-    public readonly struct NetworkAddressWithTime
+    public readonly struct NetworkAddressWithTime : IWritable<NetworkAddressWithTime>
     {
         public readonly struct Factory : IFactoryReader<NetworkAddressWithTime>
         {
@@ -16,8 +18,9 @@ namespace NeoFx.P2P.Messages
         public readonly ulong Services;
         public readonly IPEndPoint EndPoint;
 
+        const int ADDRESS_SIZE = 16;
         public const ulong NODE_NETWORK = 1;
-        public const int BufferSize = 30;
+        public const int Size = 30;
 
         public NetworkAddressWithTime(
             IPEndPoint endpoint,
@@ -33,10 +36,10 @@ namespace NeoFx.P2P.Messages
         {
             static bool TryReadAddress(ref BufferReader<byte> reader, out IPAddress address)
             {
-                Span<byte> addressBuffer = stackalloc byte[16];
+                Span<byte> addressBuffer = stackalloc byte[ADDRESS_SIZE];
                 if (reader.TryCopyTo(addressBuffer))
                 {
-                    reader.Advance(16);
+                    reader.Advance(ADDRESS_SIZE);
                     address = new IPAddress(addressBuffer);
                     return true;
                 }
@@ -60,6 +63,27 @@ namespace NeoFx.P2P.Messages
 
             value = default;
             return false;
+        }
+
+        public void WriteTo(ref BufferWriter<byte> writer)
+        {
+            var timestamp = Timestamp.ToUnixTimeSeconds();
+            Debug.Assert(timestamp <= uint.MaxValue);
+            var port = EndPoint.Port;
+            Debug.Assert(port <= ushort.MaxValue);
+
+            writer.WriteLittleEndian((uint)timestamp);
+            writer.WriteLittleEndian(Services);
+            {
+                using var owner = MemoryPool<byte>.Shared.Rent(ADDRESS_SIZE);
+                var span = owner.Memory.Span.Slice(0, ADDRESS_SIZE);
+                if (!EndPoint.Address.TryWriteBytes(span, out var bytesWritten)
+                    || bytesWritten != ADDRESS_SIZE)
+                {
+                    throw new InvalidOperationException();
+                }
+            }
+            writer.WriteLittleEndian((ushort)port);
         }
     }
 }

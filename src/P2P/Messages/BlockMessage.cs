@@ -9,11 +9,12 @@ namespace NeoFx.P2P.Messages
     {
         public const string CommandText = "block";
 
-        public readonly Block Block;
+        public readonly BlockPayload Payload;
+        public Block Block => Payload.Block;
 
-        public BlockMessage(in MessageHeader header, in Block block) : base(header)
+        public BlockMessage(in MessageHeader header, in BlockPayload payload) : base(header)
         {
-            Block = block;
+            Payload = payload;
         }
 
         public override void LogMessage(ILogger logger)
@@ -25,9 +26,9 @@ namespace NeoFx.P2P.Messages
 
         public static bool TryRead(ref BufferReader<byte> reader, in MessageHeader header, [MaybeNullWhen(false)] out BlockMessage message)
         {
-            if (Block.TryRead(ref reader, out var block))
+            if (BlockPayload.TryRead(ref reader, out var payload))
             {
-                message = new BlockMessage(header, block);
+                message = new BlockMessage(header, payload);
                 return true;
             }
 

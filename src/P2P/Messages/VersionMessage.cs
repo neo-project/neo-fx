@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 
 namespace NeoFx.P2P.Messages
 {
-    public sealed class VersionMessage : Message
+    internal sealed class VersionMessage : Message
     {
         public const string CommandText = "version";
 

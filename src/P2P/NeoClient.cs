@@ -14,11 +14,6 @@ using NeoFx.P2P.Messages;
 
 namespace NeoFx.P2P
 {
-    public sealed class NodeConnection
-    {
-
-    }
-
     public sealed class NeoClient : IDisposable
     {
         static SHA256 _hash = SHA256.Create();
@@ -47,19 +42,11 @@ namespace NeoFx.P2P
             await pipelineSocket.ConnectAsync(host, port, token).ConfigureAwait(false);
         }
 
-        internal static uint CalculateChecksum(ReadOnlySpan<byte> source)
-        {
-            Span<byte> buf1 = stackalloc byte[32];
-            _hash.TryComputeHash(source, buf1, out var bytesWritten);
-            Span<byte> buf2 = stackalloc byte[32];
-            _hash.TryComputeHash(buf1, buf2, out bytesWritten);
-
-            return BitConverter.ToUInt32(buf2.Slice(0, 4));
-        }
-
         private static void WriteHeader(ref BufferWriter<byte> writer, uint magic, string command, ReadOnlySpan<byte> payload)
         {
-            var checksum = CalculateChecksum(payload);
+            Span<byte> buffer = stackalloc byte[32];
+            HashHelpers.TryHash256(payload, buffer);
+            var checksum = BitConverter.ToUInt32(buffer.Slice(0, 4));
 
             using var commandOwner = MemoryPool<byte>.Shared.Rent(MessageHeader.CommandSize);
             var commandSpan = commandOwner.Memory.Span.Slice(0, MessageHeader.CommandSize);

@@ -6,9 +6,11 @@ using NeoFx.Storage;
 
 namespace NeoFx.P2P.Messages
 {
-    public readonly struct HeadersPayload
+    public readonly struct HeadersPayload : IPayload<HeadersPayload>
     {
         public readonly ImmutableArray<BlockHeader> Headers;
+
+        public int Size => Headers.GetVarSize(h => h.Size);
 
         public HeadersPayload(ImmutableArray<BlockHeader> headers)
         {
@@ -41,6 +43,11 @@ namespace NeoFx.P2P.Messages
 
             payload = default;
             return false;
+        }
+
+        public void WriteTo(ref BufferWriter<byte> writer)
+        {
+            writer.WriteVarArray(Headers);
         }
     }
 }

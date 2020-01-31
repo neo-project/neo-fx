@@ -2,7 +2,7 @@
 
 namespace NeoFx.P2P.Messages
 {
-    public sealed class VerAckMessage : Message
+    internal sealed class VerAckMessage : Message
     {
         public const string CommandText = "verack";
 

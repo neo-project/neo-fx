@@ -1,10 +1,11 @@
 ﻿using DevHawk.Buffers;
 using NeoFx.Storage;
 using System;
+using System.Diagnostics;
 
 namespace NeoFx.Models
 {
-    public readonly struct BlockHeader
+    public readonly struct BlockHeader : IWritable<BlockHeader>
     {
         public readonly uint Version;
         public readonly UInt256 PreviousHash;
@@ -55,6 +56,22 @@ namespace NeoFx.Models
 
             value = default;
             return false;
+        }
+
+        public void WriteTo(ref BufferWriter<byte> writer)
+        {
+            var timestamp = Timestamp.ToUnixTimeSeconds();
+            Debug.Assert(timestamp <= uint.MaxValue);
+
+            writer.WriteLittleEndian(Version);
+            PreviousHash.WriteTo(ref writer);
+            MerkleRoot.WriteTo(ref writer);
+            writer.WriteLittleEndian((uint)timestamp);
+            writer.WriteLittleEndian(Index);
+            writer.WriteLittleEndian(ConsensusData);
+            NextConsensus.WriteTo(ref writer);
+            writer.Write((byte)1);
+            Witness.WriteTo(ref writer);
         }
     }
 }

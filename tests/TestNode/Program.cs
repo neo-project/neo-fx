@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using NeoFx.P2P;
 using NeoFx.TestNode.Options;
 
 namespace NeoFx.TestNode
@@ -26,7 +27,7 @@ namespace NeoFx.TestNode
                 {"NetworkOptions:Seeds:3", "seed4.ngd.network:20333"},
                 {"NetworkOptions:Seeds:4", "seed5.ngd.network:20333"},
                 {"NetworkOptions:Seeds:5", "seed6.ngd.network:20333"},
-                {"NetworkOptions:Seeds:6", "seed7.ngd.network:20333"},
+                // {"NetworkOptions:Seeds:6", "seed7.ngd.network:20333"},
                 {"NetworkOptions:Seeds:7", "seed8.ngd.network:20333"},
                 {"NetworkOptions:Seeds:8", "seed9.ngd.network:20333"},
                 {"NetworkOptions:Seeds:9", "seed10.ngd.network:20333"},
@@ -54,8 +55,8 @@ namespace NeoFx.TestNode
                 })
                 .ConfigureServices((context, services) =>
                 {
-                    services.AddTransient<NeoFx.P2P.PipelineSocket>();
-                    services.AddTransient<NeoFx.P2P.NeoClient>();
+                    services.AddTransient<PipelineSocket>();
+                    services.AddTransient<INodeConnection, NodeConnection>();
                     services.AddTransient<IHeaderStorage, MemoryHeaderStorage>();
                     services.Configure<NodeOptions>(context.Configuration.GetSection("NodeOptions"));
                     services.Configure<NetworkOptions>(context.Configuration.GetSection("NetworkOptions"));

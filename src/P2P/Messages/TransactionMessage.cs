@@ -11,11 +11,12 @@ namespace NeoFx.P2P.Messages
     {
         public const string CommandText = "tx";
 
-        public readonly Transaction Transaction;
+        public readonly TransactionPayload Payload;
+        public Transaction Transaction => Payload.Transaction;
 
-        public TransactionMessage(in MessageHeader header, in Transaction tx) : base(header)
+        public TransactionMessage(in MessageHeader header, in TransactionPayload payload) : base(header)
         {
-            Transaction = tx;
+            Payload = payload;
         }
 
         public override void LogMessage(ILogger logger)
@@ -27,9 +28,9 @@ namespace NeoFx.P2P.Messages
 
         public static bool TryRead(ref BufferReader<byte> reader, in MessageHeader header, [MaybeNullWhen(false)] out TransactionMessage message)
         {
-            if (Transaction.TryRead(ref reader, out var block))
+            if (TransactionPayload.TryRead(ref reader, out var payload))
             {
-                message = new TransactionMessage(header, block);
+                message = new TransactionMessage(header, payload);
                 return true;
             }
 
