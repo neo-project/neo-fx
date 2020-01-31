@@ -20,27 +20,32 @@ namespace NeoFx
 
             var buffer = new ArrayBufferWriter<byte>();
             var writer = new BufferWriter<byte>(buffer);
+
             writer.EmitPush(count);
 
             foreach (var key in publicKeys.OrderBy(pk => pk, comparer))
             {
-                var encodedKey = EncodedPublicKey.Encode(key, true);
+                if (!EncodedPublicKey.TryEncode(key, true, out var encodedKey))
+                    throw new ArgumentException(nameof(publicKeys));
+
                 writer.EmitPush(encodedKey.Key.AsSpan());
             }
             writer.EmitPush(publicKeys.Count());
             writer.EmitOpCode(OpCode.CHECKMULTISIG);
+            writer.Commit();
 
             return buffer.WrittenMemory;
         }
 
-        public static ReadOnlyMemory<byte> CreateSignatureRedeemScript(ECPoint publicKey)
-        {
-            var buffer = new ArrayBufferWriter<byte>();
-            var writer = new BufferWriter<byte>(buffer);
-            var encodedKey = EncodedPublicKey.Encode(publicKey, true);
-            writer.EmitPush(encodedKey.Key.AsSpan());
-            writer.EmitOpCode(OpCode.CHECKSIG);
-            return buffer.WrittenMemory;
-        }
+        // public static ReadOnlyMemory<byte> CreateSignatureRedeemScript(ECPoint publicKey)
+        // {
+        //     if (!EncodedPublicKey.TryEncode(publicKey, true, out var encodedKey))
+        //         throw new ArgumentException(nameof(publicKey));
+
+        //     var buffer = new ArrayBufferWriter<byte>();
+        //     buffer.EmitPush(encodedKey.Key.Span);
+        //     buffer.EmitOpCode(OpCode.CHECKSIG);
+        //     return buffer.WrittenMemory;
+        // }
     }
 }

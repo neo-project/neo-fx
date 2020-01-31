@@ -30,7 +30,7 @@ namespace NeoFxTests
             "02d02b1873a0863cd042cc717da31cea0d7cf9db32b74d4c72c01b0011503e2e22",
             "034ff5ceeac41acf22cd5ed2da17a6df4dd8358fcb2bfb1a43208ad0feaab2746b",
 
-            //// Neo 3 testnet standby validators
+            // Neo 3 testnet standby validators
             "023e9b32ea89b94d066e649b124fd50e396ee91369e8e2a6ae1b11c170d022256d",
             "03009b7540e10f2562e5fd8fac9eaec25166a58b26e412348ff5a86927bfac22a2",
             "02ba2c70f5996f357a43198705859fae2cfea13e1172962800772b3d588a9d4abd",

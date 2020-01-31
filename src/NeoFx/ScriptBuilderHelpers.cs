@@ -8,7 +8,7 @@ namespace NeoFx
 {
     public static class ScriptBuilderHelpers
     {
-        public static void EmitPush(this BufferWriter<byte> buffer, ReadOnlySpan<byte> span)
+        public static void EmitPush(this ref BufferWriter<byte> buffer, ReadOnlySpan<byte> span)
         {
             if (span.Length < OpCode.PUSHBYTES75)
             {
@@ -37,7 +37,7 @@ namespace NeoFx
             }
         }
 
-        public static void EmitPush(this BufferWriter<byte> buffer, BigInteger number)
+        public static void EmitPush(this ref BufferWriter<byte> buffer, BigInteger number)
         {
             if (number == -1)
             {
@@ -53,7 +53,9 @@ namespace NeoFx
             }
             else
             {
-                Span<byte> numberBuffer = stackalloc byte[number.GetByteCount()];
+                var byteCount = number.GetByteCount();
+                using var owner = MemoryPool<byte>.Shared.Rent(byteCount);
+                Span<byte> numberBuffer = owner.Memory.Slice(0, byteCount).Span;
                 if (number.TryWriteBytes(numberBuffer, out var _))
                 {
                     buffer.EmitPush(numberBuffer);
@@ -65,19 +67,19 @@ namespace NeoFx
             }
         }
 
-        public static void EmitPush(this BufferWriter<byte> buffer, EncodedPublicKey publicKey)
-        {
-            if (publicKey.TryCompress(out var compressedKey))
-            {
-                buffer.EmitPush(compressedKey.Key.AsSpan());
-            }
-            else
-            {
-                throw new ArgumentException(nameof(publicKey));
-            }
-        }
+        // public static void EmitPush(this ref BufferWriter<byte> buffer, EncodedPublicKey publicKey)
+        // {
+        //     if (publicKey.TryCompress(out var compressedKey))
+        //     {
+        //         buffer.EmitPush(compressedKey.Key.AsSpan());
+        //     }
+        //     else
+        //     {
+        //         throw new ArgumentException(nameof(publicKey));
+        //     }
+        // }
 
-        public static void EmitOpCode(this BufferWriter<byte> buffer, byte opCode, ReadOnlySpan<byte> arg = default)
+        public static void EmitOpCode(this ref BufferWriter<byte> buffer, byte opCode, ReadOnlySpan<byte> arg = default)
         {
             buffer.Write(opCode);
             if (!arg.IsEmpty)
