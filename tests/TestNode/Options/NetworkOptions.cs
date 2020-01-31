@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Security.Cryptography;
 
 namespace NeoFx.TestNode.Options
 {
@@ -31,19 +33,44 @@ namespace NeoFx.TestNode.Options
             return ParseSeed(Seeds[random.Next(0, Seeds.Length)]);
         }
 
-        // public IEnumerable<ECPoint> GetValidators()
-        // {
-        //     var curve = ECCurve.NamedCurves.nistP256.GetExplicit();
+        public IEnumerable<ECPoint> GetValidators()
+        {
+            var curve = ECCurve.NamedCurves.nistP256.GetExplicit();
 
-        //     for (int i = 0; i < Validators.Length; i++)
-        //     {
-        //         var bytes = new byte[Validators[i].Length / 2];
-        //         if (Validators[i].TryConvertHexString(bytes, out var written)
-        //             && (new EncodedPublicKey(bytes)).TryDecode(curve, out var point))
-        //         {
-        //             yield return point;
-        //         }
-        //     }
-        // }
+            for (int i = 0; i < Validators.Length; i++)
+            {
+                if (TryConvertHexString(Validators[i], out var bytes)
+                    && (new EncodedPublicKey(bytes)).TryDecode(curve, out var point))
+                {
+                    yield return point;
+                }
+            }
+        }
+
+        private static bool TryConvertHexString(string hex, out ImmutableArray<byte> value)
+        {
+            static int GetHexVal(char hex)
+            {
+                return (int)hex - ((int)hex < 58 ? 48 : ((int)hex < 97 ? 55 : 87));
+            }
+
+            if (hex.Length % 2 == 0)
+            {
+                var bytesLength = hex.Length >> 1;
+                var builder = ImmutableArray.CreateBuilder<byte>(bytesLength);
+
+                for (int i = 0; i < bytesLength; ++i)
+                {
+                    var charIndex = i << 1; 
+                    builder[i] = (byte)((GetHexVal(hex[charIndex]) << 4) + (GetHexVal(hex[charIndex + 1])));
+                }
+
+                value = builder.ToImmutable();
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
     }
 }

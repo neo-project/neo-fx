@@ -25,28 +25,26 @@ namespace NeoFx.TestNode
             {
                 {"NetworkOptions:Magic", "1953787457"},
                 {"NetworkOptions:Seeds:0", "seed1.ngd.network:20333"},
-                // {"NetworkOptions:Seeds:1", "seed2.ngd.network:20333"},
-                // {"NetworkOptions:Seeds:2", "seed3.ngd.network:20333"},
-                // {"NetworkOptions:Seeds:3", "seed4.ngd.network:20333"},
-                // {"NetworkOptions:Seeds:4", "seed5.ngd.network:20333"},
-                // {"NetworkOptions:Seeds:5", "seed6.ngd.network:20333"},
-                // {"NetworkOptions:Seeds:6", "seed7.ngd.network:20333"},
-                // {"NetworkOptions:Seeds:7", "seed8.ngd.network:20333"},
-                // {"NetworkOptions:Seeds:8", "seed9.ngd.network:20333"},
-                // {"NetworkOptions:Seeds:9", "seed10.ngd.network:20333"},
-                // {"NetworkOptions:Validators:0", "0327da12b5c40200e9f65569476bbff2218da4f32548ff43b6387ec1416a231ee8"},
-                // {"NetworkOptions:Validators:1", "026ce35b29147ad09e4afe4ec4a7319095f08198fa8babbe3c56e970b143528d22"},
-                // {"NetworkOptions:Validators:2", "0209e7fd41dfb5c2f8dc72eb30358ac100ea8c72da18847befe06eade68cebfcb9"},
-                // {"NetworkOptions:Validators:3", "039dafd8571a641058ccc832c5e2111ea39b09c0bde36050914384f7a48bce9bf9"},
-                // {"NetworkOptions:Validators:4", "038dddc06ce687677a53d54f096d2591ba2302068cf123c1f2d75c2dddc5425579"},
-                // {"NetworkOptions:Validators:5", "02d02b1873a0863cd042cc717da31cea0d7cf9db32b74d4c72c01b0011503e2e22"},
-                // {"NetworkOptions:Validators:6", "034ff5ceeac41acf22cd5ed2da17a6df4dd8358fcb2bfb1a43208ad0feaab2746b"},
+                {"NetworkOptions:Seeds:1", "seed2.ngd.network:20333"},
+                {"NetworkOptions:Seeds:2", "seed3.ngd.network:20333"},
+                {"NetworkOptions:Seeds:3", "seed4.ngd.network:20333"},
+                {"NetworkOptions:Seeds:4", "seed5.ngd.network:20333"},
+                {"NetworkOptions:Seeds:5", "seed6.ngd.network:20333"},
+                {"NetworkOptions:Seeds:6", "seed7.ngd.network:20333"},
+                {"NetworkOptions:Seeds:7", "seed8.ngd.network:20333"},
+                {"NetworkOptions:Seeds:8", "seed9.ngd.network:20333"},
+                {"NetworkOptions:Seeds:9", "seed10.ngd.network:20333"},
+                {"NetworkOptions:Validators:0", "0327da12b5c40200e9f65569476bbff2218da4f32548ff43b6387ec1416a231ee8"},
+                {"NetworkOptions:Validators:1", "026ce35b29147ad09e4afe4ec4a7319095f08198fa8babbe3c56e970b143528d22"},
+                {"NetworkOptions:Validators:2", "0209e7fd41dfb5c2f8dc72eb30358ac100ea8c72da18847befe06eade68cebfcb9"},
+                {"NetworkOptions:Validators:3", "039dafd8571a641058ccc832c5e2111ea39b09c0bde36050914384f7a48bce9bf9"},
+                {"NetworkOptions:Validators:4", "038dddc06ce687677a53d54f096d2591ba2302068cf123c1f2d75c2dddc5425579"},
+                {"NetworkOptions:Validators:5", "02d02b1873a0863cd042cc717da31cea0d7cf9db32b74d4c72c01b0011503e2e22"},
+                {"NetworkOptions:Validators:6", "034ff5ceeac41acf22cd5ed2da17a6df4dd8358fcb2bfb1a43208ad0feaab2746b"},
             };
 
         private static async Task Main()
         {
-var foo = LoggerFactory.Create(builder => {}).CreateLogger<Program>();
-
             var host = Host.CreateDefaultBuilder()
                 .ConfigureLogging(logging => 
                 {

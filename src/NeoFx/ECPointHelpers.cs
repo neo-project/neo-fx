@@ -8,9 +8,9 @@ using System.Security.Cryptography;
 
 namespace NeoFx
 {
-    internal static class ECPointHelpers
+    public static class ECPointHelpers
     {
-        internal static ECCurve GetExplicit(this ECCurve curve)
+        public static ECCurve GetExplicit(this ECCurve curve)
         {
             if (!curve.IsExplicit && curve.IsNamed)
             {

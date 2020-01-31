@@ -26,6 +26,11 @@ namespace NeoFx
             Key = key;
         }
 
+        public EncodedPublicKey(byte[] key)
+        {
+            Key = ImmutableArray.Create(key);
+        }
+
         public EncodedPublicKey(ECPoint point, bool compressed)
         {
             if (!TryEncode(point, compressed, out this))
