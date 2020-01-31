@@ -53,10 +53,15 @@ namespace NeoFx.Models
             Witnesses = commonData.Witnesses;
         }
 
-        protected Transaction(byte version, IEnumerable<TransactionAttribute> attributes, IEnumerable<CoinReference> inputs, IEnumerable<TransactionOutput> outputs, IEnumerable<Witness> witnesses)
+        protected Transaction(byte version, IEnumerable<TransactionAttribute>? attributes, IEnumerable<CoinReference>? inputs, IEnumerable<TransactionOutput>? outputs, IEnumerable<Witness>? witnesses)
         {
-            static ImmutableArray<T> ToImmutableArray<T>(in IEnumerable<T> enumerable)
+            static ImmutableArray<T> ToImmutableArray<T>(in IEnumerable<T>? enumerable)
             {
+                if (enumerable == null)
+                {
+                    return ImmutableArray.Create<T>();
+                }
+
                 if (enumerable is ImmutableArray<T> immutableArray)
                 {
                     return immutableArray;

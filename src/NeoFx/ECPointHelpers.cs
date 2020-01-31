@@ -10,6 +10,20 @@ namespace NeoFx
 {
     public static class ECPointHelpers
     {
+        public static int Compare(ECPoint l, ECPoint r)
+        {
+            static int CompareByteArray(byte[] left, byte[] right)
+            {
+                var bigIntLeft = new BigInteger(left, isUnsigned: true, isBigEndian: true);
+                var bigIntRight = new BigInteger(right, isUnsigned: true, isBigEndian: true);
+                return bigIntLeft.CompareTo(bigIntRight);
+            }
+
+            int result = CompareByteArray(l.X, r.X);
+            if (result != 0) return result;
+            return CompareByteArray(l.Y, r.Y);
+        }
+
         public static ECCurve GetExplicit(this ECCurve curve)
         {
             if (!curve.IsExplicit && curve.IsNamed)

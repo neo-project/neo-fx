@@ -32,10 +32,10 @@ namespace NeoFx.Models
                                   string email,
                                   string description,
                                   byte version,
-                                  IEnumerable<TransactionAttribute> attributes,
-                                  IEnumerable<CoinReference> inputs,
-                                  IEnumerable<TransactionOutput> outputs,
-                                  IEnumerable<Witness> witnesses)
+                                  IEnumerable<TransactionAttribute>? attributes = null,
+                                  IEnumerable<CoinReference>? inputs = null,
+                                  IEnumerable<TransactionOutput>? outputs = null,
+                                  IEnumerable<Witness>? witnesses = null)
             : base(version, attributes, inputs, outputs, witnesses)
         {
             Script = script;

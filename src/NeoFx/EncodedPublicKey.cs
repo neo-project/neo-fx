@@ -4,6 +4,8 @@ using System;
 using System.Buffers;
 using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 
 namespace NeoFx
@@ -17,6 +19,9 @@ namespace NeoFx
             public bool TryReadItem(ref BufferReader<byte> reader, out EncodedPublicKey value) => EncodedPublicKey.TryRead(ref reader, out value);
         }
 
+        public static readonly EncodedPublicKey Infinity 
+            = new EncodedPublicKey(ImmutableArray.Create<byte>(0));
+
         public readonly ImmutableArray<byte> Key;
 
         public int Size => Key.Length;
@@ -24,11 +29,6 @@ namespace NeoFx
         public EncodedPublicKey(ImmutableArray<byte> key)
         {
             Key = key;
-        }
-
-        public EncodedPublicKey(byte[] key)
-        {
-            Key = ImmutableArray.Create(key);
         }
 
         public EncodedPublicKey(ECPoint point, bool compressed)
@@ -56,16 +56,51 @@ namespace NeoFx
             return false;
         }
 
-        //public bool TryWrite(Span<byte> buffer)
-        //{
-        //    return Key.Span.TryCopyTo(buffer);
-        //}
+        public static EncodedPublicKey Encode(ECPoint point, bool compressed)
+        {
+            if (TryEncode(point, compressed, out var value))
+            {
+                return value;
+            }
 
-        //public void Write(Span<byte> buffer)
-        //{
-        //    if (!TryWrite(buffer))
-        //        throw new ArgumentException(nameof(buffer));
-        //}
+            throw new ArgumentException(nameof(point));
+        }
+        
+        public bool TryCompress(out EncodedPublicKey value)
+        {
+            if (Key.Length == 1 && Key[0] == 0x00)
+            {
+                value = this;
+                return true;
+            }
+
+            if (Key.Length == 33
+                && (Key[0] == 0x02
+                || Key[0] == 0x03))
+            {
+                value = this;
+                return true;
+            }
+
+            if (Key.Length == 65
+                && (Key[0] == 0x04
+                || Key[0] == 0x06
+                || Key[0] == 0x07))
+            {
+
+                var newKey = new byte[33];
+                Key.CopyTo(newKey);
+                var y = new BigInteger(Key.AsSpan().Slice(33, 32), true, true);
+                newKey[0] = y.IsEven ? (byte)0x02 : (byte)0x03;
+
+                var immutableNewKey = Unsafe.As<byte[], ImmutableArray<byte>>(ref newKey);
+                value = new EncodedPublicKey(immutableNewKey);
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
 
         public static bool TryRead(ref BufferReader<byte> reader, out EncodedPublicKey value)
         {

@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 
 namespace NeoFx.Models
 {
@@ -24,10 +25,10 @@ namespace NeoFx.Models
                                    EncodedPublicKey owner,
                                    in UInt160 admin,
                                    byte version,
-                                   IEnumerable<TransactionAttribute> attributes,
-                                   IEnumerable<CoinReference> inputs,
-                                   IEnumerable<TransactionOutput> outputs,
-                                   IEnumerable<Witness> witnesses)
+                                   IEnumerable<TransactionAttribute>? attributes = null,
+                                   IEnumerable<CoinReference>? inputs = null,
+                                   IEnumerable<TransactionOutput>? outputs = null,
+                                   IEnumerable<Witness>? witnesses = null)
             : base(version, attributes, inputs, outputs, witnesses)
         {
             AssetType = assetType;

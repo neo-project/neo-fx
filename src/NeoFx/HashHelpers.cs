@@ -7,6 +7,7 @@ using System;
 using System.Buffers;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -226,6 +227,25 @@ namespace NeoFx
 
             value = default;
             return false;
+        }
+
+        public static UInt160 CalculateScriptHash(this ReadOnlySpan<byte> span)
+        {
+            if (TryCalculateScriptHash(span, out var value))
+            {
+                return value;
+            }
+
+            throw new ArgumentException(nameof(span));
+        }
+
+        public static bool TryCalculateScriptHash(this ReadOnlySpan<byte> span, out UInt160 hash)
+        {
+            hash = default;
+            var hashSpan = MemoryMarshal.CreateSpan(ref hash, 1);
+            var hashBuffer = MemoryMarshal.Cast<UInt160, byte>(hashSpan);
+            Debug.Assert(hashBuffer.Length >= UInt160.Size);
+            return TryHash160(span, hashBuffer);
         }
     }
 }
