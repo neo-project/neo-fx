@@ -13,6 +13,8 @@ namespace NeoFx.TestNode
 
         public static IHostBuilder CreateHostBuilder(string[] args) =>
             Host.CreateDefaultBuilder(args)
+                .UseWindowsService()
+                .UseSystemd()
                 .ConfigureServices((context, services) =>
                 {
                     // services.AddTransient<IHeaderStorage, MemoryHeaderStorage>();
