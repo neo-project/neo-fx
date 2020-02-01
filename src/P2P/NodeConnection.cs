@@ -106,10 +106,11 @@ namespace NeoFx.P2P
                 log.LogDebug("Received {command} message header {magic} {length} {checksum}",
                     header.Command, header.Magic, header.Length, header.Checksum);
 
-                if (buffer.Length < MessageHeader.Size + header.Length)
+                var messageLength = MessageHeader.Size + header.Length;
+                if (buffer.Length < messageLength)
                 {
                     log.LogTrace("Haven't received enough data to read the message payload {bufferNeeded} {bufferLength}",
-                        MessageHeader.Size + header.Length, buffer.Length);
+                        messageLength, buffer.Length);
                     inputPipe.AdvanceTo(buffer.GetPosition(0), buffer.GetPosition(buffer.Length));
                     continue;
                 }
@@ -118,14 +119,14 @@ namespace NeoFx.P2P
                 {
                     // ignore messages sent with the wrong magic value
                     log.LogWarning("Ignoring message with incorrect magic {expected} {actual}", Magic, header.Magic);
-                    inputPipe.AdvanceTo(buffer.GetPosition(MessageHeader.Size + header.Length));
+                    inputPipe.AdvanceTo(buffer.GetPosition(messageLength));
                     continue;
                 }
 
-                if (Message.TryRead(buffer, header, out var message))
+                if (Message.TryRead(buffer.Slice(0, messageLength), header, out var message))
                 {
                     log.LogDebug("Receive {message}", message.GetType().Name);
-                    inputPipe.AdvanceTo(buffer.GetPosition(MessageHeader.Size + header.Length));
+                    inputPipe.AdvanceTo(buffer.GetPosition(messageLength));
 
                     return message;
                 }
