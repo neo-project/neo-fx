@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO.Pipelines;
+using System.Net;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
@@ -34,7 +35,7 @@ namespace NeoFx.P2P
             pipelineSocket.Dispose();
         }
 
-        public async Task ConnectAsync(string host, int port, uint magic, VersionPayload payload, CancellationToken token = default)
+        private async Task PerformVersionHandshake(uint magic, VersionPayload payload, CancellationToken token)
         {
             async Task<T> ReceiveMessage<T>(CancellationToken token)
                 where T : Message
@@ -48,11 +49,7 @@ namespace NeoFx.P2P
                 throw new InvalidOperationException($"Expected {typeof(T).Name} message, received {message.GetType().Name}");
             }
 
-            log.LogTrace("ConnectAsync {magic} to {host}:{port}", magic, host, port);
-
             Magic = magic;
-
-            await pipelineSocket.ConnectAsync(host, port, token).ConfigureAwait(false);
 
             log.LogDebug("Sending version message");
             await SendVersion(payload, token).ConfigureAwait(false);
@@ -67,6 +64,19 @@ namespace NeoFx.P2P
             log.LogDebug("Received verack message");
 
             VersionPayload = versionMessage.Payload;
+        }
+        public async Task ConnectAsync(IPEndPoint endPoint, uint magic, VersionPayload payload, CancellationToken token = default)
+        {
+            log.LogTrace("ConnectAsync {magic} to {host}:{port}", magic, endPoint.Address, endPoint.Port);
+            await pipelineSocket.ConnectAsync(endPoint, token).ConfigureAwait(false);
+            await PerformVersionHandshake(magic, payload, token);
+        }
+
+        public async Task ConnectAsync(string host, int port, uint magic, VersionPayload payload, CancellationToken token = default)
+        {
+            log.LogTrace("ConnectAsync {magic} to {host}:{port}", magic, host, port);
+            await pipelineSocket.ConnectAsync(host, port, token).ConfigureAwait(false);
+            await PerformVersionHandshake(magic, payload, token);
         }
 
         public async IAsyncEnumerable<Message> ReceiveMessages([EnumeratorCancellation] CancellationToken token = default)

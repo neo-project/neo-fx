@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using NeoFx.Models;
@@ -10,6 +11,7 @@ namespace NeoFx.P2P
     {
         VersionPayload VersionPayload { get; }
         Task ConnectAsync(string host, int port, uint magic, VersionPayload payload, CancellationToken token = default);
+        Task ConnectAsync(IPEndPoint endPoint, uint magic, VersionPayload payload, CancellationToken token = default);
         Task<Message> ReceiveMessage(CancellationToken token);
         IAsyncEnumerable<Message> ReceiveMessages(CancellationToken token = default);
         ValueTask SendAddrMessage(in AddrPayload payload, CancellationToken token = default);

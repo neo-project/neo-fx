@@ -71,11 +71,12 @@ namespace NeoFx.TestNode
                 await nodeConnection.ConnectAsync(address, port, networkOptions.Magic, versionPayload);
                 log.LogInformation("Connected to {userAgent}", nodeConnection.VersionPayload.UserAgent);
 
+                await nodeConnection.SendGetAddrMessage(token);
+
+                UInt256 lastHash;
+                if (headerStorage.TryGetLastHash(out lastHash))
                 {
-                    if (headerStorage.TryGetLastHash(out var lastHash))
-                    {
-                        await nodeConnection.SendGetHeadersMessage(new HashListPayload(lastHash)).ConfigureAwait(false);
-                    }
+                    await nodeConnection.SendGetHeadersMessage(new HashListPayload(lastHash)).ConfigureAwait(false);
                 }
 
                 await foreach (var msg in nodeConnection.ReceiveMessages(token))
@@ -85,15 +86,21 @@ namespace NeoFx.TestNode
 
                     switch (msg)
                     {
-                        // case InvMessage invMessage:
-                        //     log.LogInformation("Received InvMessage {type} {count}", invMessage.Type, invMessage.Hashes.Length);
-                        //     break;
+                        case AddrMessage addrMessage:
+                            {
+                                log.LogInformation("Received AddrMessage {addressCount}", addrMessage.Addresses.Length);
+                                foreach (var a in addrMessage.Addresses)
+                                {
+                                    log.LogInformation("    {address}", a.EndPoint);
+                                }
+                            }
+                            break;
                         case HeadersMessage headersMessage:
                             {
                                 AddRange(headerStorage, headersMessage.Headers.AsSpan());
                                 log.LogInformation("Received HeadersMessage {messageCount} {totalCount}", headersMessage.Headers.Length, headerStorage.Count);
 
-                                if (headerStorage.TryGetLastHash(out var lastHash))
+                                if (headerStorage.TryGetLastHash(out lastHash))
                                 {
                                     await nodeConnection.SendGetHeadersMessage(new HashListPayload(lastHash)).ConfigureAwait(false);
                                 }
@@ -102,9 +109,16 @@ namespace NeoFx.TestNode
                     }
                 }
             }
+            catch (OperationCanceledException _)
+            {
+                // ignore operation canceled exceptions
+            }
             catch (Exception ex)
             {
-                log.LogError(ex, string.Empty);
+                if (!token.IsCancellationRequested)
+                {
+                    log.LogError(ex, string.Empty);
+                }
             }
             finally
             {

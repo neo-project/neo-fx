@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.IO.Pipelines;
+using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
@@ -24,13 +25,26 @@ namespace NeoFx.P2P
 
         public PipeWriter Output => sendPipe.Writer;
 
+        public void ScheduleWorkerThreads(CancellationToken token)
+        {
+            PipeScheduler.ThreadPool.Schedule((_) => SocketReceiveAsync(token), null);
+            PipeScheduler.ThreadPool.Schedule((_) => SocketSendAsync(token), null);
+        }
+
         public async Task ConnectAsync(string host, int port, CancellationToken token = default)
         {
             log.LogTrace("connecting to {host} : {port}", host, port);
 
             await socket.ConnectAsync(host, port).ConfigureAwait(false);
-            PipeScheduler.ThreadPool.Schedule((_) => SocketReceiveAsync(token), null);
-            PipeScheduler.ThreadPool.Schedule((_) => SocketSendAsync(token), null);
+            ScheduleWorkerThreads(token);
+        }
+
+        public async Task ConnectAsync(IPEndPoint endpoint, CancellationToken token = default)
+        {
+            log.LogTrace("connecting to {host} : {port}", endpoint.Address, endpoint.Port);
+
+            await socket.ConnectAsync(endpoint).ConfigureAwait(false);
+            ScheduleWorkerThreads(token);
         }
 
         public void Dispose()
@@ -70,7 +84,10 @@ namespace NeoFx.P2P
 #pragma warning disable CA1031 // Do not catch general exception types
             catch (Exception ex)
             {
-                log.LogError(ex, "{method} exception", nameof(SocketReceiveAsync));
+                if (!token.IsCancellationRequested)
+                {
+                    log.LogError(ex, "{method} exception", nameof(SocketReceiveAsync));
+                }
                 recvPipe.Writer.Complete(ex);
             }
 #pragma warning restore CA1031 // Do not catch general exception types
@@ -120,7 +137,10 @@ namespace NeoFx.P2P
 #pragma warning disable CA1031 // Do not catch general exception types
             catch (Exception ex)
             {
-                log.LogError(ex, "{method} exception", nameof(SocketSendAsync));
+                if (!token.IsCancellationRequested)
+                {
+                    log.LogError(ex, "{method} exception", nameof(SocketSendAsync));
+                }
                 sendPipe.Reader.Complete(ex);
             }
 #pragma warning restore CA1031 // Do not catch general exception types
