@@ -191,13 +191,15 @@ namespace NeoFx.P2P
             Debug.Assert(headerWriter.Span.IsEmpty);
 
             output.Advance(messageSize);
+
+            // https://github.com/dotnet/runtime/issues/31503#issuecomment-554415966
             var task = output.FlushAsync(token);
             if (task.IsCompletedSuccessfully)
             {
+                var _ = task.Result;
                 return default;
             }
 
-            // TODO: this can probably be optimized
             log.LogWarning("converting valuetask to task");
             return new ValueTask(task.AsTask());
         }
