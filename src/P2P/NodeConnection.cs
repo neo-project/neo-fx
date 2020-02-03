@@ -23,17 +23,11 @@ namespace NeoFx.P2P
         public uint Magic { get; private set; }
         public VersionPayload VersionPayload { get; private set; }
 
-        public NodeConnection(ILoggerFactory? loggerFactory = null)
+        public NodeConnection(ILoggerFactory? loggerFactory)
         {
             loggerFactory = loggerFactory ?? NullLoggerFactory.Instance;
             log = loggerFactory.CreateLogger<NodeConnection>();
             pipelineSocket = new PipelineSocket(loggerFactory.CreateLogger<PipelineSocket>());
-        }
-
-        public NodeConnection(ILogger<NodeConnection> logger)
-        {
-            log = logger;
-            pipelineSocket = new PipelineSocket();
         }
 
         public void Dispose()
