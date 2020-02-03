@@ -27,8 +27,10 @@ namespace NeoFx.P2P
 
         public void ScheduleWorkerThreads(CancellationToken token)
         {
-            PipeScheduler.ThreadPool.Schedule((_) => SocketReceiveAsync(token), null);
-            PipeScheduler.ThreadPool.Schedule((_) => SocketSendAsync(token), null);
+#pragma warning disable CS4014 //Consider applying the 'await' operator to the result of the call.
+            SocketReceiveAsync(token); 
+            SocketSendAsync(token);
+#pragma warning restore CS4014 // Consider applying the 'await' operator to the result of the call.
         }
 
         public async Task ConnectAsync(string host, int port, CancellationToken token = default)
@@ -52,7 +54,7 @@ namespace NeoFx.P2P
             socket.Dispose();
         }
 
-        private async void SocketReceiveAsync(CancellationToken token)
+        private async Task SocketReceiveAsync(CancellationToken token)
         {
             try
             {
@@ -93,7 +95,7 @@ namespace NeoFx.P2P
 #pragma warning restore CA1031 // Do not catch general exception types
         }
 
-        private async void SocketSendAsync(CancellationToken token)
+        private async Task SocketSendAsync(CancellationToken token)
         {
             try
             {
