@@ -16,7 +16,7 @@ namespace NeoFx.P2P
         private readonly Pipe recvPipe = new Pipe();
         private readonly ILogger<PipelineSocket> log;
 
-        public PipelineSocket(ILogger<PipelineSocket> log)
+        public PipelineSocket(ILogger<PipelineSocket>? log = null)
         {
             this.log = log ?? NullLogger<PipelineSocket>.Instance;
         }

@@ -109,7 +109,7 @@ namespace NeoFx.TestNode
                     }
                 }
             }
-            catch (OperationCanceledException _)
+            catch (OperationCanceledException)
             {
                 // ignore operation canceled exceptions
             }
