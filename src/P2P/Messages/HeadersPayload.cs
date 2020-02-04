@@ -6,7 +6,7 @@ using NeoFx.Storage;
 
 namespace NeoFx.P2P.Messages
 {
-    public readonly struct HeadersPayload : IPayload<HeadersPayload>
+    public readonly struct HeadersPayload : IWritable<HeadersPayload>
     {
         public readonly ImmutableArray<BlockHeader> Headers;
 

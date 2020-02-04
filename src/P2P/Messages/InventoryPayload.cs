@@ -6,7 +6,7 @@ using System.Collections.Immutable;
 namespace NeoFx.P2P.Messages
 {
     // Used for inv and getdata messages
-    public readonly struct InventoryPayload : IPayload<InventoryPayload>
+    public readonly struct InventoryPayload : IWritable<InventoryPayload>
     {
         public enum InventoryType : byte
         {

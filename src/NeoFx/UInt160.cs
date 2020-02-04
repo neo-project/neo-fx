@@ -25,6 +25,8 @@ namespace NeoFx
 
         public const int Size = (2 * sizeof(ulong)) + sizeof(uint);
 
+        int IWritable<UInt160>.Size => Size;
+
         internal UInt160(ulong data1, ulong data2, uint data3)
         {
             this.data1 = data1;

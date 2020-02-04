@@ -13,6 +13,7 @@ using DevHawk.Buffers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NeoFx.P2P.Messages;
+using NeoFx.Storage;
 
 namespace NeoFx.P2P
 {
@@ -144,7 +145,7 @@ namespace NeoFx.P2P
         }
 
         private ValueTask SendMessage<T>(string command, in T payload, CancellationToken token)
-            where T : IPayload<T>
+            where T : IWritable<T>
         {
             log.LogDebug("SendMessage {magic} {command} {payload}", Magic, command, typeof(T).Name);
 
@@ -195,7 +196,7 @@ namespace NeoFx.P2P
             return new ValueTask(task.AsTask());
         }
 
-        private struct NullPayload : IPayload<NullPayload>
+        private struct NullPayload : IWritable<NullPayload>
         {
             public int Size => 0;
 

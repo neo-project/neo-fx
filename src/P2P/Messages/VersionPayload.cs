@@ -5,7 +5,7 @@ using NeoFx.Storage;
 
 namespace NeoFx.P2P.Messages
 {
-    public readonly struct VersionPayload : IWritable<VersionPayload>, IPayload<VersionPayload>
+    public readonly struct VersionPayload : IWritable<VersionPayload>
     {
         public const uint PROTOCOL_VERSION = 0;
         public const ulong NODE_NETWORK = 1;

@@ -10,7 +10,6 @@ namespace NeoFx
     public readonly struct Fixed8 : IComparable<Fixed8>, IEquatable<Fixed8>, IWritable<Fixed8>
     {
         private const long D = 100_000_000;
-        public const int Size = sizeof(long);
 
         public static readonly Fixed8 MaxValue = new Fixed8(long.MaxValue);
         public static readonly Fixed8 MinValue = new Fixed8(long.MinValue);
@@ -19,6 +18,10 @@ namespace NeoFx
         public static readonly Fixed8 Zero;
 
         private readonly long value;
+
+        public const int Size = sizeof(long);
+
+        int IWritable<Fixed8>.Size => Size;
 
         private Fixed8(long value)
         {

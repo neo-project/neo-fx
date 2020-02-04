@@ -5,7 +5,7 @@ using NeoFx.Storage;
 
 namespace NeoFx.P2P.Messages
 {
-    public readonly struct PingPongPayload : IPayload<PingPongPayload>
+    public readonly struct PingPongPayload : IWritable<PingPongPayload>
     {
         public readonly uint LastBlockIndex;
         public readonly DateTimeOffset Timestamp;
@@ -25,7 +25,7 @@ namespace NeoFx.P2P.Messages
 
         public const int Size = sizeof(uint) * 3;
 
-        int IPayload<PingPongPayload>.Size => Size;
+        int IWritable<PingPongPayload>.Size => Size;
 
         public static bool TryRead(ref BufferReader<byte> reader, out PingPongPayload payload)
         {

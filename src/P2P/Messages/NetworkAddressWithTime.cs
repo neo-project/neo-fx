@@ -22,6 +22,8 @@ namespace NeoFx.P2P.Messages
         public const ulong NODE_NETWORK = 1;
         public const int Size = 30;
 
+        int IWritable<NetworkAddressWithTime>.Size => Size;
+
         public NetworkAddressWithTime(
             IPEndPoint endpoint,
             DateTimeOffset timestamp = default,

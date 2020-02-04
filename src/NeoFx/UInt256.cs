@@ -26,6 +26,8 @@ namespace NeoFx
 
         public const int Size = 4 * sizeof(ulong);
 
+        int IWritable<UInt256>.Size => Size;
+
         internal UInt256(ulong data1, ulong data2, ulong data3, ulong data4)
         {
             this.data1 = data1;
@@ -202,6 +204,11 @@ namespace NeoFx
         bool IEquatable<UInt256>.Equals(UInt256 other)
         {
             return this.Equals(other);
+        }
+
+        void IWritable<UInt256>.WriteTo(ref BufferWriter<byte> writer)
+        {
+            throw new NotImplementedException();
         }
 
         public static bool operator ==(in UInt256 left, in UInt256 right)

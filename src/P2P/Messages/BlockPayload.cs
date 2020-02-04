@@ -1,10 +1,11 @@
 using DevHawk.Buffers;
 using NeoFx.Models;
+using NeoFx.Storage;
 using System.Diagnostics.CodeAnalysis;
 
 namespace NeoFx.P2P.Messages
 {
-    public readonly struct BlockPayload : IPayload<BlockPayload>
+    public readonly struct BlockPayload : IWritable<BlockPayload>
     {
         public readonly Block Block;
 

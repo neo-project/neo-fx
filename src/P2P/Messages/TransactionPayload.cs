@@ -1,9 +1,10 @@
 using DevHawk.Buffers;
 using NeoFx.Models;
+using NeoFx.Storage;
 
 namespace NeoFx.P2P.Messages
 {
-    public readonly struct TransactionPayload : IPayload<TransactionPayload>
+    public readonly struct TransactionPayload : IWritable<TransactionPayload>
     {
         public readonly Transaction Transaction;
 

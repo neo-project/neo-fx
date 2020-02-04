@@ -5,7 +5,7 @@ using NeoFx.Storage;
 
 namespace NeoFx.P2P.Messages
 {
-    public readonly struct AddrPayload : IPayload<AddrPayload>
+    public readonly struct AddrPayload : IWritable<AddrPayload>
     {
         public readonly ImmutableArray<NetworkAddressWithTime> Addresses;
 

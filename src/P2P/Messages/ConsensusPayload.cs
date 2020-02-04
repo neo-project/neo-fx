@@ -7,7 +7,7 @@ using System.Diagnostics;
 
 namespace NeoFx.P2P.Messages
 {
-    public readonly struct ConsensusPayload : IPayload<ConsensusPayload>
+    public readonly struct ConsensusPayload : IWritable<ConsensusPayload>
     {
         public readonly uint Version;
         public readonly UInt256 PrevHash;
