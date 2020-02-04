@@ -17,10 +17,10 @@ namespace NeoFx.TestNode
         private readonly ILogger<Worker> log;
         private readonly NetworkOptions networkOptions;
         private readonly NodeOptions nodeOptions;
-        private readonly INodeConnection nodeConnection;
+        private readonly INodeConnectionFactory nodeConnectionFactory;
         private readonly IHeaderStorage headerStorage;
 
-        public Worker(INodeConnection nodeConnection,
+        public Worker(INodeConnectionFactory nodeConnectionFactory,
                       IHostApplicationLifetime hostApplicationLifetime,
                       ILogger<Worker> log,
                       IOptions<NetworkOptions> networkOptions,
@@ -31,7 +31,7 @@ namespace NeoFx.TestNode
             this.log = log;
             this.networkOptions = networkOptions.Value;
             this.nodeOptions = nodeOptions.Value;
-            this.nodeConnection = nodeConnection;
+            this.nodeConnectionFactory = nodeConnectionFactory;
             this.headerStorage = headerStorage;
 
             log.LogInformation("header storage {type} {count}", headerStorage.GetType().Name, headerStorage.Count);
@@ -64,6 +64,8 @@ namespace NeoFx.TestNode
 
             try
             {
+                var nodeConnection = nodeConnectionFactory.CreateConnection();
+                
                 var (address, port) = networkOptions.GetRandomSeed();
                 var versionPayload = new VersionPayload(GetNonce(), nodeOptions.UserAgent);
 
