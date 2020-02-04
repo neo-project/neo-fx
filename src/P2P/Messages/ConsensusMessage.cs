@@ -33,7 +33,7 @@ namespace NeoFx.P2P.Messages
                 nameof(ConsensusMessage), Payload.BlockIndex, Payload.ValidatorIndex);
         }
 
-        public static bool TryRead(ref BufferReader<byte> reader, in MessageHeader header, [MaybeNullWhen(false)] out ConsensusMessage message)
+        public static bool TryRead(ref BufferReader<byte> reader, in MessageHeader header, [NotNullWhen(true)] out ConsensusMessage? message)
         {
             if (ConsensusPayload.TryRead(ref reader, out var payload))
             {

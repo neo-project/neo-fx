@@ -26,7 +26,7 @@ namespace NeoFx.P2P.Messages
                 Transaction.GetTransactionType());
         }
 
-        public static bool TryRead(ref BufferReader<byte> reader, in MessageHeader header, [MaybeNullWhen(false)] out TransactionMessage message)
+        public static bool TryRead(ref BufferReader<byte> reader, in MessageHeader header, [NotNullWhen(true)] out TransactionMessage? message)
         {
             if (TransactionPayload.TryRead(ref reader, out var payload))
             {

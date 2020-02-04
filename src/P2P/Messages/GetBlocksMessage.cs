@@ -27,7 +27,7 @@ namespace NeoFx.P2P.Messages
                 Payload.HashStop);
         }
 
-        public static bool TryRead(ref BufferReader<byte> reader, in MessageHeader header, [MaybeNullWhen(false)] out GetBlocksMessage message)
+        public static bool TryRead(ref BufferReader<byte> reader, in MessageHeader header, [NotNullWhen(true)] out GetBlocksMessage? message)
         {
             if (HashListPayload.TryRead(ref reader, out var payload))
             {

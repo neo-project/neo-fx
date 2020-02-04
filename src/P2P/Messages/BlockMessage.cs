@@ -24,7 +24,7 @@ namespace NeoFx.P2P.Messages
                 Block.Index);
         }
 
-        public static bool TryRead(ref BufferReader<byte> reader, in MessageHeader header, [MaybeNullWhen(false)] out BlockMessage message)
+        public static bool TryRead(ref BufferReader<byte> reader, in MessageHeader header, [NotNullWhen(true)] out BlockMessage? message)
         {
             if (BlockPayload.TryRead(ref reader, out var payload))
             {

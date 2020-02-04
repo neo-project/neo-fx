@@ -28,7 +28,7 @@ namespace NeoFx.P2P.Messages
                 Payload.Hashes.Length);
         }
 
-        public static bool TryRead(ref BufferReader<byte> reader, in MessageHeader header, [MaybeNullWhen(false)] out GetDataMessage message)
+        public static bool TryRead(ref BufferReader<byte> reader, in MessageHeader header, [NotNullWhen(true)] out GetDataMessage? message)
         {
             if (InventoryPayload.TryRead(ref reader, out var payload))
             {

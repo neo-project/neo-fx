@@ -21,7 +21,7 @@ namespace NeoFx.P2P.Messages
 
         abstract public void LogMessage(ILogger logger);
 
-        public static bool TryRead(ReadOnlySequence<byte> sequence, in MessageHeader header, [MaybeNullWhen(false)] out Message message)
+        public static bool TryRead(ReadOnlySequence<byte> sequence, in MessageHeader header, [NotNullWhen(true)] out Message? message)
         {
             if (header.Length == 0)
             {

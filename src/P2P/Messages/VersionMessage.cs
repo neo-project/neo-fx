@@ -34,7 +34,7 @@ namespace NeoFx.P2P.Messages
                 Payload.Timestamp);
         }
 
-        public static bool TryRead(ref BufferReader<byte> reader, in MessageHeader header, [MaybeNullWhen(false)] out VersionMessage message)
+        public static bool TryRead(ref BufferReader<byte> reader, in MessageHeader header, [NotNullWhen(true)] out VersionMessage? message)
         {
             if (VersionPayload.TryRead(ref reader, out var payload))
             {
