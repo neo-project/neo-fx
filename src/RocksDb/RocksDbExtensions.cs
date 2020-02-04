@@ -3,6 +3,8 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using DevHawk.Buffers;
+using NeoFx.Storage;
 
 namespace NeoFx.RocksDb
 {
@@ -11,11 +13,6 @@ namespace NeoFx.RocksDb
     using ColumnFamilyHandle = RocksDbSharp.ColumnFamilyHandle;
     using WriteBatch = RocksDbSharp.WriteBatch;
     using static RocksDbSharp.Native;
-
-    public interface ISpanReader<T>
-    {
-        bool TryReadSpan(ReadOnlySpan<byte> span, out T value);
-    }
 
     public interface ISpanWriter<T>
     {
@@ -31,12 +28,13 @@ namespace NeoFx.RocksDb
                                                           UIntPtr length,
                                                           TReader factory,
                                                           [MaybeNullWhen(false)] out T value)
-            where TReader : ISpanReader<T>
+            where TReader : IFactoryReader<T>
         {
             if (intPtr != IntPtr.Zero)
             {
                 var span = new ReadOnlySpan<byte>((byte*)intPtr, (int)length);
-                return factory.TryReadSpan(span, out value);
+                var reader = new BufferReader<byte>(span);
+                return factory.TryReadItem(ref reader, out value);
             }
 
             value = default!;
@@ -47,7 +45,7 @@ namespace NeoFx.RocksDb
                                                      ReadOnlySpan<byte> key,
                                                      ColumnFamilyHandle columnFamily,
                                                      [MaybeNullWhen(false)] out T value)
-            where TReader : struct, ISpanReader<T>
+            where TReader : struct, IFactoryReader<T>
         {
             return TryGet<T, TReader>(db, key, columnFamily, null, default, out value);
         }
@@ -57,7 +55,7 @@ namespace NeoFx.RocksDb
                                                      ColumnFamilyHandle columnFamily,
                                                      TReader factory,
                                                      [MaybeNullWhen(false)] out T value)
-            where TReader : ISpanReader<T>
+            where TReader : IFactoryReader<T>
         {
             return TryGet(db, key, columnFamily, null, factory, out value);
         }
@@ -67,7 +65,7 @@ namespace NeoFx.RocksDb
                                                      ColumnFamilyHandle columnFamily,
                                                      ReadOptions? readOptions,
                                                      [MaybeNullWhen(false)] out T value)
-            where TReader : struct, ISpanReader<T>
+            where TReader : struct, IFactoryReader<T>
         {
             return TryGet<T, TReader>(db, key, columnFamily, readOptions, default, out value);
         }
@@ -78,7 +76,7 @@ namespace NeoFx.RocksDb
                                                      ReadOptions? readOptions,
                                                      TReader factory,
                                                      [MaybeNullWhen(false)] out T value)
-            where TReader : ISpanReader<T>
+            where TReader : IFactoryReader<T>
         {
             fixed (byte* keyPtr = key)
             {
@@ -100,8 +98,8 @@ namespace NeoFx.RocksDb
         private static IEnumerable<(TKey key, TValue value)> Iterate<TKey, TKeyReader, TValue, TValueReader>(RocksDbSharp.Iterator iterator,
                                                                                                              TKeyReader keyFactory,
                                                                                                              TValueReader valueFactory)
-            where TKeyReader : ISpanReader<TKey>
-            where TValueReader : ISpanReader<TValue>
+            where TKeyReader : IFactoryReader<TKey>
+            where TValueReader : IFactoryReader<TValue>
         {
             while (iterator.Valid())
             {
@@ -120,8 +118,8 @@ namespace NeoFx.RocksDb
 
         public static IEnumerable<(TKey key, TValue value)> Iterate<TKey, TKeyReader, TValue, TValueReader>(this RocksDb db,
                                                                                                             ColumnFamilyHandle columnFamily)
-            where TKeyReader : struct, ISpanReader<TKey>
-            where TValueReader : struct, ISpanReader<TValue>
+            where TKeyReader : struct, IFactoryReader<TKey>
+            where TValueReader : struct, IFactoryReader<TValue>
         {
             return Iterate<TKey, TKeyReader, TValue, TValueReader>(db, columnFamily, default, default);
         }
@@ -130,8 +128,8 @@ namespace NeoFx.RocksDb
                                                                                                             ColumnFamilyHandle columnFamily,
                                                                                                             TKeyReader keyFactory,
                                                                                                             TValueReader valueFactory)
-            where TKeyReader : ISpanReader<TKey>
-            where TValueReader : ISpanReader<TValue>
+            where TKeyReader : IFactoryReader<TKey>
+            where TValueReader : IFactoryReader<TValue>
         {
             using var iterator = db.NewIterator(columnFamily);
             iterator.SeekToFirst();
@@ -141,8 +139,8 @@ namespace NeoFx.RocksDb
         public static unsafe IEnumerable<(TKey key, TValue value)> Search<TKey, TKeyReader, TValue, TValueReader>(this RocksDb db,
                                                                                                                   ColumnFamilyHandle columnFamily,
                                                                                                                   Span<byte> prefix)
-            where TKeyReader : struct, ISpanReader<TKey>
-            where TValueReader : struct, ISpanReader<TValue>
+            where TKeyReader : struct, IFactoryReader<TKey>
+            where TValueReader : struct, IFactoryReader<TValue>
         {
             return Search<TKey, TKeyReader, TValue, TValueReader>(db, columnFamily, prefix, default, default);
         }
@@ -152,8 +150,8 @@ namespace NeoFx.RocksDb
                                                                                                                   Span<byte> prefix,
                                                                                                                   TKeyReader keyFactory,
                                                                                                                   TValueReader valueFactory)
-            where TKeyReader : ISpanReader<TKey>
-            where TValueReader : ISpanReader<TValue>
+            where TKeyReader : IFactoryReader<TKey>
+            where TValueReader : IFactoryReader<TValue>
         {
             fixed (byte* prefixPtr = prefix)
             {

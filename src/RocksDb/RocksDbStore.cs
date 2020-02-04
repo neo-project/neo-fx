@@ -148,7 +148,7 @@ namespace NeoFx.RocksDb
             Span<byte> keyPrefix = stackalloc byte[UInt160.Size];
             scriptHash.Write(keyPrefix);
 
-            return db.Search<StorageKey, StorageKeyReader, StorageItem, StorageItemReader>(columnFamily, keyPrefix)
+            return db.Search<StorageKey, StorageKey.Factory, StorageItem, StorageItemStateFactory>(columnFamily, keyPrefix)
                 .Select(t => (t.key.Key, t.value));
         }
 
@@ -160,7 +160,7 @@ namespace NeoFx.RocksDb
             Span<byte> keybuffer = stackalloc byte[UInt160.Size];
 
             if (key.TryWrite(keybuffer)
-                && db.TryGet<Account, AccountStateReader>(keybuffer, columnFamily, out Account account))
+                && db.TryGet<Account, AccountStateFactory>(keybuffer, columnFamily, out Account account))
             {
                 value = account;
                 return true;
@@ -182,7 +182,7 @@ namespace NeoFx.RocksDb
             //  Span<byte> keyBuffer = MemoryMarshal.AsBytes(keySpan).Slice(0, UInt256.Size);
 
             if (key.TryWrite(keybuffer)
-                && db.TryGet<Asset, AssetStateReader>(keybuffer, columnFamily, out Asset asset))
+                && db.TryGet<Asset, AssetStateFactory>(keybuffer, columnFamily, out Asset asset))
             {
                 value = asset;
                 return true;
@@ -241,7 +241,7 @@ namespace NeoFx.RocksDb
             Span<byte> keybuffer = stackalloc byte[UInt256.Size];
 
             if (key.TryWrite(keybuffer)
-                && db.TryGet<(long systemFee, BlockHeader header, ImmutableArray<UInt256> hashes), BlockStateReader>(keybuffer, columnFamily, out var value))
+                && db.TryGet<(long systemFee, BlockHeader header, ImmutableArray<UInt256> hashes), BlockStateFactory>(keybuffer, columnFamily, out var value))
             {
                 header = value.header;
                 hashes = value.hashes;
@@ -275,7 +275,7 @@ namespace NeoFx.RocksDb
             Span<byte> keybuffer = stackalloc byte[UInt160.Size];
 
             if (key.TryWrite(keybuffer)
-                && db.TryGet<DeployedContract, ContractStateReader>(keybuffer, columnFamily, out DeployedContract contract))
+                && db.TryGet<DeployedContract, ContractStateFactory>(keybuffer, columnFamily, out DeployedContract contract))
             {
                 value = contract;
                 return true;
@@ -293,7 +293,7 @@ namespace NeoFx.RocksDb
             Span<byte> keybuffer = stackalloc byte[1];
             keybuffer[0] = CURRENT_BLOCK_KEY;
 
-            if (db.TryGet<(UInt256 hash, uint index), HashIndexStateReader>(keybuffer, columnFamily, out var currentBlock))
+            if (db.TryGet<(UInt256 hash, uint index), HashIndexStateFactory>(keybuffer, columnFamily, out var currentBlock))
             {
                 value = currentBlock.hash;
                 return false;
@@ -312,7 +312,7 @@ namespace NeoFx.RocksDb
             Span<byte> keybuffer = stackalloc byte[key.Size];
 
             if (key.TryWrite(keybuffer, out var _)
-                && db.TryGet<StorageItem, StorageItemReader>(keybuffer, columnFamily, out StorageItem item))
+                && db.TryGet<StorageItem, StorageItemStateFactory>(keybuffer, columnFamily, out StorageItem item))
             {
                 value = item;
                 return true;
@@ -330,7 +330,7 @@ namespace NeoFx.RocksDb
             Span<byte> keybuffer = stackalloc byte[UInt256.Size];
 
             if (key.TryWrite(keybuffer)
-                && db.TryGet<(uint blockIndex, Transaction tx), TransactionStateReader>(keybuffer, columnFamily, out var txState))
+                && db.TryGet<(uint blockIndex, Transaction tx), TransactionStateFactory>(keybuffer, columnFamily, out var txState))
             {
                 index = txState.blockIndex;
                 value = txState.tx;
@@ -350,7 +350,7 @@ namespace NeoFx.RocksDb
             Span<byte> keybuffer = stackalloc byte[UInt256.Size];
 
             if (key.TryWrite(keybuffer)
-                && db.TryGet<ImmutableArray<CoinState>, UnspentCoinsStateReader>(keybuffer, columnFamily, out var item))
+                && db.TryGet<ImmutableArray<CoinState>, UnspentCoinsStateFactory>(keybuffer, columnFamily, out var item))
             {
                 value = item;
                 return true;
@@ -365,7 +365,7 @@ namespace NeoFx.RocksDb
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
             var columnFamily = db.GetColumnFamily(VALIDATOR_FAMILY);
-            if (db.TryGet<Validator, ValidatorStateReader>(key.Key.AsSpan(), columnFamily, out Validator validator))
+            if (db.TryGet<Validator, ValidatorStateFactory>(key.Key.AsSpan(), columnFamily, out Validator validator))
             {
                 value = validator;
                 return true;
@@ -381,7 +381,7 @@ namespace NeoFx.RocksDb
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
             var columnFamily = db.GetColumnFamily(ACCOUNT_FAMILY);
-            return db.Iterate<UInt160, UInt160Reader, Account, AccountStateReader>(columnFamily);
+            return db.Iterate<UInt160, UInt160.Factory, Account, AccountStateFactory>(columnFamily);
         }
 
         public IEnumerable<(UInt256 key, Asset assetState)> GetAssets()
@@ -389,7 +389,7 @@ namespace NeoFx.RocksDb
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
             var columnFamily = db.GetColumnFamily(ASSET_FAMILY);
-            return db.Iterate<UInt256, UInt256Reader, Asset, AssetStateReader>(columnFamily);
+            return db.Iterate<UInt256, UInt256.Factory, Asset, AssetStateFactory>(columnFamily);
         }
 
         public IEnumerable<(UInt256 key, (long systemFee, BlockHeader header, ImmutableArray<UInt256> hashes) blockState)> GetBlocks()
@@ -397,7 +397,7 @@ namespace NeoFx.RocksDb
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
             var columnFamily = db.GetColumnFamily(BLOCK_FAMILY);
-            return db.Iterate<UInt256, UInt256Reader, (long, BlockHeader, ImmutableArray<UInt256>), BlockStateReader>(columnFamily);
+            return db.Iterate<UInt256, UInt256.Factory, (long, BlockHeader, ImmutableArray<UInt256>), BlockStateFactory>(columnFamily);
         }
 
         public IEnumerable<(UInt160 key, DeployedContract contractState)> GetContracts()
@@ -405,7 +405,7 @@ namespace NeoFx.RocksDb
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
             var columnFamily = db.GetColumnFamily(CONTRACT_FAMILY);
-            return db.Iterate<UInt160, UInt160Reader, DeployedContract, ContractStateReader>(columnFamily);
+            return db.Iterate<UInt160, UInt160.Factory, DeployedContract, ContractStateFactory>(columnFamily);
         }
 
         public IEnumerable<(StorageKey key, StorageItem storageItem)> GetStorages()
@@ -413,7 +413,7 @@ namespace NeoFx.RocksDb
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
             var columnFamily = db.GetColumnFamily(STORAGE_FAMILY);
-            return db.Iterate<StorageKey, StorageKeyReader, StorageItem, StorageItemReader>(columnFamily);
+            return db.Iterate<StorageKey, StorageKey.Factory, StorageItem, StorageItemStateFactory>(columnFamily);
         }
 
         public IEnumerable<(UInt256 key, (uint blockIndex, Transaction tx) transactionState)> GetTransactions()
@@ -421,7 +421,7 @@ namespace NeoFx.RocksDb
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
             var columnFamily = db.GetColumnFamily(TX_FAMILY);
-            return db.Iterate<UInt256, UInt256Reader, (uint, Transaction), TransactionStateReader>(columnFamily);
+            return db.Iterate<UInt256, UInt256.Factory, (uint, Transaction), TransactionStateFactory>(columnFamily);
         }
 
         public IEnumerable<(UInt256 key, ImmutableArray<CoinState> coinState)> GetUnspentCoins()
@@ -429,7 +429,7 @@ namespace NeoFx.RocksDb
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
             var columnFamily = db.GetColumnFamily(UNSPENT_COIN_FAMILY);
-            return db.Iterate<UInt256, UInt256Reader, ImmutableArray<CoinState>, UnspentCoinsStateReader>(columnFamily);
+            return db.Iterate<UInt256, UInt256.Factory, ImmutableArray<CoinState>, UnspentCoinsStateFactory>(columnFamily);
         }
 
         public IEnumerable<(EncodedPublicKey key, Validator validatorState)> GetValidators()
@@ -437,45 +437,10 @@ namespace NeoFx.RocksDb
             if (objectDisposed) { throw new ObjectDisposedException(nameof(RocksDbStore)); }
 
             var columnFamily = db.GetColumnFamily(VALIDATOR_FAMILY);
-            return db.Iterate<EncodedPublicKey, EncodedPublicKeyReader, Validator, ValidatorStateReader>(columnFamily);
+            return db.Iterate<EncodedPublicKey, EncodedPublicKey.Factory, Validator, ValidatorStateFactory>(columnFamily);
         }
 
-        #region Reader Structs
-        private readonly struct UInt160Reader : ISpanReader<UInt160>
-        {
-            public bool TryReadSpan(ReadOnlySpan<byte> span, out UInt160 value)
-            {
-                var reader = new BufferReader<byte>(span);
-                return UInt160.TryRead(ref reader, out value);
-            }
-        }
-
-        private readonly struct UInt256Reader : ISpanReader<UInt256>
-        {
-            public bool TryReadSpan(ReadOnlySpan<byte> span, out UInt256 value)
-            {
-                var reader = new BufferReader<byte>(span);
-                return UInt256.TryRead(ref reader, out value);
-            }
-        }
-
-        private readonly struct StorageKeyReader : ISpanReader<StorageKey>
-        {
-            public bool TryReadSpan(ReadOnlySpan<byte> span, out StorageKey value)
-            {
-                return StorageKey.TryReadBytes(span, out value);
-            }
-        }
-
-        private readonly struct EncodedPublicKeyReader : ISpanReader<EncodedPublicKey>
-        {
-            public bool TryReadSpan(ReadOnlySpan<byte> span, out EncodedPublicKey value)
-            {
-                var reader = new BufferReader<byte>(span);
-                return EncodedPublicKey.TryRead(ref reader, out value);
-            }
-        }
-
+        #region Factory Structs
         private static bool TryReadStateVersion(ref BufferReader<byte> reader, byte expectedVersion)
         {
             if (reader.TryPeek(out var value)
@@ -488,11 +453,10 @@ namespace NeoFx.RocksDb
             return false;
         }
 
-        private readonly struct AccountStateReader : ISpanReader<Account>
+        private readonly struct AccountStateFactory : IFactoryReader<Account>
         {
-            public bool TryReadSpan(ReadOnlySpan<byte> span, out Account value)
+            public bool TryReadItem(ref BufferReader<byte> reader, out Account value)
             {
-                var reader = new BufferReader<byte>(span);
                 if (TryReadStateVersion(ref reader, 0)
                     && Account.TryRead(ref reader, out value))
                 {
@@ -505,12 +469,10 @@ namespace NeoFx.RocksDb
             }
         }
 
-        private readonly struct AssetStateReader : ISpanReader<Asset>
+        private readonly struct AssetStateFactory : IFactoryReader<Asset>
         {
-            public bool TryReadSpan(ReadOnlySpan<byte> span, out Asset value)
+            public bool TryReadItem(ref BufferReader<byte> reader, out Asset value)
             {
-                var reader = new BufferReader<byte>(span);
-
                 if (TryReadStateVersion(ref reader, 0)
                     && Asset.TryRead(ref reader, out value))
                 {
@@ -524,12 +486,10 @@ namespace NeoFx.RocksDb
         }
 
 
-        private readonly struct BlockStateReader : ISpanReader<(long systemFee, BlockHeader header, ImmutableArray<UInt256> hashes)>
+        private readonly struct BlockStateFactory : IFactoryReader<(long systemFee, BlockHeader header, ImmutableArray<UInt256> hashes)>
         {
-            public bool TryReadSpan(ReadOnlySpan<byte> span, out (long systemFee, BlockHeader header, ImmutableArray<UInt256> hashes) value)
+            public bool TryReadItem(ref BufferReader<byte> reader, out (long systemFee, BlockHeader header, ImmutableArray<UInt256> hashes) value)
             {
-                var reader = new BufferReader<byte>(span);
-
                 if (TryReadStateVersion(ref reader, 0)
                     && reader.TryReadLittleEndian(out long systemFee)
                     && BlockHeader.TryRead(ref reader, out var header)
@@ -546,12 +506,10 @@ namespace NeoFx.RocksDb
         }
 
 
-        private readonly struct ContractStateReader : ISpanReader<DeployedContract>
+        private readonly struct ContractStateFactory : IFactoryReader<DeployedContract>
         {
-            public bool TryReadSpan(ReadOnlySpan<byte> span, out DeployedContract value)
+            public bool TryReadItem(ref BufferReader<byte> reader, out DeployedContract value)
             {
-                var reader = new BufferReader<byte>(span);
-
                 if (TryReadStateVersion(ref reader, 0)
                     && DeployedContract.TryRead(ref reader, out value))
                 {
@@ -564,12 +522,10 @@ namespace NeoFx.RocksDb
             }
         }
 
-        private readonly struct HashIndexStateReader : ISpanReader<(UInt256 hash, uint index)>
+        private readonly struct HashIndexStateFactory : IFactoryReader<(UInt256 hash, uint index)>
         {
-            public bool TryReadSpan(ReadOnlySpan<byte> span, out (UInt256 hash, uint index) value)
+            public bool TryReadItem(ref BufferReader<byte> reader, out (UInt256 hash, uint index) value)
             {
-                var reader = new BufferReader<byte>(span);
-
                 if (TryReadStateVersion(ref reader, 0)
                     && UInt256.TryRead(ref reader, out var hash)
                     && reader.TryReadLittleEndian(out uint index))
@@ -584,12 +540,10 @@ namespace NeoFx.RocksDb
             }
         }
 
-        private readonly struct StorageItemReader : ISpanReader<StorageItem>
+        private readonly struct StorageItemStateFactory : IFactoryReader<StorageItem>
         {
-            public bool TryReadSpan(ReadOnlySpan<byte> span, out StorageItem value)
+            public bool TryReadItem(ref BufferReader<byte> reader, out StorageItem value)
             {
-                var reader = new BufferReader<byte>(span);
-
                 if (TryReadStateVersion(ref reader, 0)
                     && StorageItem.TryRead(ref reader, out var item))
                 {
@@ -603,12 +557,10 @@ namespace NeoFx.RocksDb
             }
         }
 
-        private readonly struct TransactionStateReader : ISpanReader<(uint blockIndex, Transaction tx)>
+        private readonly struct TransactionStateFactory : IFactoryReader<(uint blockIndex, Transaction tx)>
         {
-            public bool TryReadSpan(ReadOnlySpan<byte> span, out (uint blockIndex, Transaction tx) value)
+            public bool TryReadItem(ref BufferReader<byte> reader, out (uint blockIndex, Transaction tx) value)
             {
-                var reader = new BufferReader<byte>(span);
-
                 if (TryReadStateVersion(ref reader, 0)
                     && reader.TryReadLittleEndian(out uint blockIndex)
                     && Transaction.TryRead(ref reader, out var tx))
@@ -623,12 +575,10 @@ namespace NeoFx.RocksDb
             }
         }
 
-        private readonly struct UnspentCoinsStateReader : ISpanReader<ImmutableArray<CoinState>>
+        private readonly struct UnspentCoinsStateFactory : IFactoryReader<ImmutableArray<CoinState>>
         {
-            public bool TryReadSpan(ReadOnlySpan<byte> span, out ImmutableArray<CoinState> value)
+            public bool TryReadItem(ref BufferReader<byte> reader, out ImmutableArray<CoinState> value)
             {
-                var reader = new BufferReader<byte>(span);
-
                 if (TryReadStateVersion(ref reader, 0)
                     && reader.TryReadVarArray(out var array))
                 {
@@ -642,12 +592,10 @@ namespace NeoFx.RocksDb
             }
         }
 
-        private readonly struct ValidatorStateReader : ISpanReader<Validator>
+        private readonly struct ValidatorStateFactory : IFactoryReader<Validator>
         {
-            public bool TryReadSpan(ReadOnlySpan<byte> span, out Validator value)
+            public bool TryReadItem(ref BufferReader<byte> reader, out Validator value)
             {
-                var reader = new BufferReader<byte>(span);
-
                 if (TryReadStateVersion(ref reader, 0)
                     && Validator.TryRead(ref reader, out value))
                 {

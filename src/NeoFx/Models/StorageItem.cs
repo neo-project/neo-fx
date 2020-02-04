@@ -6,6 +6,11 @@ namespace NeoFx.Models
 {
     public readonly struct StorageItem
     {
+        public readonly struct Factory : IFactoryReader<StorageItem>
+        {
+            public bool TryReadItem(ref BufferReader<byte> reader, out StorageItem value) => TryRead(ref reader, out value);
+        }
+        
         public readonly ImmutableArray<byte> Value;
         public readonly bool IsConstant;
 
