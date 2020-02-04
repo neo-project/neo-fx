@@ -64,6 +64,7 @@ namespace NeoFx.P2P
 
             VersionPayload = versionMessage.Payload;
         }
+        
         public async Task ConnectAsync(IPEndPoint endPoint, uint magic, VersionPayload payload, CancellationToken token = default)
         {
             log.LogTrace("ConnectAsync {magic} to {host}:{port}", magic, endPoint.Address, endPoint.Port);
@@ -78,7 +79,7 @@ namespace NeoFx.P2P
             await PerformVersionHandshake(magic, payload, token);
         }
 
-        public async Task<Message> ReceiveMessage(CancellationToken token)
+        public async ValueTask<Message> ReceiveMessage(CancellationToken token)
         {
             var inputPipe = pipelineSocket.Input;
 
@@ -191,7 +192,6 @@ namespace NeoFx.P2P
                 return default;
             }
 
-            log.LogWarning("converting valuetask to task");
             return new ValueTask(task.AsTask());
         }
 
