@@ -78,14 +78,6 @@ namespace NeoFx.P2P
             await PerformVersionHandshake(magic, payload, token);
         }
 
-        public async IAsyncEnumerable<Message> ReceiveMessages([EnumeratorCancellation] CancellationToken token = default)
-        {
-            while (true)
-            {
-                yield return await ReceiveMessage(token);
-            }
-        }
-
         public async Task<Message> ReceiveMessage(CancellationToken token)
         {
             var inputPipe = pipelineSocket.Input;

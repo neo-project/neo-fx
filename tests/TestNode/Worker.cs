@@ -6,7 +6,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NeoFx.Models;
-using NeoFx.P2P;
 using NeoFx.P2P.Messages;
 
 namespace NeoFx.TestNode

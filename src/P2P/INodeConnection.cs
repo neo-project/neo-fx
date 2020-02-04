@@ -13,7 +13,6 @@ namespace NeoFx.P2P
         Task ConnectAsync(string host, int port, uint magic, VersionPayload payload, CancellationToken token = default);
         Task ConnectAsync(IPEndPoint endPoint, uint magic, VersionPayload payload, CancellationToken token = default);
         Task<Message> ReceiveMessage(CancellationToken token);
-        IAsyncEnumerable<Message> ReceiveMessages(CancellationToken token = default);
         ValueTask SendAddrMessage(in AddrPayload payload, CancellationToken token = default);
         ValueTask SendBlockMessage(in BlockPayload payload, CancellationToken token = default);
         ValueTask SendBlockMessage(in Block block, CancellationToken token = default)
