@@ -206,11 +206,6 @@ namespace NeoFx
             return this.Equals(other);
         }
 
-        void IWritable<UInt256>.WriteTo(ref BufferWriter<byte> writer)
-        {
-            throw new NotImplementedException();
-        }
-
         public static bool operator ==(in UInt256 left, in UInt256 right)
         {
             return left.Equals(right);
