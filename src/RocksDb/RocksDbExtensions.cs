@@ -14,12 +14,6 @@ namespace NeoFx.RocksDb
     using WriteBatch = RocksDbSharp.WriteBatch;
     using static RocksDbSharp.Native;
 
-    public interface ISpanWriter<T>
-    {
-        int GetSize(in T value);
-        int Write(in T value, Span<byte> span);
-    }
-
     public static class RocksDbExtensions
     {
         private static ReadOptions DefaultReadOptions { get; } = new ReadOptions();
@@ -46,9 +40,7 @@ namespace NeoFx.RocksDb
                                                      ColumnFamilyHandle columnFamily,
                                                      [MaybeNullWhen(false)] out T value)
             where TReader : struct, IFactoryReader<T>
-        {
-            return TryGet<T, TReader>(db, key, columnFamily, null, default, out value);
-        }
+            => TryGet<T, TReader>(db, key, columnFamily, null, default, out value);
 
         public static unsafe bool TryGet<T, TReader>(this RocksDb db,
                                                      ReadOnlySpan<byte> key,
@@ -56,9 +48,7 @@ namespace NeoFx.RocksDb
                                                      TReader factory,
                                                      [MaybeNullWhen(false)] out T value)
             where TReader : IFactoryReader<T>
-        {
-            return TryGet(db, key, columnFamily, null, factory, out value);
-        }
+            => TryGet(db, key, columnFamily, null, factory, out value);
 
         public static unsafe bool TryGet<T, TReader>(this RocksDb db,
                                                      ReadOnlySpan<byte> key,
@@ -66,9 +56,7 @@ namespace NeoFx.RocksDb
                                                      ReadOptions? readOptions,
                                                      [MaybeNullWhen(false)] out T value)
             where TReader : struct, IFactoryReader<T>
-        {
-            return TryGet<T, TReader>(db, key, columnFamily, readOptions, default, out value);
-        }
+            => TryGet<T, TReader>(db, key, columnFamily, readOptions, default, out value);
 
         public static unsafe bool TryGet<T, TReader>(this RocksDb db,
                                                      ReadOnlySpan<byte> key,
@@ -95,9 +83,10 @@ namespace NeoFx.RocksDb
             }
         }
 
-        private static IEnumerable<(TKey key, TValue value)> Iterate<TKey, TKeyReader, TValue, TValueReader>(RocksDbSharp.Iterator iterator,
-                                                                                                             TKeyReader keyFactory,
-                                                                                                             TValueReader valueFactory)
+        private static IEnumerable<(TKey key, TValue value)> Iterate<TKey, TKeyReader, TValue, TValueReader>(
+            RocksDbSharp.Iterator iterator,
+            TKeyReader keyFactory,
+            TValueReader valueFactory)
             where TKeyReader : IFactoryReader<TKey>
             where TValueReader : IFactoryReader<TValue>
         {
@@ -116,18 +105,18 @@ namespace NeoFx.RocksDb
             }
         }
 
-        public static IEnumerable<(TKey key, TValue value)> Iterate<TKey, TKeyReader, TValue, TValueReader>(this RocksDb db,
-                                                                                                            ColumnFamilyHandle columnFamily)
+        public static IEnumerable<(TKey key, TValue value)> Iterate<TKey, TKeyReader, TValue, TValueReader>(
+            this RocksDb db,
+            ColumnFamilyHandle columnFamily)
             where TKeyReader : struct, IFactoryReader<TKey>
             where TValueReader : struct, IFactoryReader<TValue>
-        {
-            return Iterate<TKey, TKeyReader, TValue, TValueReader>(db, columnFamily, default, default);
-        }
+            => Iterate<TKey, TKeyReader, TValue, TValueReader>(db, columnFamily, default, default);
 
-        public static IEnumerable<(TKey key, TValue value)> Iterate<TKey, TKeyReader, TValue, TValueReader>(this RocksDb db,
-                                                                                                            ColumnFamilyHandle columnFamily,
-                                                                                                            TKeyReader keyFactory,
-                                                                                                            TValueReader valueFactory)
+        public static IEnumerable<(TKey key, TValue value)> Iterate<TKey, TKeyReader, TValue, TValueReader>(
+            this RocksDb db,
+            ColumnFamilyHandle columnFamily,
+            TKeyReader keyFactory,
+            TValueReader valueFactory)
             where TKeyReader : IFactoryReader<TKey>
             where TValueReader : IFactoryReader<TValue>
         {
@@ -136,20 +125,20 @@ namespace NeoFx.RocksDb
             return Iterate<TKey, TKeyReader, TValue, TValueReader>(iterator, keyFactory, valueFactory);
         }
 
-        public static unsafe IEnumerable<(TKey key, TValue value)> Search<TKey, TKeyReader, TValue, TValueReader>(this RocksDb db,
-                                                                                                                  ColumnFamilyHandle columnFamily,
-                                                                                                                  Span<byte> prefix)
+        public static unsafe IEnumerable<(TKey key, TValue value)> Search<TKey, TKeyReader, TValue, TValueReader>(
+            this RocksDb db,
+            ColumnFamilyHandle columnFamily,
+            Span<byte> prefix)
             where TKeyReader : struct, IFactoryReader<TKey>
             where TValueReader : struct, IFactoryReader<TValue>
-        {
-            return Search<TKey, TKeyReader, TValue, TValueReader>(db, columnFamily, prefix, default, default);
-        }
+            => Search<TKey, TKeyReader, TValue, TValueReader>(db, columnFamily, prefix, default, default);
 
-        public static unsafe IEnumerable<(TKey key, TValue value)> Search<TKey, TKeyReader, TValue, TValueReader>(this RocksDb db,
-                                                                                                                  ColumnFamilyHandle columnFamily,
-                                                                                                                  Span<byte> prefix,
-                                                                                                                  TKeyReader keyFactory,
-                                                                                                                  TValueReader valueFactory)
+        public static unsafe IEnumerable<(TKey key, TValue value)> Search<TKey, TKeyReader, TValue, TValueReader>(
+            this RocksDb db,
+            ColumnFamilyHandle columnFamily,
+            Span<byte> prefix,
+            TKeyReader keyFactory,
+            TValueReader valueFactory)
             where TKeyReader : IFactoryReader<TKey>
             where TValueReader : IFactoryReader<TValue>
         {
@@ -169,61 +158,62 @@ namespace NeoFx.RocksDb
             }
         }
 
-        public static void Put<TKey, TKeyWriter, TValue, TValueWriter>(this WriteBatch batch, ColumnFamilyHandle columnFamily, in TKey key, in TValue value)
-            where TKeyWriter : struct, ISpanWriter<TKey>
-            where TValueWriter : struct, ISpanWriter<TValue>
+        public static void Put<TKey, TValue>(this WriteBatch batch,
+                                             ColumnFamilyHandle columnFamily,
+                                             in TKey key,
+                                             in TValue value)
+            where TKey : IWritable<TKey>
+            where TValue : IWritable<TValue>
         {
-            Put<TKey, TKeyWriter, TValue, TValueWriter>(batch, columnFamily, key, value, default, default);
-        }
+            const int MAX_STACKALLOC_SIZE = 512;
 
-        public static void Put<TKey, TKeyWriter, TValue, TValueWriter>(this WriteBatch batch,
-                                                                       ColumnFamilyHandle columnFamily,
-                                                                       in TKey key,
-                                                                       in TValue value,
-                                                                       TKeyWriter keyWriter,
-                                                                       TValueWriter valueWriter)
-            where TKeyWriter : ISpanWriter<TKey>
-            where TValueWriter : ISpanWriter<TValue>
-        {
-            const int MAX_STACKALLOC_SIZE = 1024;
-
-            static void PutValue(WriteBatch batch, ColumnFamilyHandle columnFamily, ReadOnlySpan<byte> keySpan,
-                in TValue value, Span<byte> valueSpan, TValueWriter valueWriter)
+            static void PutValue(WriteBatch batch,
+                                 ColumnFamilyHandle columnFamily,
+                                 ReadOnlySpan<byte> keySpan,
+                                 in TValue value,
+                                 Span<byte> valueSpan)
             {
-                var valueWritten = valueWriter.Write(value, valueSpan);
-                batch.Put(columnFamily, keySpan, valueSpan.Slice(0, valueWritten));
+                var valueWriter = new BufferWriter<byte>(valueSpan);
+                value.WriteTo(ref valueWriter);
+                Debug.Assert(valueWriter.Span.IsEmpty);
+                batch.Put(columnFamily, keySpan, valueSpan);
             }
 
-            static void PutKey(WriteBatch batch, ColumnFamilyHandle columnFamily, in TKey key, Span<byte> keySpan,
-                in TValue value, TKeyWriter keyWriter, TValueWriter valueWriter)
+            static void PutKey(WriteBatch batch,
+                               ColumnFamilyHandle columnFamily,
+                               in TKey key,
+                               Span<byte> keySpan,
+                               in TValue value)
             {
-                var keyWritten = keyWriter.Write(key, keySpan);
-                keySpan = keySpan.Slice(0, keyWritten);
+                var keyWriter = new BufferWriter<byte>(keySpan);
+                key.WriteTo(ref keyWriter);
+                Debug.Assert(keyWriter.Span.IsEmpty);
 
-                var valueSize = valueWriter.GetSize(value);
+                var valueSize = value.Size;
                 if (valueSize <= MAX_STACKALLOC_SIZE)
                 {
                     Span<byte> span = stackalloc byte[valueSize];
-                    PutValue(batch, columnFamily, keySpan, value, span, valueWriter);
-
+                    PutValue(batch, columnFamily, keySpan, value, span);
                 }
                 else
                 {
                     using var owner = MemoryPool<byte>.Shared.Rent(valueSize);
-                    PutValue(batch, columnFamily, keySpan, value, owner.Memory.Span, valueWriter);
+                    var span = owner.Memory.Span.Slice(0, valueSize);
+                    PutValue(batch, columnFamily, keySpan, value, span);
                 }
             }
 
-            var keySize = keyWriter.GetSize(key);
+            var keySize = key.Size;
             if (keySize <= MAX_STACKALLOC_SIZE)
             {
                 Span<byte> span = stackalloc byte[keySize];
-                PutKey(batch, columnFamily, key, span, value, keyWriter, valueWriter);
+                PutKey(batch, columnFamily, key, span, value);
             }
             else
             {
                 using var owner = MemoryPool<byte>.Shared.Rent(keySize);
-                PutKey(batch, columnFamily, key, owner.Memory.Span, value, keyWriter, valueWriter);
+                var span = owner.Memory.Span.Slice(0, keySize);
+                PutKey(batch, columnFamily, key, span, value);
             }
         }
     }
