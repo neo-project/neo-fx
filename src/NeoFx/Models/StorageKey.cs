@@ -72,7 +72,7 @@ namespace NeoFx.Models
 
                 return true;
             }
-            
+
             value = default;
             return false;
         }

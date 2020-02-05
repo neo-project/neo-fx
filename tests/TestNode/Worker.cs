@@ -64,7 +64,7 @@ namespace NeoFx.TestNode
             try
             {
                 var nodeConnection = nodeConnectionFactory.CreateConnection();
-                
+
                 var (address, port) = networkOptions.GetRandomSeed();
                 var versionPayload = new VersionPayload(GetNonce(), nodeOptions.UserAgent);
 

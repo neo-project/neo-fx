@@ -65,7 +65,7 @@ namespace NeoFx.P2P
 
             VersionPayload = versionMessage.Payload;
         }
-        
+
         public async Task ConnectAsync(IPEndPoint endPoint, uint magic, VersionPayload payload, CancellationToken token = default)
         {
             log.LogTrace("ConnectAsync {magic} to {host}:{port}", magic, endPoint.Address, endPoint.Port);

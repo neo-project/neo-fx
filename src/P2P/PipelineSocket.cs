@@ -28,7 +28,7 @@ namespace NeoFx.P2P
         public void ScheduleWorkerThreads(CancellationToken token)
         {
 #pragma warning disable CS4014 //Consider applying the 'await' operator to the result of the call.
-            SocketReceiveAsync(token); 
+            SocketReceiveAsync(token);
             SocketSendAsync(token);
 #pragma warning restore CS4014 // Consider applying the 'await' operator to the result of the call.
         }

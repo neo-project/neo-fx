@@ -10,7 +10,7 @@ namespace NeoFx.Models
         {
             public bool TryReadItem(ref BufferReader<byte> reader, out StorageItem value) => TryRead(ref reader, out value);
         }
-        
+
         public readonly ImmutableArray<byte> Value;
         public readonly bool IsConstant;
 
