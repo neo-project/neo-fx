@@ -63,24 +63,26 @@ namespace NeoFx.TestNode
 
             try
             {
+                var magic = networkOptions.Magic;
                 var nodeConnection = nodeConnectionFactory.CreateConnection();
 
                 var (address, port) = networkOptions.GetRandomSeed();
-                var versionPayload = new VersionPayload(GetNonce(), nodeOptions.UserAgent);
+                var localVersionPayload = new VersionPayload(GetNonce(), nodeOptions.UserAgent);
 
-                log.LogInformation("Connecting to {address}:{port} {magic}", address, port, networkOptions.Magic);
-                await nodeConnection.ConnectAsync(address, port, networkOptions.Magic, versionPayload);
-                log.LogInformation("Connected to {userAgent}", nodeConnection.VersionPayload.UserAgent);
+                log.LogInformation("Connecting to {address}:{port} {magic}", address, port, magic);
+                var remoteVersionPayload = await nodeConnection.ConnectAsync(address, port, magic, localVersionPayload, token);
+                log.LogInformation("Connected to {userAgent}", remoteVersionPayload.UserAgent);
 
-                await nodeConnection.SendGetAddrMessage(token);
+                await nodeConnection.SendGetAddrMessage(magic, token);
 
                 UInt256 lastHash;
                 if (headerStorage.TryGetLastHash(out lastHash))
                 {
-                    await nodeConnection.SendGetHeadersMessage(new HashListPayload(lastHash)).ConfigureAwait(false);
+                    await nodeConnection.SendGetBlocksMessage(magic, new HashListPayload(lastHash), token).ConfigureAwait(false);
+                    // await nodeConnection.SendGetHeadersMessage(new HashListPayload(lastHash)).ConfigureAwait(false);
                 }
 
-                await foreach (var msg in nodeConnection.ReceiveMessages(token))
+                await foreach (var msg in nodeConnection.ReceiveMessages(magic, token))
                 {
                     if (token.IsCancellationRequested) break;
                     Debug.Assert(msg.Magic == Magic);
@@ -90,10 +92,6 @@ namespace NeoFx.TestNode
                         case AddrMessage addrMessage:
                             {
                                 log.LogInformation("Received AddrMessage {addressCount}", addrMessage.Addresses.Length);
-                                foreach (var a in addrMessage.Addresses)
-                                {
-                                    log.LogInformation("    {address}", a.EndPoint);
-                                }
                             }
                             break;
                         case HeadersMessage headersMessage:
@@ -103,8 +101,23 @@ namespace NeoFx.TestNode
 
                                 if (headerStorage.TryGetLastHash(out lastHash))
                                 {
-                                    await nodeConnection.SendGetHeadersMessage(new HashListPayload(lastHash)).ConfigureAwait(false);
+                                    await nodeConnection.SendGetBlocksMessage(magic, new HashListPayload(lastHash), token).ConfigureAwait(false);
                                 }
+                            }
+                            break;
+                        case InvMessage invMessage:
+                            {
+                                log.LogInformation("Received InvMessage {type} {count}", invMessage.Type, invMessage.Hashes.Length);
+                                if (invMessage.Type == InventoryPayload.InventoryType.Block)
+                                {
+                                    await nodeConnection.SendGetDataMessage(magic, invMessage.Payload, token).ConfigureAwait(false);
+                                }
+                            }
+                            break;
+                        case BlockMessage blockMessage:
+                            {
+                                var block = blockMessage.Block;
+                                log.LogInformation("Received Block Message {index} {txCount}", block.Index, block.Transactions.Length);
                             }
                             break;
                     }
