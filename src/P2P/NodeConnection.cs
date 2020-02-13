@@ -15,6 +15,8 @@ namespace NeoFx.P2P
         private readonly PipelineSocket pipelineSocket;
         private readonly uint magic;
 
+        public EndPoint RemoteEndPoint => pipelineSocket.RemoteEndPoint;
+
         public NodeConnection(PipelineSocket pipelineSocket, uint magic, ILogger<NodeConnection>? logger = null)
         {
             this.pipelineSocket = pipelineSocket;

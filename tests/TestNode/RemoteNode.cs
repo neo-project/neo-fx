@@ -15,6 +15,7 @@ namespace NeoFx.TestNode
         private readonly INodeConnection connection;
         private readonly ILogger<RemoteNode> log;
         public VersionPayload VersionPayload { get; private set; }
+        public EndPoint RemoteEndPoint => connection.RemoteEndPoint;
 
         public RemoteNode(INodeConnection connection, ChannelWriter<(IRemoteNode, Message)> writer, ILogger<RemoteNode>? logger = null)
         {

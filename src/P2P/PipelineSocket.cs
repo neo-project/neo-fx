@@ -25,6 +25,8 @@ namespace NeoFx.P2P
 
         public PipeWriter Output => sendPipe.Writer;
 
+        public EndPoint RemoteEndPoint => socket.RemoteEndPoint;
+
         private void Execute(CancellationToken token)
         {
             SocketReceiveAsync(token)

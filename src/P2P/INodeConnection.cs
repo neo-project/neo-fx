@@ -9,6 +9,7 @@ namespace NeoFx.P2P
 {
     public interface INodeConnection
     {
+        EndPoint RemoteEndPoint { get; }
         Task<VersionPayload> ConnectAsync(string host, int port, VersionPayload payload, CancellationToken token = default);
         Task<VersionPayload> ConnectAsync(IPEndPoint endPoint, VersionPayload payload, CancellationToken token = default);
         ValueTask<Message> ReceiveMessage(CancellationToken token);
