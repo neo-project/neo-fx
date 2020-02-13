@@ -8,8 +8,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NeoFx.Models;
 using NeoFx.P2P.Messages;
-using System.Collections.Generic;
-using System.Net;
 
 namespace NeoFx.TestNode
 {
@@ -72,9 +70,6 @@ namespace NeoFx.TestNode
             var remoteNode = nodeFactory.CreateRemoteNode(channel.Writer);
             await remoteNode.Connect(address, port, localVersionPayload, token);
 
-            HashSet<EndPoint> endPoints = new HashSet<EndPoint>();
-            endPoints.Add(remoteNode.RemoteEndPoint);
-
             await remoteNode.SendGetAddrMessage();
 
             await foreach (var (node, msg) in channel.Reader.ReadAllAsync(token))
@@ -82,15 +77,14 @@ namespace NeoFx.TestNode
                 switch (msg)
                 {
                     case AddrMessage addrMessage:
+                        log.LogInformation("Received AddrMessage {addressCount}", addrMessage.Addresses.Length);
                         foreach (var addr in addrMessage.Addresses)
                         {
-                            endPoints.Add(addr.EndPoint);
+                            log.LogInformation("\t{address}", addr.EndPoint);
                         }
-
-                        log.LogInformation("Received AddrMessage {addressCount} {totalAddresses}", addrMessage.Addresses.Length, endPoints.Count);
                         break;
                     default:
-                        // log.LogInformation("Received {messageType}", msg.GetType().Name);
+                        log.LogInformation("Received {messageType}", msg.GetType().Name);
                         break;
                 }
             }
