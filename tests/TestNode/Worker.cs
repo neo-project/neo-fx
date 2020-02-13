@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Threading.Channels;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -16,10 +17,10 @@ namespace NeoFx.TestNode
         private readonly ILogger<Worker> log;
         private readonly NetworkOptions networkOptions;
         private readonly NodeOptions nodeOptions;
-        private readonly INodeConnectionFactory nodeConnectionFactory;
+        private readonly IRemoteNodeFactory nodeFactory;
         private readonly IHeaderStorage headerStorage;
 
-        public Worker(INodeConnectionFactory nodeConnectionFactory,
+        public Worker(IRemoteNodeFactory nodeFactory,
                       IHostApplicationLifetime hostApplicationLifetime,
                       ILogger<Worker> log,
                       IOptions<NetworkOptions> networkOptions,
@@ -30,7 +31,7 @@ namespace NeoFx.TestNode
             this.log = log;
             this.networkOptions = networkOptions.Value;
             this.nodeOptions = nodeOptions.Value;
-            this.nodeConnectionFactory = nodeConnectionFactory;
+            this.nodeFactory = nodeFactory;
             this.headerStorage = headerStorage;
 
             log.LogInformation("header storage {type} {count}", headerStorage.GetType().Name, headerStorage.Count);
@@ -51,92 +52,46 @@ namespace NeoFx.TestNode
             return System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(span);
         }
 
-        protected override async Task ExecuteAsync(CancellationToken token)
+        protected override Task ExecuteAsync(CancellationToken token)
         {
-            static void AddRange(IHeaderStorage headerStorage, ReadOnlySpan<BlockHeader> headers)
+            return Execute(token).ContinueWith(t =>
             {
-                for (var i = 0; i < headers.Length; i++)
+                if (t.IsFaulted)
                 {
-                    headerStorage.Add(headers[i]);
+                    log.LogError(t.Exception, nameof(Worker) + " exception");
                 }
-            }
-
-            try
-            {
-                var magic = networkOptions.Magic;
-                var nodeConnection = nodeConnectionFactory.CreateConnection(magic);
-
-                var (address, port) = networkOptions.GetRandomSeed();
-                var localVersionPayload = new VersionPayload(GetNonce(), nodeOptions.UserAgent);
-
-                log.LogInformation("Connecting to {address}:{port} {magic}", address, port, magic);
-                var remoteVersionPayload = await nodeConnection.ConnectAsync(address, port, localVersionPayload, token);
-                log.LogInformation("Connected to {userAgent}", remoteVersionPayload.UserAgent);
-
-                await nodeConnection.SendGetAddrMessage(token);
-
-                UInt256 lastHash;
-                if (headerStorage.TryGetLastHash(out lastHash))
+                else
                 {
-                    await nodeConnection.SendGetBlocksMessage(new HashListPayload(lastHash), token).ConfigureAwait(false);
-                    // await nodeConnection.SendGetHeadersMessage(new HashListPayload(lastHash)).ConfigureAwait(false);
+                    log.LogInformation(nameof(Worker) + " completed {IsCanceled}", t.IsCanceled);
                 }
-
-                await foreach (var msg in nodeConnection.ReceiveMessages(token))
-                {
-                    if (token.IsCancellationRequested) break;
-                    Debug.Assert(msg.Magic == Magic);
-
-                    switch (msg)
-                    {
-                        case AddrMessage addrMessage:
-                            {
-                                log.LogInformation("Received AddrMessage {addressCount}", addrMessage.Addresses.Length);
-                            }
-                            break;
-                        case HeadersMessage headersMessage:
-                            {
-                                AddRange(headerStorage, headersMessage.Headers.AsSpan());
-                                log.LogInformation("Received HeadersMessage {messageCount} {totalCount}", headersMessage.Headers.Length, headerStorage.Count);
-
-                                if (headerStorage.TryGetLastHash(out lastHash))
-                                {
-                                    await nodeConnection.SendGetBlocksMessage(new HashListPayload(lastHash), token).ConfigureAwait(false);
-                                }
-                            }
-                            break;
-                        case InvMessage invMessage:
-                            {
-                                log.LogInformation("Received InvMessage {type} {count}", invMessage.Type, invMessage.Hashes.Length);
-                                if (invMessage.Type == InventoryPayload.InventoryType.Block)
-                                {
-                                    await nodeConnection.SendGetDataMessage(invMessage.Payload, token).ConfigureAwait(false);
-                                }
-                            }
-                            break;
-                        case BlockMessage blockMessage:
-                            {
-                                var block = blockMessage.Block;
-                                log.LogInformation("Received Block Message {index} {txCount}", block.Index, block.Transactions.Length);
-                            }
-                            break;
-                    }
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                // ignore operation canceled exceptions
-            }
-            catch (Exception ex)
-            {
-                if (!token.IsCancellationRequested)
-                {
-                    log.LogError(ex, string.Empty);
-                }
-            }
-            finally
-            {
                 hostApplicationLifetime.StopApplication();
+            });
+        }
+
+        async Task Execute(CancellationToken token)
+        {
+            var (address, port) = networkOptions.GetRandomSeed();
+            var localVersionPayload = new VersionPayload(GetNonce(), nodeOptions.UserAgent);
+            var channel = Channel.CreateUnbounded<Message>();
+
+            var remoteNode = nodeFactory.CreateRemoteNode(channel.Writer);
+            remoteNode.Connect(address, port, localVersionPayload, token);
+
+            await foreach (var msg in channel.Reader.ReadAllAsync(token))
+            {
+                switch (msg)
+                {
+                    case AddrMessage addrMessage:
+                        log.LogInformation("Received AddrMessage {addressCount}", addrMessage.Addresses.Length);
+                        foreach (var addr in addrMessage.Addresses)
+                        {
+                            log.LogInformation("\t{address}", addr.EndPoint);
+                        }
+                        break;
+                    default:
+                        log.LogInformation("Received {messageType}", msg.GetType().Name);
+                        break;
+                }
             }
         }
     }

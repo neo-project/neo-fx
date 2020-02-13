@@ -21,6 +21,7 @@ namespace NeoFx.TestNode
                     // services.AddSingleton<IHeaderStorage>(_ => new RocksDbHeaderStorage(@"C:\Users\harry\.neofx-testnode"));
                     services.AddTransient<PipelineSocket>();
                     services.AddSingleton<INodeConnectionFactory, NodeConnectionFactory>();
+                    services.AddSingleton<IRemoteNodeFactory, RemoteNodeFactory>();
                     services.Configure<NodeOptions>(context.Configuration.GetSection("NodeOptions"));
                     services.Configure<NetworkOptions>(context.Configuration.GetSection("NetworkOptions"));
                     services.AddHostedService<Worker>();

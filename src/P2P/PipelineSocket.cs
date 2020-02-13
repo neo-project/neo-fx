@@ -25,7 +25,7 @@ namespace NeoFx.P2P
 
         public PipeWriter Output => sendPipe.Writer;
 
-        public void ScheduleWorkerThreads(CancellationToken token)
+        private void Execute(CancellationToken token)
         {
             SocketReceiveAsync(token)
                 .ContinueWith(t =>
@@ -61,7 +61,7 @@ namespace NeoFx.P2P
             log.LogTrace("connecting to {host} : {port}", host, port);
 
             await socket.ConnectAsync(host, port).ConfigureAwait(false);
-            ScheduleWorkerThreads(token);
+            Execute(token);
         }
 
         public async Task ConnectAsync(IPEndPoint endpoint, CancellationToken token = default)
@@ -69,7 +69,7 @@ namespace NeoFx.P2P
             log.LogTrace("connecting to {host} : {port}", endpoint.Address, endpoint.Port);
 
             await socket.ConnectAsync(endpoint).ConfigureAwait(false);
-            ScheduleWorkerThreads(token);
+            Execute(token);
         }
 
         public void Dispose()
