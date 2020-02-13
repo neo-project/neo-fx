@@ -27,10 +27,33 @@ namespace NeoFx.P2P
 
         public void ScheduleWorkerThreads(CancellationToken token)
         {
-#pragma warning disable CS4014 //Consider applying the 'await' operator to the result of the call.
-            SocketReceiveAsync(token);
-            SocketSendAsync(token);
-#pragma warning restore CS4014 // Consider applying the 'await' operator to the result of the call.
+            SocketReceiveAsync(token)
+                .ContinueWith(t =>
+                {
+                    if (t.IsFaulted)
+                    {
+                        log.LogError(t.Exception, nameof(SocketReceiveAsync) + " exception");
+                    }
+                    else
+                    {
+                        log.LogTrace(nameof(SocketReceiveAsync) + " completed {IsCanceled}", t.IsCanceled);
+                    }
+                    recvPipe.Writer.Complete(t.Exception);
+                });
+
+            SocketSendAsync(token)
+                .ContinueWith(t =>
+                {
+                    if (t.IsFaulted)
+                    {
+                        log.LogError(t.Exception, nameof(SocketSendAsync) + " exception");
+                    }
+                    else
+                    {
+                        log.LogTrace(nameof(SocketSendAsync) + " completed {IsCanceled}", t.IsCanceled);
+                    }
+                    sendPipe.Reader.Complete(t.Exception);
+                });
         }
 
         public async Task ConnectAsync(string host, int port, CancellationToken token = default)
@@ -56,96 +79,57 @@ namespace NeoFx.P2P
 
         private async Task SocketReceiveAsync(CancellationToken token)
         {
-            try
+            while (true)
             {
-                while (true)
+                var memory = recvPipe.Writer.GetMemory();
+                var bytesRead = await socket.ReceiveAsync(memory, SocketFlags.None, token).ConfigureAwait(false);
+                log.LogDebug("received {bytesRead} bytes from socket", bytesRead);
+                if (bytesRead == 0)
                 {
-                    var memory = recvPipe.Writer.GetMemory();
-                    var bytesRead = await socket.ReceiveAsync(memory, SocketFlags.None, token).ConfigureAwait(false);
-                    log.LogDebug("received {bytesRead} bytes from socket", bytesRead);
-                    if (bytesRead == 0 || token.IsCancellationRequested)
-                    {
-                        break;
-                    }
-
-                    recvPipe.Writer.Advance(bytesRead);
-                    var flushResult = await recvPipe.Writer.FlushAsync(token)
-                        .ConfigureAwait(false);
-                    log.LogDebug("Advanced and flushed {bytesRead} to receive pipe {IsCompleted} {IsCanceled}", bytesRead, flushResult.IsCompleted, flushResult.IsCanceled);
-                    if (flushResult.IsCompleted
-                        || flushResult.IsCanceled
-                        || token.IsCancellationRequested)
-                    {
-                        break;
-                    }
+                    break;
                 }
 
-                recvPipe.Writer.Complete();
-                log.LogTrace("sendPipe completed {IsCancellationRequested}", token.IsCancellationRequested);
-            }
-#pragma warning disable CA1031 // Do not catch general exception types
-            catch (Exception ex)
-            {
-                if (!token.IsCancellationRequested)
+                recvPipe.Writer.Advance(bytesRead);
+                var flushResult = await recvPipe.Writer.FlushAsync(token).ConfigureAwait(false);
+                log.LogDebug("Advanced and flushed {bytesRead} to receive pipe {IsCompleted} {IsCanceled}", bytesRead, flushResult.IsCompleted, flushResult.IsCanceled);
+                if (flushResult.IsCompleted)
                 {
-                    log.LogError(ex, "{method} exception", nameof(SocketReceiveAsync));
+                    break;
                 }
-                recvPipe.Writer.Complete(ex);
+                if (flushResult.IsCanceled)
+                {
+                    throw new OperationCanceledException();
+                }
             }
-#pragma warning restore CA1031 // Do not catch general exception types
         }
 
         private async Task SocketSendAsync(CancellationToken token)
         {
-            try
+            while (true)
             {
-                while (true)
+                var readResult = await sendPipe.Reader.ReadAsync(token).ConfigureAwait(false);
+                log.LogDebug("sendPipe read {length} bytes {IsCanceled} {IsCompleted}", readResult.Buffer.Length, readResult.IsCanceled, readResult.IsCompleted);
+
+                if (readResult.IsCanceled)
                 {
-                    var readResult = await sendPipe.Reader.ReadAsync(token).ConfigureAwait(false);
-                    log.LogDebug("sendPipe read {length} bytes {IsCanceled} {IsCompleted}", readResult.Buffer.Length, readResult.IsCanceled, readResult.IsCompleted);
-
-                    if (readResult.IsCanceled || token.IsCancellationRequested)
-                    {
-                        break;
-                    }
-
-                    var buffer = readResult.Buffer;
-                    if (buffer.IsEmpty && readResult.IsCompleted)
-                    {
-                        break;
-                    }
-
-                    foreach (var segment in buffer)
-                    {
-                        await socket.SendAsync(segment, SocketFlags.None, token).ConfigureAwait(false);
-                        log.LogDebug("sent {length} via socket", segment.Length);
-                        if (token.IsCancellationRequested)
-                        {
-                            break;
-                        }
-                    }
-                    if (token.IsCancellationRequested)
-                    {
-                        break;
-                    }
-
-                    sendPipe.Reader.AdvanceTo(buffer.End);
-                    log.LogDebug("sendPipe advanced to {end}", buffer.End.GetInteger());
+                    throw new OperationCanceledException();
                 }
 
-                sendPipe.Reader.Complete();
-                log.LogTrace("sendPipe completed {IsCancellationRequested}", token.IsCancellationRequested);
-            }
-#pragma warning disable CA1031 // Do not catch general exception types
-            catch (Exception ex)
-            {
-                if (!token.IsCancellationRequested)
+                var buffer = readResult.Buffer;
+                if (buffer.IsEmpty && readResult.IsCompleted)
                 {
-                    log.LogError(ex, "{method} exception", nameof(SocketSendAsync));
+                    break;
                 }
-                sendPipe.Reader.Complete(ex);
+
+                foreach (var segment in buffer)
+                {
+                    await socket.SendAsync(segment, SocketFlags.None, token).ConfigureAwait(false);
+                    log.LogDebug("sent {length} via socket", segment.Length);
+                }
+
+                sendPipe.Reader.AdvanceTo(buffer.End);
+                log.LogDebug("sendPipe advanced to {end}", buffer.End.GetInteger());
             }
-#pragma warning restore CA1031 // Do not catch general exception types
         }
     }
 }
