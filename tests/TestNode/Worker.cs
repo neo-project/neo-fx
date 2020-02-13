@@ -64,25 +64,25 @@ namespace NeoFx.TestNode
             try
             {
                 var magic = networkOptions.Magic;
-                var nodeConnection = nodeConnectionFactory.CreateConnection();
+                var nodeConnection = nodeConnectionFactory.CreateConnection(magic);
 
                 var (address, port) = networkOptions.GetRandomSeed();
                 var localVersionPayload = new VersionPayload(GetNonce(), nodeOptions.UserAgent);
 
                 log.LogInformation("Connecting to {address}:{port} {magic}", address, port, magic);
-                var remoteVersionPayload = await nodeConnection.ConnectAsync(address, port, magic, localVersionPayload, token);
+                var remoteVersionPayload = await nodeConnection.ConnectAsync(address, port, localVersionPayload, token);
                 log.LogInformation("Connected to {userAgent}", remoteVersionPayload.UserAgent);
 
-                await nodeConnection.SendGetAddrMessage(magic, token);
+                await nodeConnection.SendGetAddrMessage(token);
 
                 UInt256 lastHash;
                 if (headerStorage.TryGetLastHash(out lastHash))
                 {
-                    await nodeConnection.SendGetBlocksMessage(magic, new HashListPayload(lastHash), token).ConfigureAwait(false);
+                    await nodeConnection.SendGetBlocksMessage(new HashListPayload(lastHash), token).ConfigureAwait(false);
                     // await nodeConnection.SendGetHeadersMessage(new HashListPayload(lastHash)).ConfigureAwait(false);
                 }
 
-                await foreach (var msg in nodeConnection.ReceiveMessages(magic, token))
+                await foreach (var msg in nodeConnection.ReceiveMessages(token))
                 {
                     if (token.IsCancellationRequested) break;
                     Debug.Assert(msg.Magic == Magic);
@@ -101,7 +101,7 @@ namespace NeoFx.TestNode
 
                                 if (headerStorage.TryGetLastHash(out lastHash))
                                 {
-                                    await nodeConnection.SendGetBlocksMessage(magic, new HashListPayload(lastHash), token).ConfigureAwait(false);
+                                    await nodeConnection.SendGetBlocksMessage(new HashListPayload(lastHash), token).ConfigureAwait(false);
                                 }
                             }
                             break;
@@ -110,7 +110,7 @@ namespace NeoFx.TestNode
                                 log.LogInformation("Received InvMessage {type} {count}", invMessage.Type, invMessage.Hashes.Length);
                                 if (invMessage.Type == InventoryPayload.InventoryType.Block)
                                 {
-                                    await nodeConnection.SendGetDataMessage(magic, invMessage.Payload, token).ConfigureAwait(false);
+                                    await nodeConnection.SendGetDataMessage(invMessage.Payload, token).ConfigureAwait(false);
                                 }
                             }
                             break;

@@ -1,26 +1,24 @@
 using System;
-using System.Buffers;
-using System.Diagnostics;
 using System.Net;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using DevHawk.Buffers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NeoFx.P2P.Messages;
-using NeoFx.Storage;
 
 namespace NeoFx.P2P
 {
+
     public sealed class NodeConnection : INodeConnection, IDisposable
     {
         private readonly ILogger<NodeConnection> log;
         private readonly PipelineSocket pipelineSocket;
+        private readonly uint magic;
 
-        public NodeConnection(PipelineSocket pipelineSocket, ILogger<NodeConnection>? logger = null)
+        public NodeConnection(PipelineSocket pipelineSocket, uint magic, ILogger<NodeConnection>? logger = null)
         {
             this.pipelineSocket = pipelineSocket;
+            this.magic = magic;
             log = logger ?? NullLogger<NodeConnection>.Instance;
         }
 
@@ -29,214 +27,59 @@ namespace NeoFx.P2P
             pipelineSocket.Dispose();
         }
 
-        private async Task<VersionPayload> PerformVersionHandshake(uint magic, VersionPayload payload, CancellationToken token)
-        {
-            async Task<T> ReceiveMessage<T>(CancellationToken token)
-                where T : Message
-            {
-                var message = await this.ReceiveMessage(magic, token);
-                if (message is T typedMessage)
-                {
-                    return typedMessage;
-                }
-
-                throw new InvalidOperationException($"Expected {typeof(T).Name} message, received {message.GetType().Name}");
-            }
-
-            log.LogDebug("Sending version message");
-            await SendVersion(magic, payload, token).ConfigureAwait(false);
-
-            var versionMessage = await ReceiveMessage<VersionMessage>(token).ConfigureAwait(false);
-            log.LogDebug("Received version message {startHeight} {userAgent}", versionMessage.StartHeight, versionMessage.UserAgent);
-
-            log.LogDebug("Sending verack message");
-            await SendVerAck(magic, token).ConfigureAwait(false);
-
-            var verAckMessage = await ReceiveMessage<VerAckMessage>(token).ConfigureAwait(false);
-            log.LogDebug("Received verack message");
-
-            return versionMessage.Payload;
-        }
-
-        public async Task<VersionPayload> ConnectAsync(IPEndPoint endPoint, uint magic, VersionPayload payload, CancellationToken token = default)
+        public async Task<VersionPayload> ConnectAsync(IPEndPoint endPoint, VersionPayload payload, CancellationToken token = default)
         {
             log.LogTrace("ConnectAsync {magic} to {host}:{port}", magic, endPoint.Address, endPoint.Port);
             await pipelineSocket.ConnectAsync(endPoint, token).ConfigureAwait(false);
-            return await PerformVersionHandshake(magic, payload, token);
+            return await NodeOperations.PerformVersionHandshake(pipelineSocket, magic, payload, log, token);
         }
 
-        public async Task<VersionPayload> ConnectAsync(string host, int port, uint magic, VersionPayload payload, CancellationToken token = default)
+        public async Task<VersionPayload> ConnectAsync(string host, int port, VersionPayload payload, CancellationToken token = default)
         {
             log.LogTrace("ConnectAsync {magic} to {host}:{port}", magic, host, port);
             await pipelineSocket.ConnectAsync(host, port, token).ConfigureAwait(false);
-            return await PerformVersionHandshake(magic, payload, token);
+            return await NodeOperations.PerformVersionHandshake(pipelineSocket, magic, payload, log, token);
         }
 
-        public async ValueTask<Message> ReceiveMessage(uint magic, CancellationToken token)
+        public ValueTask<Message> ReceiveMessage(CancellationToken token)
         {
-            var inputPipe = pipelineSocket.Input;
-
-            while (true)
-            {
-                var read = await inputPipe.ReadAsync(token).ConfigureAwait(false);
-                log.LogDebug("read {length} bytes from pipe {IsCompleted} {IsCanceled}",
-                    read.Buffer.Length, read.IsCompleted, read.IsCanceled);
-                if (read.IsCompleted || read.IsCanceled || token.IsCancellationRequested)
-                {
-                    throw new OperationCanceledException();
-                }
-
-                var buffer = read.Buffer;
-                if (buffer.Length < MessageHeader.Size)
-                {
-                    log.LogTrace("Haven't received enough data to read the message header {bufferLength}", buffer.Length);
-                    inputPipe.AdvanceTo(buffer.GetPosition(0), buffer.GetPosition(buffer.Length));
-                    continue;
-                }
-
-                if (!MessageHeader.TryRead(buffer, out var header))
-                {
-                    throw new Exception("could not parse message header");
-                }
-                log.LogDebug("Received {command} message header {magic} {length} {checksum}",
-                    header.Command, header.Magic, header.Length, header.Checksum);
-
-                var messageLength = MessageHeader.Size + header.Length;
-                if (buffer.Length < messageLength)
-                {
-                    log.LogTrace("Haven't received enough data to read the message payload {bufferNeeded} {bufferLength}",
-                        messageLength, buffer.Length);
-                    inputPipe.AdvanceTo(buffer.GetPosition(0), buffer.GetPosition(buffer.Length));
-                    continue;
-                }
-
-                if (header.Magic != magic)
-                {
-                    // ignore messages sent with the wrong magic value
-                    log.LogWarning("Ignoring message with incorrect magic {expected} {actual}", magic, header.Magic);
-                    inputPipe.AdvanceTo(buffer.GetPosition(messageLength));
-                    continue;
-                }
-
-                if (Message.TryRead(buffer.Slice(0, messageLength), header, out var message))
-                {
-                    log.LogDebug("Receive {message}", message.GetType().Name);
-                    inputPipe.AdvanceTo(buffer.GetPosition(messageLength));
-
-                    return message;
-                }
-                else
-                {
-                    // TODO: save messages that fail to parse for later review
-                    log.LogError("Message Parse {command} {length} {checksum}",
-                        header.Command, header.Length, header.Checksum);
-
-                    throw new Exception($"could not parse message {header.Command}");
-                }
-            }
+            return NodeOperations.ReceiveMessage(pipelineSocket.Input, magic, log, token);
         }
 
-        private ValueTask SendMessage<T>(uint magic, string command, in T payload, CancellationToken token)
-            where T : IWritable<T>
-        {
-            log.LogDebug("SendMessage {magic} {command} {payload}", magic, command, typeof(T).Name);
+        public ValueTask SendAddrMessage(in AddrPayload payload, CancellationToken token = default)
+            => NodeOperations.SendMessage<AddrPayload>(pipelineSocket.Output, magic, AddrMessage.CommandText, payload, log, token);
 
-            var output = pipelineSocket.Output;
+        public ValueTask SendBlockMessage(in BlockPayload payload, CancellationToken token = default)
+            => NodeOperations.SendMessage<BlockPayload>(pipelineSocket.Output, magic, BlockMessage.CommandText, payload, log, token);
 
-            var payloadSize = payload.Size;
-            var messageSize = MessageHeader.Size + payloadSize;
-            var messageMemory = output.GetMemory(messageSize);
+        public ValueTask SendConsensusMessage(in ConsensusPayload payload, CancellationToken token = default)
+            => NodeOperations.SendMessage<ConsensusPayload>(pipelineSocket.Output, magic, ConsensusMessage.CommandText, payload, log, token);
 
-            Span<byte> payloadSpan = default;
-            if (payloadSize > 0)
-            {
-                payloadSpan = messageMemory.Slice(MessageHeader.Size, payloadSize).Span;
-                var payloadWriter = new BufferWriter<byte>(payloadSpan);
-                payload.WriteTo(ref payloadWriter);
-                payloadWriter.Commit();
-                Debug.Assert(payloadWriter.Span.IsEmpty);
-            }
+        public ValueTask SendGetAddrMessage(CancellationToken token = default)
+            => NodeOperations.SendEmptyMessage(pipelineSocket.Output, magic, GetAddrMessage.CommandText, log, token);
 
-            Span<byte> buffer = stackalloc byte[32];
-            HashHelpers.TryHash256(payloadSpan, buffer);
-            var checksum = BitConverter.ToUInt32(buffer.Slice(0, 4));
+        public ValueTask SendGetBlocksMessage(in HashListPayload payload, CancellationToken token = default)
+            => NodeOperations.SendMessage<HashListPayload>(pipelineSocket.Output, magic, GetBlocksMessage.CommandText, payload, log, token);
 
-            var headerWriter = new BufferWriter<byte>(messageMemory.Slice(0, MessageHeader.Size).Span);
-            headerWriter.WriteLittleEndian(magic);
-            {
-                using var commandOwner = MemoryPool<byte>.Shared.Rent(MessageHeader.CommandSize);
-                var commandSpan = commandOwner.Memory.Span.Slice(0, MessageHeader.CommandSize);
-                commandSpan.Clear();
-                Encoding.ASCII.GetBytes(command, commandSpan);
-                headerWriter.Write(commandSpan);
-            }
-            headerWriter.WriteLittleEndian((uint)payloadSpan.Length);
-            headerWriter.WriteLittleEndian(checksum);
-            headerWriter.Commit();
-            Debug.Assert(headerWriter.Span.IsEmpty);
+        public ValueTask SendGetDataMessage(in InventoryPayload payload, CancellationToken token = default)
+            => NodeOperations.SendMessage<InventoryPayload>(pipelineSocket.Output, magic, GetDataMessage.CommandText, payload, log, token);
 
-            output.Advance(messageSize);
+        public ValueTask SendGetHeadersMessage(in HashListPayload payload, CancellationToken token = default)
+            => NodeOperations.SendMessage<HashListPayload>(pipelineSocket.Output, magic, GetHeadersMessage.CommandText, payload, log, token);
 
-            // https://github.com/dotnet/runtime/issues/31503#issuecomment-554415966
-            var task = output.FlushAsync(token);
-            if (task.IsCompletedSuccessfully)
-            {
-                var _ = task.Result;
-                return default;
-            }
+        public ValueTask SendHeadersMessage(in HeadersPayload payload, CancellationToken token = default)
+            => NodeOperations.SendMessage<HeadersPayload>(pipelineSocket.Output, magic, HeadersMessage.CommandText, payload, log, token);
 
-            return new ValueTask(task.AsTask());
-        }
+        public ValueTask SendInvMessage(in InventoryPayload payload, CancellationToken token = default)
+            => NodeOperations.SendMessage<InventoryPayload>(pipelineSocket.Output, magic, InvMessage.CommandText, payload, log, token);
 
-        private struct NullPayload : IWritable<NullPayload>
-        {
-            public int Size => 0;
+        public ValueTask SendPingMessage(in PingPongPayload payload, CancellationToken token = default)
+            => NodeOperations.SendMessage<PingPongPayload>(pipelineSocket.Output, magic, PingMessage.CommandText, payload, log, token);
 
-            public void WriteTo(ref BufferWriter<byte> writer)
-            {
-            }
-        }
+        public ValueTask SendPongMessage(in PingPongPayload payload, CancellationToken token = default)
+            => NodeOperations.SendMessage<PingPongPayload>(pipelineSocket.Output, magic, PongMessage.CommandText, payload, log, token);
 
-        private ValueTask SendVersion(uint magic, in VersionPayload payload, CancellationToken token = default)
-            => SendMessage<VersionPayload>(magic, VersionMessage.CommandText, payload, token);
-
-        private ValueTask SendVerAck(uint magic, CancellationToken token = default)
-            => SendMessage<NullPayload>(magic, VerAckMessage.CommandText, default, token);
-
-        public ValueTask SendAddrMessage(uint magic, in AddrPayload payload, CancellationToken token = default)
-            => SendMessage<AddrPayload>(magic, AddrMessage.CommandText, payload, token);
-
-        public ValueTask SendBlockMessage(uint magic, in BlockPayload payload, CancellationToken token = default)
-            => SendMessage<BlockPayload>(magic, BlockMessage.CommandText, payload, token);
-
-        public ValueTask SendConsensusMessage(uint magic, in ConsensusPayload payload, CancellationToken token = default)
-            => SendMessage<ConsensusPayload>(magic, ConsensusMessage.CommandText, payload, token);
-
-        public ValueTask SendGetAddrMessage(uint magic, CancellationToken token = default)
-            => SendMessage<NullPayload>(magic, GetAddrMessage.CommandText, default, token);
-
-        public ValueTask SendGetBlocksMessage(uint magic, in HashListPayload payload, CancellationToken token = default)
-            => SendMessage<HashListPayload>(magic, GetBlocksMessage.CommandText, payload, token);
-
-        public ValueTask SendGetDataMessage(uint magic, in InventoryPayload payload, CancellationToken token = default)
-            => SendMessage<InventoryPayload>(magic, GetDataMessage.CommandText, payload, token);
-
-        public ValueTask SendGetHeadersMessage(uint magic, in HashListPayload payload, CancellationToken token = default)
-            => SendMessage<HashListPayload>(magic, GetHeadersMessage.CommandText, payload, token);
-
-        public ValueTask SendHeadersMessage(uint magic, in HeadersPayload payload, CancellationToken token = default)
-            => SendMessage<HeadersPayload>(magic, HeadersMessage.CommandText, payload, token);
-
-        public ValueTask SendInvMessage(uint magic, in InventoryPayload payload, CancellationToken token = default)
-            => SendMessage<InventoryPayload>(magic, InvMessage.CommandText, payload, token);
-
-        public ValueTask SendPingMessage(uint magic, in PingPongPayload payload, CancellationToken token = default)
-            => SendMessage<PingPongPayload>(magic, PingMessage.CommandText, payload, token);
-
-        public ValueTask SendPongMessage(uint magic, in PingPongPayload payload, CancellationToken token = default)
-            => SendMessage<PingPongPayload>(magic, PongMessage.CommandText, payload, token);
-
-        public ValueTask SendTransactionMessage(uint magic, in TransactionPayload payload, CancellationToken token = default)
-            => SendMessage<TransactionPayload>(magic, TransactionMessage.CommandText, payload, token);
+        public ValueTask SendTransactionMessage(in TransactionPayload payload, CancellationToken token = default)
+            => NodeOperations.SendMessage<TransactionPayload>(pipelineSocket.Output, magic, TransactionMessage.CommandText, payload, log, token);
     }
 }

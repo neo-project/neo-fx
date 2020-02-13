@@ -12,7 +12,7 @@ namespace NeoFx.P2P.Messages
 
         public readonly AddrPayload Payload;
 
-        public ImmutableArray<NetworkAddressWithTime> Addresses => Payload.Addresses;
+        public ImmutableArray<NodeAddress> Addresses => Payload.Addresses;
 
         public AddrMessage(in MessageHeader header, in AddrPayload payload) : base(header)
         {

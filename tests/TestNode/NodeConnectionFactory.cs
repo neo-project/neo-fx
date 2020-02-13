@@ -16,9 +16,12 @@ namespace NeoFx.TestNode
             log = logger;
         }
 
-        public INodeConnection CreateConnection()
+        public INodeConnection CreateConnection(uint magic)
         {
-            return provider.GetRequiredService<INodeConnection>();
+            var pipelineSocket = provider.GetRequiredService<PipelineSocket>();
+            var logger = provider.GetService<ILogger<NodeConnection>>();
+
+            return new NodeConnection(pipelineSocket, magic, logger);
         }
     }
 }

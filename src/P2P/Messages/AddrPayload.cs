@@ -7,18 +7,18 @@ namespace NeoFx.P2P.Messages
 {
     public readonly struct AddrPayload : IWritable<AddrPayload>
     {
-        public readonly ImmutableArray<NetworkAddressWithTime> Addresses;
+        public readonly ImmutableArray<NodeAddress> Addresses;
 
-        public AddrPayload(ImmutableArray<NetworkAddressWithTime> addresses)
+        public AddrPayload(ImmutableArray<NodeAddress> addresses)
         {
             Addresses = addresses;
         }
 
-        public int Size => Addresses.GetVarSize(NetworkAddressWithTime.Size);
+        public int Size => Addresses.GetVarSize(NodeAddress.Size);
 
         public static bool TryRead(ref BufferReader<byte> reader, out AddrPayload payload)
         {
-            if (reader.TryReadVarArray<NetworkAddressWithTime, NetworkAddressWithTime.Factory>(out var addresses))
+            if (reader.TryReadVarArray<NodeAddress, NodeAddress.Factory>(out var addresses))
             {
                 payload = new AddrPayload(addresses);
                 return true;

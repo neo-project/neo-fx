@@ -4,6 +4,6 @@ namespace NeoFx.TestNode
 {
     interface INodeConnectionFactory
     {
-        INodeConnection CreateConnection();
+        INodeConnection CreateConnection(uint magic);
     }
 }

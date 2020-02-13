@@ -60,12 +60,16 @@ namespace ImportBlocks
                 ? DatabaseDirectory
                 : @" C:\Users\harry\Source\neo\seattle\fx\ImportTest";
 
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            
             using var archiveFileStream = new FileStream(offlinePackage, FileMode.Open, FileAccess.Read, FileShare.Read);
             using var archive = new ZipArchive(archiveFileStream, ZipArchiveMode.Read);
             using var archiveStream = archive.GetEntry("chain.acc").Open();
             using var archiveReader = new BinaryReader(archiveStream);
 
             var count = archiveReader.ReadUInt32();
+            // Console.WriteLine(count);
+
             var pool = ArrayPool<byte>.Shared;
             for (var index = 0; index < count; index++)
             {
@@ -73,17 +77,20 @@ namespace ImportBlocks
                 var array = pool.Rent(size);
                 var bytesRead = archiveReader.Read(array.AsSpan(0, size));
                 Debug.Assert(bytesRead == size);
+                // var reader = new BufferReader<byte>(array.AsSpan(0, size));
+                // var succeeded = NeoFx.Models.Block.TryRead(ref reader, out var block);
+                // Debug.Assert(succeeded);
+                // Debug.Assert(reader.End);
+                // Debug.Assert(CompareBlock(block, array));
+                var neoBlock = DeserializeNeoBlock(array);
 
-                var reader = new BufferReader<byte>(array.AsSpan(0, size));
-                var succeeded = NeoFx.Models.Block.TryRead(ref reader, out var block);
-                Debug.Assert(succeeded);
-                Debug.Assert(reader.End);
-                Debug.Assert(CompareBlock(block, array));
-
-                if (index % 1000 == 0) Console.WriteLine($"{index}");
+                // if (index % 1000 == 0) Console.WriteLine($"{index}");
 
                 pool.Return(array);
             }
+
+            sw.Stop();
+            Console.WriteLine($"ImportBlocks took {sw.ElapsedMilliseconds}ms");
         }
     }
 }
