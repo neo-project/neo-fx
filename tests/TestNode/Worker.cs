@@ -18,28 +18,18 @@ namespace NeoFx.TestNode
         private readonly NetworkOptions networkOptions;
         private readonly NodeOptions nodeOptions;
         private readonly IRemoteNodeFactory nodeFactory;
-        private readonly IHeaderStorage headerStorage;
 
         public Worker(IRemoteNodeFactory nodeFactory,
                       IHostApplicationLifetime hostApplicationLifetime,
                       ILogger<Worker> log,
                       IOptions<NetworkOptions> networkOptions,
-                      IOptions<NodeOptions> nodeOptions,
-                      IHeaderStorage headerStorage)
+                      IOptions<NodeOptions> nodeOptions)
         {
             this.hostApplicationLifetime = hostApplicationLifetime;
             this.log = log;
             this.networkOptions = networkOptions.Value;
             this.nodeOptions = nodeOptions.Value;
             this.nodeFactory = nodeFactory;
-            this.headerStorage = headerStorage;
-
-            log.LogInformation("header storage {type} {count}", headerStorage.GetType().Name, headerStorage.Count);
-            if (headerStorage.Count == 0)
-            {
-                var genesisBlock = Genesis.CreateGenesisBlock(this.networkOptions.GetValidators());
-                headerStorage.Add(genesisBlock.Header);
-            }
         }
 
         private uint Magic => networkOptions.Magic;
@@ -54,7 +44,7 @@ namespace NeoFx.TestNode
 
         protected override Task ExecuteAsync(CancellationToken token)
         {
-            return Execute(token).ContinueWith(t =>
+            return RunAsync(token).ContinueWith(t =>
             {
                 if (t.IsFaulted)
                 {
@@ -68,14 +58,16 @@ namespace NeoFx.TestNode
             });
         }
 
-        async Task Execute(CancellationToken token)
+        async Task RunAsync(CancellationToken token)
         {
             var (address, port) = networkOptions.GetRandomSeed();
             var localVersionPayload = new VersionPayload(GetNonce(), nodeOptions.UserAgent);
             var channel = Channel.CreateUnbounded<(IRemoteNode, Message)>();
 
             var remoteNode = nodeFactory.CreateRemoteNode(channel.Writer);
-            remoteNode.Connect(address, port, localVersionPayload, token);
+            await remoteNode.Connect(address, port, localVersionPayload, token);
+
+            await remoteNode.SendGetAddrMessage();
 
             await foreach (var (node, msg) in channel.Reader.ReadAllAsync(token))
             {

@@ -5,12 +5,10 @@ using Microsoft.Extensions.Logging;
 using NeoFx.P2P.Messages;
 using NeoFx.P2P;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.DependencyInjection;
 using System.Net;
 
 namespace NeoFx.TestNode
 {
-
     class RemoteNode : IRemoteNode
     {
         private readonly ChannelWriter<(IRemoteNode, Message)> writer;
@@ -18,28 +16,30 @@ namespace NeoFx.TestNode
         private readonly ILogger<RemoteNode> log;
         public VersionPayload VersionPayload { get; private set; }
 
-        public RemoteNode(INodeConnectionFactory connectionFactory, ChannelWriter<(IRemoteNode, Message)> writer, ILogger<RemoteNode>? logger = null)
+        public RemoteNode(INodeConnection connection, ChannelWriter<(IRemoteNode, Message)> writer, ILogger<RemoteNode>? logger = null)
         {
-            this.connection = connectionFactory.CreateConnection();
+            this.connection = connection;
             this.writer = writer;
             log = logger ?? NullLogger<RemoteNode>.Instance;
         }
 
-        public void Connect(string address, int port, in VersionPayload version, CancellationToken token = default)
+        public async Task Connect(string address, int port, VersionPayload payload, CancellationToken token = default)
         {
             log.LogInformation("Connecting to {address}:{port}", address, port);
-            Connect(Execute(address, port, version, token));
+            VersionPayload = await connection.ConnectAsync(address, port, payload, token);
+            Execute(token);
         }
 
-        public void Connect(IPEndPoint endPoint, in VersionPayload version, CancellationToken token = default)
+        public async Task Connect(IPEndPoint endPoint, VersionPayload payload, CancellationToken token = default)
         {
             log.LogInformation("Connecting to {address}:{port}", endPoint.Address, endPoint.Port);
-            Connect(Execute(endPoint, version, token));
+            VersionPayload = await connection.ConnectAsync(endPoint, payload, token);
+            Execute(token);
         }
 
-        private void Connect(Task task)
+        private void Execute(CancellationToken token)
         {
-            task.ContinueWith(t =>
+            ExecuteAsync(token).ContinueWith(t =>
                 {
                     if (t.IsFaulted)
                     {
@@ -53,24 +53,9 @@ namespace NeoFx.TestNode
                 });
         }
 
-        private async Task Execute(string address, int port, VersionPayload payload, CancellationToken token)
-        {
-            VersionPayload = await connection.ConnectAsync(address, port, payload, token);
-            await Execute(token);
-        }
-
-        private async Task Execute(IPEndPoint endPoint, VersionPayload payload, CancellationToken token)
-        {
-            VersionPayload = await connection.ConnectAsync(endPoint, payload, token);
-            await Execute(token);
-        }
-
-        private async Task Execute(CancellationToken token)
+        private async Task ExecuteAsync(CancellationToken token)
         {
             log.LogInformation("Connected to {userAgent}", VersionPayload.UserAgent);
-
-            // TODO: remove SendGetAddrMessage
-            await connection.SendGetAddrMessage(token);
 
             while (true)
             {
@@ -79,5 +64,18 @@ namespace NeoFx.TestNode
                 await writer.WriteAsync((this, message), token);
             }
         }
+
+        public ValueTask SendAddrMessage(in AddrPayload payload, CancellationToken token = default) => connection.SendAddrMessage(payload, token);
+        public ValueTask SendBlockMessage(in BlockPayload payload, CancellationToken token = default) => connection.SendBlockMessage(payload, token);
+        public ValueTask SendConsensusMessage(in ConsensusPayload payload, CancellationToken token = default) => connection.SendConsensusMessage(payload, token);
+        public ValueTask SendGetAddrMessage(CancellationToken token = default) => connection.SendGetAddrMessage(token);
+        public ValueTask SendGetBlocksMessage(in HashListPayload payload, CancellationToken token = default) => connection.SendGetBlocksMessage(payload, token);
+        public ValueTask SendGetDataMessage(in InventoryPayload payload, CancellationToken token = default) => connection.SendGetDataMessage(payload, token);
+        public ValueTask SendGetHeadersMessage(in HashListPayload payload, CancellationToken token = default) => connection.SendGetHeadersMessage(payload, token);
+        public ValueTask SendHeadersMessage(in HeadersPayload payload, CancellationToken token = default) => connection.SendHeadersMessage(payload, token);
+        public ValueTask SendInvMessage(in InventoryPayload payload, CancellationToken token = default) => connection.SendInvMessage(payload, token);
+        public ValueTask SendPingMessage(in PingPongPayload payload, CancellationToken token = default) => connection.SendPingMessage(payload, token);
+        public ValueTask SendPongMessage(in PingPongPayload payload, CancellationToken token = default) => connection.SendPongMessage(payload, token);
+        public ValueTask SendTransactionMessage(in TransactionPayload payload, CancellationToken token = default) => connection.SendTransactionMessage(payload, token);
     }
 }
