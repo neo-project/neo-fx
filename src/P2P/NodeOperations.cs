@@ -33,7 +33,7 @@ namespace NeoFx.P2P
             var buffer = readResult.Buffer;
             if (buffer.Length < MessageHeader.Size)
             {
-                log.LogTrace("Haven't received enough data to read the message header {bufferLength}", buffer.Length);
+                log.LogDebug("Haven't received enough data to read the message header {bufferLength}", buffer.Length);
                 reader.AdvanceTo(buffer.GetPosition(0), buffer.GetPosition(buffer.Length));
                 return null;
             }
@@ -48,7 +48,7 @@ namespace NeoFx.P2P
             var messageLength = MessageHeader.Size + header.Length;
             if (buffer.Length < messageLength)
             {
-                log.LogTrace("Haven't received enough data to read the message payload {bufferNeeded} {bufferLength}",
+                log.LogDebug("Haven't received enough data to read the message payload {bufferNeeded} {bufferLength}",
                     messageLength, buffer.Length);
                 reader.AdvanceTo(buffer.GetPosition(0), buffer.GetPosition(buffer.Length));
                 return null;

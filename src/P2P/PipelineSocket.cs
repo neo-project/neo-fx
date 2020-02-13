@@ -36,7 +36,7 @@ namespace NeoFx.P2P
                     }
                     else
                     {
-                        log.LogTrace(nameof(SocketReceiveAsync) + " completed {IsCanceled}", t.IsCanceled);
+                        log.LogInformation(nameof(SocketReceiveAsync) + " completed {IsCanceled}", t.IsCanceled);
                     }
                     recvPipe.Writer.Complete(t.Exception);
                 });
@@ -50,7 +50,7 @@ namespace NeoFx.P2P
                     }
                     else
                     {
-                        log.LogTrace(nameof(SocketSendAsync) + " completed {IsCanceled}", t.IsCanceled);
+                        log.LogInformation(nameof(SocketSendAsync) + " completed {IsCanceled}", t.IsCanceled);
                     }
                     sendPipe.Reader.Complete(t.Exception);
                 });
@@ -58,7 +58,7 @@ namespace NeoFx.P2P
 
         public async Task ConnectAsync(string host, int port, CancellationToken token = default)
         {
-            log.LogTrace("connecting to {host} : {port}", host, port);
+            log.LogInformation("connecting to {host} : {port}", host, port);
 
             await socket.ConnectAsync(host, port).ConfigureAwait(false);
             Execute(token);
@@ -66,7 +66,7 @@ namespace NeoFx.P2P
 
         public async Task ConnectAsync(IPEndPoint endpoint, CancellationToken token = default)
         {
-            log.LogTrace("connecting to {host} : {port}", endpoint.Address, endpoint.Port);
+            log.LogInformation("connecting to {host} : {port}", endpoint.Address, endpoint.Port);
 
             await socket.ConnectAsync(endpoint).ConfigureAwait(false);
             Execute(token);
