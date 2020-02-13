@@ -91,7 +91,7 @@ namespace NeoFx.P2P
         }
 
         public static async ValueTask<Message> ReceiveMessage(PipeReader reader, uint magic, ILogger log, CancellationToken token = default)
-        {   
+        {
             while (true)
             {
                 var readResult = await reader.ReadAsync(token).ConfigureAwait(false);

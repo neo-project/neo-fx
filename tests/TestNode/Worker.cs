@@ -62,7 +62,10 @@ namespace NeoFx.TestNode
         {
             var (address, port) = networkOptions.GetRandomSeed();
             var localVersionPayload = new VersionPayload(GetNonce(), nodeOptions.UserAgent);
-            var channel = Channel.CreateUnbounded<(IRemoteNode, Message)>();
+            var channel = Channel.CreateUnbounded<(IRemoteNode, Message)>(new UnboundedChannelOptions()
+            {
+                SingleReader = true,
+            });
 
             var remoteNode = nodeFactory.CreateRemoteNode(channel.Writer);
             await remoteNode.Connect(address, port, localVersionPayload, token);

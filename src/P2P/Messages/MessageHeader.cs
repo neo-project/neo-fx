@@ -36,8 +36,8 @@ namespace NeoFx.P2P.Messages
                 {
                     reader.Advance(CommandSize);
                     var index = commandBytes.IndexOf((byte)0);
-                    command = index == -1 
-                        ? Encoding.ASCII.GetString(commandBytes) 
+                    command = index == -1
+                        ? Encoding.ASCII.GetString(commandBytes)
                         : Encoding.ASCII.GetString(commandBytes.Slice(0, index));
                     return true;
                 }

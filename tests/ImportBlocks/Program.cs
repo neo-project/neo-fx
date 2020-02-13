@@ -61,7 +61,7 @@ namespace ImportBlocks
                 : @" C:\Users\harry\Source\neo\seattle\fx\ImportTest";
 
             var sw = System.Diagnostics.Stopwatch.StartNew();
-            
+
             using var archiveFileStream = new FileStream(offlinePackage, FileMode.Open, FileAccess.Read, FileShare.Read);
             using var archive = new ZipArchive(archiveFileStream, ZipArchiveMode.Read);
             using var archiveStream = archive.GetEntry("chain.acc").Open();
