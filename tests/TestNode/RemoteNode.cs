@@ -13,12 +13,12 @@ namespace NeoFx.TestNode
 
     class RemoteNode : IRemoteNode
     {
-        private readonly ChannelWriter<Message> writer;
+        private readonly ChannelWriter<(IRemoteNode, Message)> writer;
         private readonly INodeConnection connection;
         private readonly ILogger<RemoteNode> log;
         public VersionPayload VersionPayload { get; private set; }
 
-        public RemoteNode(INodeConnectionFactory connectionFactory, ChannelWriter<Message> writer, ILogger<RemoteNode>? logger = null)
+        public RemoteNode(INodeConnectionFactory connectionFactory, ChannelWriter<(IRemoteNode, Message)> writer, ILogger<RemoteNode>? logger = null)
         {
             this.connection = connectionFactory.CreateConnection();
             this.writer = writer;
@@ -76,7 +76,7 @@ namespace NeoFx.TestNode
             {
                 var message = await connection.ReceiveMessage(token);
                 if (log.IsEnabled(LogLevel.Trace)) log.LogTrace("{} message received", message.GetType().Name);
-                await writer.WriteAsync(message, token);
+                await writer.WriteAsync((this, message), token);
             }
         }
     }

@@ -15,7 +15,7 @@ namespace NeoFx.TestNode
             this.provider = provider;
         }
 
-        public IRemoteNode CreateRemoteNode(ChannelWriter<Message> writer)
+        public IRemoteNode CreateRemoteNode(ChannelWriter<(IRemoteNode, Message)> writer)
         {
             var connectionFactory = provider.GetRequiredService<INodeConnectionFactory>();
             var logger = provider.GetService<ILogger<RemoteNode>>();

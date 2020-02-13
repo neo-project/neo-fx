@@ -72,12 +72,12 @@ namespace NeoFx.TestNode
         {
             var (address, port) = networkOptions.GetRandomSeed();
             var localVersionPayload = new VersionPayload(GetNonce(), nodeOptions.UserAgent);
-            var channel = Channel.CreateUnbounded<Message>();
+            var channel = Channel.CreateUnbounded<(IRemoteNode, Message)>();
 
             var remoteNode = nodeFactory.CreateRemoteNode(channel.Writer);
             remoteNode.Connect(address, port, localVersionPayload, token);
 
-            await foreach (var msg in channel.Reader.ReadAllAsync(token))
+            await foreach (var (node, msg) in channel.Reader.ReadAllAsync(token))
             {
                 switch (msg)
                 {
