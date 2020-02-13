@@ -1,0 +1,30 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "TestNode",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/tests/TestNode/bin/Debug/netcoreapp3.1/TestNode.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/tests/TestNode",
+            "stopAtEntry": false,
+            "console": "internalConsole"
+        },
+        {
+            "name": "ImportBlocks",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/tests/ImportBlocks/bin/Debug/netcoreapp3.1/ImportBlocks.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/tests/ImportBlocks",
+            "console": "internalConsole",
+            "stopAtEntry": false
+        }
+    ]
+}
