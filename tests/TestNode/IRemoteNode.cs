@@ -9,7 +9,6 @@ namespace NeoFx.TestNode
     {
         VersionPayload VersionPayload { get; }
         EndPoint RemoteEndPoint { get; }
-        Task Connect(string address, int port, VersionPayload payload, CancellationToken token = default);
         Task Connect(IPEndPoint endPoint, VersionPayload payload, CancellationToken token = default);
         ValueTask SendAddrMessage(in AddrPayload payload, CancellationToken token = default);
         ValueTask SendBlockMessage(in BlockPayload payload, CancellationToken token = default);

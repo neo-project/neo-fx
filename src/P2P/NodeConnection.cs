@@ -36,13 +36,6 @@ namespace NeoFx.P2P
             return await NodeOperations.PerformVersionHandshake(pipelineSocket, magic, payload, log, token);
         }
 
-        public async Task<VersionPayload> ConnectAsync(string host, int port, VersionPayload payload, CancellationToken token = default)
-        {
-            log.LogTrace("ConnectAsync {magic} to {host}:{port}", magic, host, port);
-            await pipelineSocket.ConnectAsync(host, port, token).ConfigureAwait(false);
-            return await NodeOperations.PerformVersionHandshake(pipelineSocket, magic, payload, log, token);
-        }
-
         public ValueTask<Message> ReceiveMessage(CancellationToken token)
         {
             return NodeOperations.ReceiveMessage(pipelineSocket.Input, magic, log, token);

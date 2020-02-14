@@ -24,13 +24,6 @@ namespace NeoFx.TestNode
             log = logger ?? NullLogger<RemoteNode>.Instance;
         }
 
-        public async Task Connect(string address, int port, VersionPayload payload, CancellationToken token = default)
-        {
-            log.LogInformation("Connecting to {address}:{port}", address, port);
-            VersionPayload = await connection.ConnectAsync(address, port, payload, token);
-            Execute(token);
-        }
-
         public async Task Connect(IPEndPoint endPoint, VersionPayload payload, CancellationToken token = default)
         {
             log.LogInformation("Connecting to {address}:{port}", endPoint.Address, endPoint.Port);

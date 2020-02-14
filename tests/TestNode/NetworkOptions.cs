@@ -1,8 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
+using System.Net;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
+using System.Threading.Tasks;
 
 namespace NeoFx.TestNode
 {
@@ -20,18 +23,21 @@ namespace NeoFx.TestNode
             return (address, port);
         }
 
-        public IEnumerable<(string address, int port)> GetSeeds()
-        {
-            for (int i = 0; i < Seeds.Length; i++)
-            {
-                yield return ParseSeed(Seeds[i]);
-            }
-        }
-
-        public (string address, int port) GetRandomSeed()
+        public async Task<(IPEndPoint, string)> GetRandomSeedAsync() 
         {
             var random = new Random();
-            return ParseSeed(Seeds[random.Next(0, Seeds.Length)]);
+            foreach (var seed in Seeds.OrderBy(_ => random.NextDouble()))
+            {
+                var (host, port) = ParseSeed(seed);
+                var addresses = await Dns.GetHostAddressesAsync(host);
+                if (addresses.Length > 0)
+                {
+                    var endPoint = new IPEndPoint(addresses[0], port);
+                    return (endPoint, seed);
+                }
+            }
+
+            throw new Exception("seed address not found");
         }
 
         public IEnumerable<ECPoint> GetValidators()

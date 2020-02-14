@@ -58,14 +58,6 @@ namespace NeoFx.P2P
                 });
         }
 
-        public async Task ConnectAsync(string host, int port, CancellationToken token = default)
-        {
-            log.LogInformation("connecting to {host} : {port}", host, port);
-
-            await socket.ConnectAsync(host, port).ConfigureAwait(false);
-            Execute(token);
-        }
-
         public async Task ConnectAsync(IPEndPoint endpoint, CancellationToken token = default)
         {
             log.LogInformation("connecting to {host} : {port}", endpoint.Address, endpoint.Port);

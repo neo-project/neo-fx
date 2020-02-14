@@ -60,7 +60,9 @@ namespace NeoFx.TestNode
 
         async Task RunAsync(CancellationToken token)
         {
-            var (address, port) = networkOptions.GetRandomSeed();
+            var (endpoint, seed) = await networkOptions.GetRandomSeedAsync();
+            log.LogInformation("{seed} seed chosen", seed);
+
             var localVersionPayload = new VersionPayload(GetNonce(), nodeOptions.UserAgent);
             var channel = Channel.CreateUnbounded<(IRemoteNode, Message)>(new UnboundedChannelOptions()
             {
@@ -68,7 +70,7 @@ namespace NeoFx.TestNode
             });
 
             var remoteNode = nodeFactory.CreateRemoteNode(channel.Writer);
-            await remoteNode.Connect(address, port, localVersionPayload, token);
+            await remoteNode.Connect(endpoint, localVersionPayload, token);
 
             await remoteNode.SendGetAddrMessage();
 
