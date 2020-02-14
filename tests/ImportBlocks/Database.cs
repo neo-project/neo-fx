@@ -18,7 +18,6 @@ namespace ImportBlocks
         const string BLOCK_INDEX_FAMILY = "ix:block-index";
 
         private readonly RocksDb db;
-        private static ReadOptions DefaultReadOptions { get; } = new ReadOptions();
 
         public readonly ColumnFamilyHandle BlocksFamily;
         public readonly ColumnFamilyHandle TransactionsFamily;
@@ -45,14 +44,6 @@ namespace ImportBlocks
             db.Dispose();
         }
 
-        static unsafe void Put(WriteBatch batch, ColumnFamilyHandle columnFamily, ReadOnlySpan<byte> key, ReadOnlySpan<byte> value)
-        {
-            fixed (byte* keyPtr = key, valuePtr = value)
-            {
-                batch.Put(keyPtr, (ulong)key.Length, valuePtr, (ulong)value.Length, columnFamily);
-            }
-        }
-
         void PutTransaction(in UInt256 hash, in Transaction tx, WriteBatch batch)
         {
             Span<byte> keyBuffer = stackalloc byte[UInt256.Size];
@@ -60,13 +51,13 @@ namespace ImportBlocks
 
             var txSize = tx.Size;
             using var owner = MemoryPool<byte>.Shared.Rent(txSize);
-            var span = owner.Memory.Span.Slice(0, txSize);
-            var writer = new BufferWriter<byte>(span);
+            var txSpan = owner.Memory.Span.Slice(0, txSize);
+            var writer = new BufferWriter<byte>(txSpan);
             tx.WriteTo(ref writer);
             writer.Commit();
             Debug.Assert(writer.Span.IsEmpty);
 
-            Put(batch, TransactionsFamily, keyBuffer, span);
+            batch.Put(keyBuffer, txSpan, TransactionsFamily);
         }
 
         void PutBlock(in BlockHeader header, ReadOnlySpan<UInt256> txHashes, WriteBatch batch)
@@ -79,42 +70,22 @@ namespace ImportBlocks
 
             var blockSize = header.Size + txHashes.GetVarSize(UInt256.Size);
             using var owner = MemoryPool<byte>.Shared.Rent(blockSize);
-            var span = owner.Memory.Span.Slice(0, blockSize);
-            var writer = new BufferWriter<byte>(span);
+            var blockSpan = owner.Memory.Span.Slice(0, blockSize);
+            var writer = new BufferWriter<byte>(blockSpan);
             header.WriteTo(ref writer);
             writer.WriteVarArray(txHashes);
             writer.Commit();
             Debug.Assert(writer.Span.IsEmpty);
 
-            Put(batch, BlocksFamily, hashBuffer, span);
-            Put(batch, BlockIndexFamily, indexBuffer, hashBuffer);
+            batch.Put(hashBuffer, blockSpan, BlocksFamily);
+            batch.Put(hashBuffer, hashBuffer, BlockIndexFamily);
         }
 
-        unsafe bool BlockExists(uint index)
+        bool BlockExists(uint index)
         {
             Span<byte> indexBuffer = stackalloc byte[sizeof(uint)];
             BinaryPrimitives.WriteUInt32BigEndian(indexBuffer, index);
-
-            fixed (byte* indexPtr = indexBuffer)
-            {
-                var pinnableSlice = Native.Instance.rocksdb_get_pinned_cf(db.Handle, DefaultReadOptions.Handle,
-                    BlockIndexFamily.Handle, (IntPtr)indexPtr, (UIntPtr)indexBuffer.Length);
-
-                try
-                {
-                    var valuePtr = Native.Instance.rocksdb_pinnableslice_value(pinnableSlice, out var valueLength);
-                    if (valuePtr != IntPtr.Zero)
-                    {
-                        return true;
-                    }
-
-                    return false;
-                }
-                finally
-                {
-                    Native.Instance.rocksdb_pinnableslice_destroy(pinnableSlice);
-                }
-            }
+            return db.KeyExists(indexBuffer, BlockIndexFamily);
         }
 
         public void AddBlock(in Block block)
