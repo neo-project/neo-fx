@@ -1,6 +1,7 @@
 ﻿using DevHawk.Buffers;
 using McMaster.Extensions.CommandLineUtils;
 using NeoFx;
+using NeoFx.Models;
 using System;
 using System.Buffers;
 using System.Diagnostics;
@@ -10,7 +11,6 @@ using System.IO.Compression;
 namespace ImportBlocks
 {
     using NeoBlock = Neo.Network.P2P.Payloads.Block;
-
     class Program
     {
         static void Main(string[] args) => CommandLineApplication.Execute<Program>(args);
@@ -21,21 +21,16 @@ namespace ImportBlocks
         [Argument(1)]
         public string DatabaseDirectory { get; } = string.Empty;
 
-        static NeoBlock DeserializeNeoBlock(byte[] array)
+        static bool ValidateBlock(in Block fxBlock, byte[] array)
         {
-            return Neo.IO.Helper.AsSerializable<NeoBlock>(array);
-        }
+            static bool CompareUInt256(in NeoFx.UInt256 fx, Neo.UInt256 neo)
+            {
+                Span<byte> fxBuffer = stackalloc byte[32];
+                fx.Write(fxBuffer);
+                return fxBuffer.SequenceEqual(neo.ToArray());
+            }
 
-        static bool CompareUInt256(in NeoFx.UInt256 fx, Neo.UInt256 neo)
-        {
-            Span<byte> fxBuffer = stackalloc byte[32];
-            fx.Write(fxBuffer);
-            return fxBuffer.SequenceEqual(neo.ToArray());
-        }
-
-        static bool CompareBlock(in NeoFx.Models.Block fxBlock, byte[] array)
-        {
-            var neoBlock = DeserializeNeoBlock(array);
+            var neoBlock = Neo.IO.Helper.AsSerializable<NeoBlock>(array);
             if (!CompareUInt256(fxBlock.CalculateHash(), neoBlock.Hash)) return false;
             if (fxBlock.Transactions.Length != neoBlock.Transactions.Length) return false;
 
@@ -58,9 +53,12 @@ namespace ImportBlocks
 
             var dbDirectory = DatabaseDirectory.Length > 0
                 ? DatabaseDirectory
-                : @" C:\Users\harry\Source\neo\seattle\fx\ImportTest";
+                : System.IO.Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                    ".neofx-import-blocks");
 
-            var sw = System.Diagnostics.Stopwatch.StartNew();
+            using var db = new Database(dbDirectory);
+
 
             using var archiveFileStream = new FileStream(offlinePackage, FileMode.Open, FileAccess.Read, FileShare.Read);
             using var archive = new ZipArchive(archiveFileStream, ZipArchiveMode.Read);
@@ -68,28 +66,27 @@ namespace ImportBlocks
             using var archiveReader = new BinaryReader(archiveStream);
 
             var count = archiveReader.ReadUInt32();
-            // Console.WriteLine(count);
+            var pool = MemoryPool<byte>.Shared;
 
-            var pool = ArrayPool<byte>.Shared;
+            var sw = System.Diagnostics.Stopwatch.StartNew();
             for (var index = 0; index < count; index++)
             {
                 var size = (int)archiveReader.ReadUInt32();
-                var array = pool.Rent(size);
-                var bytesRead = archiveReader.Read(array.AsSpan(0, size));
+                using var owner = pool.Rent(size);
+                var span = owner.Memory.Span.Slice(0, size);
+                var bytesRead = archiveReader.Read(span);
                 Debug.Assert(bytesRead == size);
-                // var reader = new BufferReader<byte>(array.AsSpan(0, size));
-                // var succeeded = NeoFx.Models.Block.TryRead(ref reader, out var block);
-                // Debug.Assert(succeeded);
-                // Debug.Assert(reader.End);
-                // Debug.Assert(CompareBlock(block, array));
-                var neoBlock = DeserializeNeoBlock(array);
+                var reader = new BufferReader<byte>(span);
+                var succeeded = Block.TryRead(ref reader, out var block);
+                Debug.Assert(succeeded);
+                Debug.Assert(reader.End);
+
+                db.AddBlock(block);
 
                 // if (index % 1000 == 0) Console.WriteLine($"{index}");
-
-                pool.Return(array);
             }
-
             sw.Stop();
+
             Console.WriteLine($"ImportBlocks took {sw.ElapsedMilliseconds}ms");
         }
     }
