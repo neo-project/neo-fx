@@ -6,6 +6,7 @@ using System.Net;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
+using NeoFx.Models;
 
 namespace NeoFx.TestNode
 {
@@ -80,5 +81,9 @@ namespace NeoFx.TestNode
             }
         }
 
+        public Block GetGenesisBlock()
+        {
+            return Genesis.CreateGenesisBlock(GetValidators());
+        }
     }
 }

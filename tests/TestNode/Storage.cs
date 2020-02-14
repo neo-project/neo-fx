@@ -1,46 +1,70 @@
+using System;
+using System.Buffers;
+using System.Buffers.Binary;
+using System.Diagnostics;
 using DevHawk.Buffers;
 using NeoFx;
 using NeoFx.Models;
 using NeoFx.Storage;
 using RocksDbSharp;
-using System;
-using System.Buffers;
-using System.Buffers.Binary;
-using System.Diagnostics;
 
-namespace ImportBlocks
+namespace NeoFx.TestNode
 {
-    class Database : IDisposable
+    class Storage : IDisposable
     {
         const string BLOCKS_FAMILY = "data:blocks";
+        const string HEADERS_FAMILY = "data:headers";
         const string TRANSACTIONS_FAMILY = "data:transactions";
         const string BLOCK_INDEX_FAMILY = "ix:block-index";
+        const string HEADER_INDEX_FAMILY = "ix:header-index";
 
         private readonly RocksDb db;
 
-        public readonly ColumnFamilyHandle BlocksFamily;
-        public readonly ColumnFamilyHandle TransactionsFamily;
-        public readonly ColumnFamilyHandle BlockIndexFamily;
+        readonly ColumnFamilyHandle blocksFamily;
+        readonly ColumnFamilyHandle headersFamily;
+        readonly ColumnFamilyHandle transactionsFamily;
+        readonly ColumnFamilyHandle blockIndexFamily;
+        readonly ColumnFamilyHandle headersIndexFamily;
 
-        public Database(string path)
+        public Storage(string path, Func<Block> getGenesisBlock)
         {
             var columnFamilies = new ColumnFamilies {
                 { BLOCKS_FAMILY, new ColumnFamilyOptions() },
+                { HEADERS_FAMILY, new ColumnFamilyOptions() },
                 { TRANSACTIONS_FAMILY, new ColumnFamilyOptions() },
-                { BLOCK_INDEX_FAMILY, new ColumnFamilyOptions() }};
+                { BLOCK_INDEX_FAMILY, new ColumnFamilyOptions() },
+                { HEADER_INDEX_FAMILY, new ColumnFamilyOptions() }
+            };
 
             var options = new DbOptions()
                 .SetCreateIfMissing(true)
                 .SetCreateMissingColumnFamilies(true);
 
             db = RocksDb.Open(options, path, columnFamilies);
-            BlocksFamily = db.GetColumnFamily(BLOCKS_FAMILY);
-            TransactionsFamily = db.GetColumnFamily(TRANSACTIONS_FAMILY);
-            BlockIndexFamily = db.GetColumnFamily(BLOCK_INDEX_FAMILY);
+            blocksFamily = db.GetColumnFamily(BLOCKS_FAMILY);
+            headersFamily = db.GetColumnFamily(HEADERS_FAMILY);
+            transactionsFamily = db.GetColumnFamily(TRANSACTIONS_FAMILY);
+            blockIndexFamily = db.GetColumnFamily(BLOCK_INDEX_FAMILY);
+            headersIndexFamily = db.GetColumnFamily(HEADER_INDEX_FAMILY);
+
+            if (!BlockExists(0))
+            {
+                var genesisBlock = getGenesisBlock();
+                PutBlock(genesisBlock);
+            }
         }
+
         public void Dispose()
         {
             db.Dispose();
+        }
+
+
+        bool BlockExists(uint index)
+        {
+            Span<byte> indexBuffer = stackalloc byte[sizeof(uint)];
+            BinaryPrimitives.WriteUInt32BigEndian(indexBuffer, index);
+            return db.KeyExists(indexBuffer, blockIndexFamily);
         }
 
         void PutTransaction(in UInt256 hash, in Transaction tx, WriteBatch batch)
@@ -56,7 +80,7 @@ namespace ImportBlocks
             writer.Commit();
             Debug.Assert(writer.Span.IsEmpty);
 
-            batch.Put(keyBuffer, txSpan, TransactionsFamily);
+            batch.Put(keyBuffer, txSpan, transactionsFamily);
         }
 
         void PutBlock(in BlockHeader header, ReadOnlySpan<UInt256> txHashes, WriteBatch batch)
@@ -76,18 +100,13 @@ namespace ImportBlocks
             writer.Commit();
             Debug.Assert(writer.Span.IsEmpty);
 
-            batch.Put(hashBuffer, blockSpan, BlocksFamily);
-            batch.Put(hashBuffer, hashBuffer, BlockIndexFamily);
+            batch.Put(hashBuffer, blockSpan, blocksFamily);
+            batch.Put(indexBuffer, hashBuffer, blockIndexFamily);
         }
 
-        bool BlockExists(uint index)
-        {
-            Span<byte> indexBuffer = stackalloc byte[sizeof(uint)];
-            BinaryPrimitives.WriteUInt32BigEndian(indexBuffer, index);
-            return db.KeyExists(indexBuffer, BlockIndexFamily);
-        }
+        static readonly WriteOptions syncWriteOptions = new WriteOptions().SetSync(true);
 
-        public void AddBlock(in Block block)
+        public void PutBlock(in Block block)
         {
             if (BlockExists(block.Index))
                 return;
@@ -104,7 +123,7 @@ namespace ImportBlocks
             var blockHash = block.CalculateHash();
             PutBlock(block.Header, txHashes, batch);
 
-            db.Write(batch);
+            db.Write(batch, syncWriteOptions);
         }
     }
 }

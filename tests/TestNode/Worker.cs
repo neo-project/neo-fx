@@ -58,6 +58,12 @@ namespace NeoFx.TestNode
 
         async Task RunAsync(CancellationToken token)
         {
+            // TODO: storage from DI
+            var path = System.IO.Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                ".neofx-test-node");
+            using var storage = new Storage(path, networkOptions.GetGenesisBlock);
+
             var (endpoint, seed) = await networkOptions.GetRandomSeedAsync();
             log.LogInformation("{seed} seed chosen", seed);
 
