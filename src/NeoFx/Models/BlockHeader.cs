@@ -17,7 +17,7 @@ namespace NeoFx.Models
         public readonly Witness Witness;
 
         public const int ConstSize =
-            (sizeof(uint) * 3) + (UInt256.Size * 2) + sizeof(ulong) + UInt160.Size;
+            (sizeof(uint) * 3) + (UInt256.Size * 2) + sizeof(ulong) + UInt160.Size + 1;
 
         public int Size => ConstSize + Witness.Size;
 
