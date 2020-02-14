@@ -32,8 +32,6 @@ namespace NeoFx.TestNode
             this.nodeFactory = nodeFactory;
         }
 
-        private uint Magic => networkOptions.Magic;
-
         private static uint GetNonce()
         {
             var random = new Random();
