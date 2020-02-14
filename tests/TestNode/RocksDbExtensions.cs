@@ -15,11 +15,13 @@ namespace NeoFx.TestNode
             }
         }
 
-        public static unsafe bool KeyExists(this RocksDb db, ReadOnlySpan<byte> key, ColumnFamilyHandle columnFamily)
+        public static unsafe bool KeyExists(this RocksDb db, ReadOnlySpan<byte> key, ColumnFamilyHandle columnFamily, ReadOptions? readOptions = null)
         {
+            readOptions = readOptions ?? defaultReadOptions;
+
             fixed (byte* keyPtr = key)
             {
-                var pinnableSlice = Native.Instance.rocksdb_get_pinned_cf(db.Handle, defaultReadOptions.Handle,
+                var pinnableSlice = Native.Instance.rocksdb_get_pinned_cf(db.Handle, readOptions.Handle,
                     columnFamily.Handle, (IntPtr)keyPtr, (UIntPtr)key.Length);
 
                 try
