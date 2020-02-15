@@ -55,7 +55,7 @@ namespace NeoFx.TestNode
             if (!BlockExists(0))
             {
                 log.LogInformation("Adding Genesis Block");
-                AddBlock(networkOptions.Value.GetGenesisBlock());
+                PutBlock(networkOptions.Value.GetGenesisBlock(), true);
             }
         }
 
@@ -99,93 +99,46 @@ namespace NeoFx.TestNode
             throw new InvalidOperationException();
         }
 
-        static WriteOptions syncWriteOptions = new WriteOptions().SetSync(true);
-
-        void PutBlock(in Block block)
-        {
-            log.LogDebug("Put block {index}", block.Index);
-
-            var batch = new WriteBatch();
-
-            Span<UInt256> txHashes = stackalloc UInt256[block.Transactions.Length];
-            for (var x = 0; x < block.Transactions.Length; x++)
-            {
-                txHashes[x] = block.Transactions[x].CalculateHash();
-                PutTransaction(txHashes[x], block.Transactions[x], batch);
-            }
-
-            PutBlock(block.Header, txHashes, batch);
-
-            db.Write(batch);
-        }
-
         public void AddBlock(in Block block)
         {
-            if (TryGetBlockHash(out var value))
+            if (!TryGetBlockHash(out var value))
             {
-                if (value.index + 1 == block.Index)
-                {
-                    PutBlock(block);
-                }
-                else
-                {
-                    log.LogInformation("Adding Unverified block {index}", block.Index);
-                    unverifiedBlocks.Add(block.Index, block);
+                throw new Exception("Missing Genesis Block");
+            }
 
-                    var firstUnverified = unverifiedBlocks.Keys.First();
-                    log.LogWarning("current block {index} {index2}", value.index, firstUnverified);
-                    return;
-                }
+            if (value.index + 1 == block.Index
+                && !(block.Index > 100 && block.Index % 100 == 0))
+            {
+                PutBlock(block);
             }
             else
             {
-                if (block.Index != 0)
-                {
-                    throw new Exception("Missing Genesis Block");
-                }
-            }
-
-
-            if (unverifiedBlocks.Count > 0)
-            {
-                var lastBlockIndex = block.Index;
-                while (unverifiedBlocks.TryGetValue(lastBlockIndex, out var unverifiedBlock))
-                {
-                    PutBlock(unverifiedBlock);
-                    unverifiedBlocks.Remove(lastBlockIndex);
-                    lastBlockIndex = unverifiedBlock.Index;
-                }
+                log.LogInformation("Adding Unverified block {index}", block.Index);
+                unverifiedBlocks.Add(block.Index, block);
+                return;
             }
         }
 
-        // (uint index, UInt256 hash) GetLastBlockHash()
-        // {
-        //     using var snapshot = db.CreateSnapshot();
-        //     var readOptions = new ReadOptions().SetSnapshot(snapshot);
-        //     var iter = db.NewIterator(blockIndexFamily, readOptions);
-        //     iter.SeekToLast();
-        //     unsafe 
-        //     {
-
-        //     }
-        //     iter.
-        //     return TryGetValueHash(iter, out hash);
-
-        // }
-
-
-        public IEnumerable<UInt256> FilterBlocks(ImmutableArray<UInt256> blockHashes)
+        public (UInt256, UInt256) ProcessUnverifiedBlocks()
         {
-            using var snapshot = db.CreateSnapshot();
-            var readOptions = new ReadOptions().SetSnapshot(snapshot);
-
-            for (var i = 0; i < blockHashes.Length; i++)
+            if (unverifiedBlocks.Count > 0)
             {
-                if (!BlockExists(blockHashes[i]))
+                var (lastBlockIndex, lastBlockHash) = GetLastBlockHash();
+                while (unverifiedBlocks.TryGetValue(lastBlockIndex + 1, out var unverifiedBlock))
                 {
-                    yield return blockHashes[i];
+                    lastBlockHash = PutBlock(unverifiedBlock);
+                    lastBlockIndex = unverifiedBlock.Index;
+                    unverifiedBlocks.Remove(lastBlockIndex);
+                }
+
+                if (unverifiedBlocks.Count > 0)
+                {
+                    var firstUnverifiedBlock = unverifiedBlocks.Values.First();
+                    return (lastBlockHash, firstUnverifiedBlock.CalculateHash());
                 }
             }
+
+            return (UInt256.Zero, UInt256.Zero);
         }
 
         bool BlockExists(uint index, ReadOptions? readOptions = null)
@@ -195,20 +148,38 @@ namespace NeoFx.TestNode
             return db.KeyExists(indexBuffer, blockIndexFamily, readOptions);
         }
 
-        bool BlockExists(in UInt256 hash, ReadOptions? readOptions = null)
+        static WriteOptions syncWriteOptions = new WriteOptions().SetSync(true);
+        static WriteOptions asyncWriteOptions = new WriteOptions().SetSync(false);
+
+        UInt256 PutBlock(in Block block, bool syncWrite = false)
         {
-            Span<byte> indexBuffer = stackalloc byte[UInt256.Size];
-            hash.Write(indexBuffer);
-            return db.KeyExists(indexBuffer, blocksFamily, readOptions);
+            log.LogDebug("Put block {index}", block.Index);
+
+            var batch = new WriteBatch();
+
+            Span<UInt256> txHashes = stackalloc UInt256[block.Transactions.Length];
+            for (var x = 0; x < block.Transactions.Length; x++)
+            {
+                txHashes[x] = block.Transactions[x].CalculateHash();
+                PutTransaction(batch, txHashes[x], block.Transactions[x]);
+            }
+
+            var hash = PutTrimmedBlock(batch, block.Header, txHashes);
+
+            var options = syncWrite ? syncWriteOptions : asyncWriteOptions;
+            db.Write(batch, options);
+
+            return hash;
         }
 
-        void PutBlock(in BlockHeader header, ReadOnlySpan<UInt256> txHashes, WriteBatch batch)
+        UInt256 PutTrimmedBlock(WriteBatch batch, in BlockHeader header, ReadOnlySpan<UInt256> txHashes)
         {
             Span<byte> indexBuffer = stackalloc byte[sizeof(uint)];
             BinaryPrimitives.WriteUInt32BigEndian(indexBuffer, header.Index);
 
             Span<byte> hashBuffer = stackalloc byte[UInt256.Size];
-            header.CalculateHash().Write(hashBuffer);
+            var hash = header.CalculateHash();
+            hash.Write(hashBuffer);
 
             var blockSize = header.Size + txHashes.GetVarSize(UInt256.Size);
             using var owner = MemoryPool<byte>.Shared.Rent(blockSize);
@@ -221,9 +192,10 @@ namespace NeoFx.TestNode
 
             batch.Put(hashBuffer, blockSpan, blocksFamily);
             batch.Put(indexBuffer, hashBuffer, blockIndexFamily);
+            return hash;
         }
 
-        void PutTransaction(in UInt256 hash, in Transaction tx, WriteBatch batch)
+        void PutTransaction(WriteBatch batch, in UInt256 hash, Transaction tx)
         {
             Span<byte> keyBuffer = stackalloc byte[UInt256.Size];
             hash.Write(keyBuffer);

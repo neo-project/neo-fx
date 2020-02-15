@@ -6,5 +6,6 @@ namespace NeoFx.TestNode
     {
         (uint index, UInt256 hash) GetLastBlockHash();
         void AddBlock(in Block block);
+        (UInt256, UInt256) ProcessUnverifiedBlocks();
     }
 }

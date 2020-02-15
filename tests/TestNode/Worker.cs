@@ -61,13 +61,45 @@ namespace NeoFx.TestNode
             });
         }
 
+        async Task ProcessMessage(IRemoteNode node, Message message, CancellationToken token)
+        {
+            switch (message)
+            {
+                // case AddrMessage addrMessage:
+                //     log.LogInformation("Received AddrMessage {addressCount}", addrMessage.Addresses.Length);
+                //     foreach (var addr in addrMessage.Addresses)
+                //     {
+                //         log.LogInformation("\t{address}", addr.EndPoint);
+                //     }
+                //     break;
+                // case HeadersMessage headersMessage:
+                //     log.LogInformation("Received HeadersMessage {headersCount}", headersMessage.Headers.Length);
+                //     break;
+                case InvMessage invMessage when invMessage.Type == InventoryPayload.InventoryType.Block:
+                    {
+                        log.LogInformation("Received InvMessage {count}", invMessage.Hashes.Length);
+                        await node.SendGetDataMessage(invMessage.Payload, token);
+                    }
+                    break;
+                case BlockMessage blocKMessage:
+                    {
+                        log.LogInformation("Received BlockMessage {index}", blocKMessage.Block.Index);
+                        storage.AddBlock(blocKMessage.Block);
+                    }
+                    break;
+                default:
+                    log.LogInformation("Received {messageType}", message.GetType().Name);
+                    break;
+            }
+        }
+        
         async Task RunAsync(CancellationToken token)
         {
             var (endpoint, seed) = await networkOptions.GetRandomSeedAsync();
             log.LogInformation("{seed} seed chosen", seed);
 
             var localVersionPayload = new VersionPayload(GetNonce(), nodeOptions.UserAgent);
-            var channel = Channel.CreateUnbounded<(IRemoteNode, Message)>(new UnboundedChannelOptions()
+            var channel = Channel.CreateUnbounded<(IRemoteNode node, Message message)>(new UnboundedChannelOptions()
             {
                 SingleReader = true,
             });
@@ -83,37 +115,21 @@ namespace NeoFx.TestNode
             }
 
             await remoteNode.SendGetAddrMessage(token);
-
-            await foreach (var (node, msg) in channel.Reader.ReadAllAsync(token))
+            
+            while (!channel.Reader.Completion.IsCompleted)
             {
-                switch (msg)
+                while (channel.Reader.TryRead(out var item))
                 {
-                    // case AddrMessage addrMessage:
-                    //     log.LogInformation("Received AddrMessage {addressCount}", addrMessage.Addresses.Length);
-                    //     foreach (var addr in addrMessage.Addresses)
-                    //     {
-                    //         log.LogInformation("\t{address}", addr.EndPoint);
-                    //     }
-                    //     break;
-                    // case HeadersMessage headersMessage:
-                    //     log.LogInformation("Received HeadersMessage {headersCount}", headersMessage.Headers.Length);
-                    //     break;
-                    case InvMessage invMessage when invMessage.Type == InventoryPayload.InventoryType.Block:
-                        {
-                            log.LogInformation("Received InvMessage {count}", invMessage.Hashes.Length);
-                            await node.SendGetDataMessage(invMessage.Payload);
-                        }
-                        break;
-                    case BlockMessage blocKMessage:
-                        {
-                            log.LogInformation("Received BlockMessage {index}", blocKMessage.Block.Index);
-                            storage.AddBlock(blocKMessage.Block);
-                        }
-                        break;
-                    default:
-                        log.LogInformation("Received {messageType}", msg.GetType().Name);
-                        break;
+                    await ProcessMessage(item.node, item.message, token);
                 }
+
+                var (start, stop) = storage.ProcessUnverifiedBlocks();
+                if (start != UInt256.Zero)
+                {
+                    await remoteNode.SendGetBlocksMessage(new HashListPayload(start, stop));
+                }
+
+                await channel.Reader.WaitToReadAsync(token);
             }
         }
     }
