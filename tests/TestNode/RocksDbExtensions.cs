@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using RocksDbSharp;
 
 namespace NeoFx.TestNode
@@ -39,6 +40,26 @@ namespace NeoFx.TestNode
                     Native.Instance.rocksdb_pinnableslice_destroy(pinnableSlice);
                 }
             }
+        }
+
+        public delegate bool TryRead<T>(ReadOnlySpan<byte> span, [MaybeNullWhen(false)] out T value);
+
+        public static bool TryConvert<T>(IntPtr intPtr,
+                                         UIntPtr length,
+                                         TryRead<T> factory,
+                                         [MaybeNullWhen(false)] out T value)
+        {
+            if (intPtr != IntPtr.Zero)
+            {
+                unsafe 
+                {
+                    var span = new ReadOnlySpan<byte>((byte*)intPtr, (int)length);
+                    return factory(span, out value);
+                }
+            }
+
+            value = default!;
+            return false;
         }
     }
 }

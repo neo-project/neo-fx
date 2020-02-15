@@ -8,6 +8,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NeoFx.Models;
 using NeoFx.P2P.Messages;
+using System.Linq;
+using System.Collections.Immutable;
 
 namespace NeoFx.TestNode
 {
@@ -76,17 +78,39 @@ namespace NeoFx.TestNode
             var remoteNode = nodeFactory.CreateRemoteNode(channel.Writer);
             await remoteNode.Connect(endpoint, localVersionPayload, token);
 
-            await remoteNode.SendGetAddrMessage();
+            var (index, hash) = storage.GetLastBlockHash();
+            log.LogInformation("initial block height {index}", index);
+            if (index < remoteNode.VersionPayload.StartHeight)
+            {
+                await remoteNode.SendGetBlocksMessage(new HashListPayload(hash));
+            }
+
+            await remoteNode.SendGetAddrMessage(token);
 
             await foreach (var (node, msg) in channel.Reader.ReadAllAsync(token))
             {
                 switch (msg)
                 {
-                    case AddrMessage addrMessage:
-                        log.LogInformation("Received AddrMessage {addressCount}", addrMessage.Addresses.Length);
-                        foreach (var addr in addrMessage.Addresses)
+                    // case AddrMessage addrMessage:
+                    //     log.LogInformation("Received AddrMessage {addressCount}", addrMessage.Addresses.Length);
+                    //     foreach (var addr in addrMessage.Addresses)
+                    //     {
+                    //         log.LogInformation("\t{address}", addr.EndPoint);
+                    //     }
+                    //     break;
+                    // case HeadersMessage headersMessage:
+                    //     log.LogInformation("Received HeadersMessage {headersCount}", headersMessage.Headers.Length);
+                    //     break;
+                    case InvMessage invMessage when invMessage.Type == InventoryPayload.InventoryType.Block:
                         {
-                            log.LogInformation("\t{address}", addr.EndPoint);
+                            log.LogInformation("Received InvMessage {count}", invMessage.Hashes.Length);
+                            await node.SendGetDataMessage(invMessage.Payload);
+                        }
+                        break;
+                    case BlockMessage blocKMessage:
+                        {
+                            log.LogInformation("Received BlockMessage {index}", blocKMessage.Block.Index);
+                            storage.PutBlock(blocKMessage.Block);
                         }
                         break;
                     default:

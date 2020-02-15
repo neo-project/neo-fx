@@ -1,6 +1,8 @@
 using System;
 using System.Buffers;
 using System.Buffers.Binary;
+using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using DevHawk.Buffers;
 using NeoFx;
@@ -13,27 +15,21 @@ namespace NeoFx.TestNode
     class Storage : IDisposable
     {
         const string BLOCKS_FAMILY = "data:blocks";
-        const string HEADERS_FAMILY = "data:headers";
         const string TRANSACTIONS_FAMILY = "data:transactions";
         const string BLOCK_INDEX_FAMILY = "ix:block-index";
-        const string HEADER_INDEX_FAMILY = "ix:header-index";
 
         private readonly RocksDb db;
 
         readonly ColumnFamilyHandle blocksFamily;
-        readonly ColumnFamilyHandle headersFamily;
         readonly ColumnFamilyHandle transactionsFamily;
         readonly ColumnFamilyHandle blockIndexFamily;
-        readonly ColumnFamilyHandle headersIndexFamily;
 
         public Storage(string path, Func<Block> getGenesisBlock)
         {
             var columnFamilies = new ColumnFamilies {
                 { BLOCKS_FAMILY, new ColumnFamilyOptions() },
-                { HEADERS_FAMILY, new ColumnFamilyOptions() },
                 { TRANSACTIONS_FAMILY, new ColumnFamilyOptions() },
                 { BLOCK_INDEX_FAMILY, new ColumnFamilyOptions() },
-                { HEADER_INDEX_FAMILY, new ColumnFamilyOptions() }
             };
 
             var options = new DbOptions()
@@ -42,15 +38,12 @@ namespace NeoFx.TestNode
 
             db = RocksDb.Open(options, path, columnFamilies);
             blocksFamily = db.GetColumnFamily(BLOCKS_FAMILY);
-            headersFamily = db.GetColumnFamily(HEADERS_FAMILY);
             transactionsFamily = db.GetColumnFamily(TRANSACTIONS_FAMILY);
             blockIndexFamily = db.GetColumnFamily(BLOCK_INDEX_FAMILY);
-            headersIndexFamily = db.GetColumnFamily(HEADER_INDEX_FAMILY);
 
             if (!BlockExists(0))
             {
-                var genesisBlock = getGenesisBlock();
-                PutBlock(genesisBlock);
+                PutBlock(getGenesisBlock());
             }
         }
 
@@ -59,10 +52,57 @@ namespace NeoFx.TestNode
             db.Dispose();
         }
 
+        bool TryGetBlockHash(out (uint index, UInt256 hash) value)
+        {
+            using var snapshot = db.CreateSnapshot();
+            var readOptions = new ReadOptions().SetSnapshot(snapshot);
+
+            var iter = db.NewIterator(blockIndexFamily, readOptions);
+            iter.SeekToLast();
+
+            if (iter.Valid())
+            {
+                IntPtr keyPtr = Native.Instance.rocksdb_iter_key(iter.Handle, out UIntPtr keyLength);
+                IntPtr valuePtr = Native.Instance.rocksdb_iter_value(iter.Handle, out UIntPtr valueLength);
+
+                if (RocksDbExtensions.TryConvert<uint>(keyPtr, keyLength, BinaryPrimitives.TryReadUInt32BigEndian, out var index)
+                    && RocksDbExtensions.TryConvert<UInt256>(valuePtr, valueLength, UInt256.TryRead, out var hash))
+                {
+                    value = (index, hash);
+                    return true;
+                }
+            }
+
+            value = default;
+            return false;
+        }
+
+        public (uint index, UInt256 hash) GetLastBlockHash()
+        {
+            if (TryGetBlockHash(out var value))
+            {
+                return value;
+            }
+
+            throw new InvalidOperationException();
+        }
+
         public void PutBlock(in Block block)
         {
-            if (BlockExists(block.Index))
-                return;
+            if (TryGetBlockHash(out var value))
+            {
+                if (value.index + 1 != block.Index)
+                {
+                    return;
+                }
+            }
+            else
+            {
+                if (block.Index != 0)
+                {
+                    throw new Exception("Missing Genesis Block");
+                }
+            }
 
             var batch = new WriteBatch();
 
@@ -78,6 +118,35 @@ namespace NeoFx.TestNode
             db.Write(batch);
         }
 
+        // (uint index, UInt256 hash) GetLastBlockHash()
+        // {
+        //     using var snapshot = db.CreateSnapshot();
+        //     var readOptions = new ReadOptions().SetSnapshot(snapshot);
+        //     var iter = db.NewIterator(blockIndexFamily, readOptions);
+        //     iter.SeekToLast();
+        //     unsafe 
+        //     {
+
+        //     }
+        //     iter.
+        //     return TryGetValueHash(iter, out hash);
+
+        // }
+
+
+        public IEnumerable<UInt256> FilterBlocks(ImmutableArray<UInt256> blockHashes)
+        {
+            using var snapshot = db.CreateSnapshot();
+            var readOptions = new ReadOptions().SetSnapshot(snapshot);
+
+            for (var i = 0; i < blockHashes.Length; i++)
+            {
+                if (!BlockExists(blockHashes[i]))
+                {
+                    yield return blockHashes[i];
+                }
+            }
+        }
 
         bool BlockExists(uint index, ReadOptions? readOptions = null)
         {
@@ -86,21 +155,11 @@ namespace NeoFx.TestNode
             return db.KeyExists(indexBuffer, blockIndexFamily, readOptions);
         }
 
-
-        void PutTransaction(in UInt256 hash, in Transaction tx, WriteBatch batch)
+        bool BlockExists(in UInt256 hash, ReadOptions? readOptions = null)
         {
-            Span<byte> keyBuffer = stackalloc byte[UInt256.Size];
-            hash.Write(keyBuffer);
-
-            var txSize = tx.Size;
-            using var owner = MemoryPool<byte>.Shared.Rent(txSize);
-            var txSpan = owner.Memory.Span.Slice(0, txSize);
-            var writer = new BufferWriter<byte>(txSpan);
-            tx.WriteTo(ref writer);
-            writer.Commit();
-            Debug.Assert(writer.Span.IsEmpty);
-
-            batch.Put(keyBuffer, txSpan, transactionsFamily);
+            Span<byte> indexBuffer = stackalloc byte[UInt256.Size];
+            hash.Write(indexBuffer);
+            return db.KeyExists(indexBuffer, blocksFamily, readOptions);
         }
 
         void PutBlock(in BlockHeader header, ReadOnlySpan<UInt256> txHashes, WriteBatch batch)
@@ -124,9 +183,20 @@ namespace NeoFx.TestNode
             batch.Put(indexBuffer, hashBuffer, blockIndexFamily);
         }
 
+        void PutTransaction(in UInt256 hash, in Transaction tx, WriteBatch batch)
+        {
+            Span<byte> keyBuffer = stackalloc byte[UInt256.Size];
+            hash.Write(keyBuffer);
 
+            var txSize = tx.Size;
+            using var owner = MemoryPool<byte>.Shared.Rent(txSize);
+            var txSpan = owner.Memory.Span.Slice(0, txSize);
+            var writer = new BufferWriter<byte>(txSpan);
+            tx.WriteTo(ref writer);
+            writer.Commit();
+            Debug.Assert(writer.Span.IsEmpty);
 
-
-
+            batch.Put(keyBuffer, txSpan, transactionsFamily);
+        }
     }
 }
