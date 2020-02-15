@@ -16,12 +16,6 @@ using RocksDbSharp;
 
 namespace NeoFx.TestNode
 {
-    interface IStorage
-    {
-        (uint index, UInt256 hash) GetLastBlockHash();
-        void AddBlock(in Block block);
-    }
-
     class Storage : IStorage, IDisposable
     {
         const string BLOCKS_FAMILY = "data:blocks";
