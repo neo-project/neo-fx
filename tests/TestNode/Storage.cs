@@ -4,7 +4,11 @@ using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Linq;
 using DevHawk.Buffers;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using NeoFx;
 using NeoFx.Models;
 using NeoFx.Storage;
@@ -12,20 +16,31 @@ using RocksDbSharp;
 
 namespace NeoFx.TestNode
 {
-    class Storage : IDisposable
+    interface IStorage
+    {
+        (uint index, UInt256 hash) GetLastBlockHash();
+        void AddBlock(in Block block);
+    }
+
+    class Storage : IStorage, IDisposable
     {
         const string BLOCKS_FAMILY = "data:blocks";
         const string TRANSACTIONS_FAMILY = "data:transactions";
         const string BLOCK_INDEX_FAMILY = "ix:block-index";
 
-        private readonly RocksDb db;
-
+        readonly RocksDb db;
         readonly ColumnFamilyHandle blocksFamily;
         readonly ColumnFamilyHandle transactionsFamily;
         readonly ColumnFamilyHandle blockIndexFamily;
+        readonly SortedDictionary<uint, Block> unverifiedBlocks = new SortedDictionary<uint, Block>();
+        readonly ILogger<Storage> log;
 
-        public Storage(string path, Func<Block> getGenesisBlock)
+        public Storage(IOptions<NetworkOptions> networkOptions,
+                       IOptions<NodeOptions> nodeOptions,
+                       ILogger<Storage>? logger = null)
         {
+            log = logger ?? NullLogger<Storage>.Instance;
+
             var columnFamilies = new ColumnFamilies {
                 { BLOCKS_FAMILY, new ColumnFamilyOptions() },
                 { TRANSACTIONS_FAMILY, new ColumnFamilyOptions() },
@@ -36,6 +51,8 @@ namespace NeoFx.TestNode
                 .SetCreateIfMissing(true)
                 .SetCreateMissingColumnFamilies(true);
 
+            var path = nodeOptions.Value.GetStoragePath();
+            log.LogInformation("Database path {path}", path);
             db = RocksDb.Open(options, path, columnFamilies);
             blocksFamily = db.GetColumnFamily(BLOCKS_FAMILY);
             transactionsFamily = db.GetColumnFamily(TRANSACTIONS_FAMILY);
@@ -43,7 +60,8 @@ namespace NeoFx.TestNode
 
             if (!BlockExists(0))
             {
-                PutBlock(getGenesisBlock());
+                log.LogInformation("Adding Genesis Block");
+                AddBlock(networkOptions.Value.GetGenesisBlock());
             }
         }
 
@@ -87,22 +105,11 @@ namespace NeoFx.TestNode
             throw new InvalidOperationException();
         }
 
-        public void PutBlock(in Block block)
+        static WriteOptions syncWriteOptions = new WriteOptions().SetSync(true);
+
+        void PutBlock(in Block block)
         {
-            if (TryGetBlockHash(out var value))
-            {
-                if (value.index + 1 != block.Index)
-                {
-                    return;
-                }
-            }
-            else
-            {
-                if (block.Index != 0)
-                {
-                    throw new Exception("Missing Genesis Block");
-                }
-            }
+            log.LogDebug("Put block {index}", block.Index);
 
             var batch = new WriteBatch();
 
@@ -116,6 +123,45 @@ namespace NeoFx.TestNode
             PutBlock(block.Header, txHashes, batch);
 
             db.Write(batch);
+        }
+
+        public void AddBlock(in Block block)
+        {
+            if (TryGetBlockHash(out var value))
+            {
+                if (value.index + 1 == block.Index)
+                {
+                    PutBlock(block);
+                }
+                else
+                {
+                    log.LogInformation("Adding Unverified block {index}", block.Index);
+                    unverifiedBlocks.Add(block.Index, block);
+
+                    var firstUnverified = unverifiedBlocks.Keys.First();
+                    log.LogWarning("current block {index} {index2}", value.index, firstUnverified);
+                    return;
+                }
+            }
+            else
+            {
+                if (block.Index != 0)
+                {
+                    throw new Exception("Missing Genesis Block");
+                }
+            }
+
+
+            if (unverifiedBlocks.Count > 0)
+            {
+                var lastBlockIndex = block.Index;
+                while (unverifiedBlocks.TryGetValue(lastBlockIndex, out var unverifiedBlock))
+                {
+                    PutBlock(unverifiedBlock);
+                    unverifiedBlocks.Remove(lastBlockIndex);
+                    lastBlockIndex = unverifiedBlock.Index;
+                }
+            }
         }
 
         // (uint index, UInt256 hash) GetLastBlockHash()

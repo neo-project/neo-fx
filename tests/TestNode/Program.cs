@@ -18,8 +18,7 @@ namespace NeoFx.TestNode
                 .UseSystemd()
                 .ConfigureServices((context, services) =>
                 {
-                    // services.AddTransient<IHeaderStorage, MemoryHeaderStorage>();
-                    // services.AddSingleton<IHeaderStorage>(_ => new RocksDbHeaderStorage(@"C:\Users\harry\.neofx-testnode"));
+                    services.AddSingleton<IStorage, Storage>();
                     services.AddTransient<PipelineSocket>();
                     services.AddSingleton<INodeConnectionFactory, NodeConnectionFactory>();
                     services.AddSingleton<IRemoteNodeFactory, RemoteNodeFactory>();

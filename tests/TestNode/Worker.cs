@@ -20,8 +20,10 @@ namespace NeoFx.TestNode
         private readonly NetworkOptions networkOptions;
         private readonly NodeOptions nodeOptions;
         private readonly IRemoteNodeFactory nodeFactory;
+        private readonly IStorage storage;
 
         public Worker(IRemoteNodeFactory nodeFactory,
+                      IStorage storage,
                       IHostApplicationLifetime hostApplicationLifetime,
                       ILogger<Worker> log,
                       IOptions<NetworkOptions> networkOptions,
@@ -32,6 +34,7 @@ namespace NeoFx.TestNode
             this.networkOptions = networkOptions.Value;
             this.nodeOptions = nodeOptions.Value;
             this.nodeFactory = nodeFactory;
+            this.storage = storage;
         }
 
         private static uint GetNonce()
@@ -60,12 +63,6 @@ namespace NeoFx.TestNode
 
         async Task RunAsync(CancellationToken token)
         {
-            // TODO: storage from DI
-            var path = System.IO.Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                ".neofx-test-node");
-            using var storage = new Storage(path, networkOptions.GetGenesisBlock);
-
             var (endpoint, seed) = await networkOptions.GetRandomSeedAsync();
             log.LogInformation("{seed} seed chosen", seed);
 
@@ -110,7 +107,7 @@ namespace NeoFx.TestNode
                     case BlockMessage blocKMessage:
                         {
                             log.LogInformation("Received BlockMessage {index}", blocKMessage.Block.Index);
-                            storage.PutBlock(blocKMessage.Block);
+                            storage.AddBlock(blocKMessage.Block);
                         }
                         break;
                     default:
