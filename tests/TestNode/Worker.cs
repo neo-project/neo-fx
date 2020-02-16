@@ -72,9 +72,16 @@ namespace NeoFx.TestNode
                 //         log.LogInformation("\t{address}", addr.EndPoint);
                 //     }
                 //     break;
-                // case HeadersMessage headersMessage:
-                //     log.LogInformation("Received HeadersMessage {headersCount}", headersMessage.Headers.Length);
-                //     break;
+                case HeadersMessage headersMessage:
+                    log.LogInformation("Received HeadersMessage {headersCount}", headersMessage.Headers.Length);
+                    {
+                        var headers = headersMessage.Headers;
+                        for (var x = 0; x < headers.Length; x++)
+                        {
+                            storage.AddHeader(headers[x]);
+                        }
+                    }
+                    break;
                 case InvMessage invMessage when invMessage.Type == InventoryPayload.InventoryType.Block:
                     {
                         log.LogInformation("Received InvMessage {count}", invMessage.Hashes.Length);
@@ -111,23 +118,22 @@ namespace NeoFx.TestNode
             log.LogInformation("initial block height {index}", index);
             if (index < remoteNode.VersionPayload.StartHeight)
             {
-                await remoteNode.SendGetBlocksMessage(new HashListPayload(hash));
+                await remoteNode.SendGetHeadersMessage(new HashListPayload(hash));
             }
 
-            await remoteNode.SendGetAddrMessage(token);
-            
-            while (!channel.Reader.Completion.IsCompleted)
+            var completionTask = channel.Reader.Completion; 
+            while (!completionTask.IsCompleted)
             {
                 while (channel.Reader.TryRead(out var item))
                 {
                     await ProcessMessage(item.node, item.message, token);
                 }
 
-                var (start, stop) = storage.ProcessUnverifiedBlocks();
-                if (start != UInt256.Zero)
-                {
-                    await remoteNode.SendGetBlocksMessage(new HashListPayload(start, stop));
-                }
+                // var (start, stop) = storage.ProcessUnverifiedBlocks();
+                // if (start != UInt256.Zero)
+                // {
+                //     await remoteNode.SendGetBlocksMessage(new HashListPayload(start, stop));
+                // }
 
                 await channel.Reader.WaitToReadAsync(token);
             }

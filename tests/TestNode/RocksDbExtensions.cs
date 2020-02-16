@@ -8,6 +8,13 @@ namespace NeoFx.TestNode
     {
         private static readonly ReadOptions defaultReadOptions = new ReadOptions();
 
+        public static bool ColumnFamilyEmpty(this RocksDb db, ColumnFamilyHandle columnFamily, ReadOptions? readOptions = null)
+        {
+            var iter = db.NewIterator(columnFamily, readOptions);
+            iter.SeekToFirst();
+            return !iter.Valid();
+        }
+
         public static unsafe void Put(this WriteBatch batch, ReadOnlySpan<byte> key, ReadOnlySpan<byte> value, ColumnFamilyHandle columnFamily)
         {
             fixed (byte* keyPtr = key, valuePtr = value)
