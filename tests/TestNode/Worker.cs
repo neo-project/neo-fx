@@ -20,10 +20,10 @@ namespace NeoFx.TestNode
         private readonly NetworkOptions networkOptions;
         private readonly NodeOptions nodeOptions;
         private readonly IRemoteNodeFactory nodeFactory;
-        // private readonly IStorage storage;
+        private readonly Storage storage;
 
         public Worker(IRemoteNodeFactory nodeFactory,
-                    //   IStorage storage,
+                      Storage storage,
                       IHostApplicationLifetime hostApplicationLifetime,
                       ILogger<Worker> log,
                       IOptions<NetworkOptions> networkOptions,
@@ -92,8 +92,12 @@ namespace NeoFx.TestNode
                     break;
                 case InvMessage invMessage when invMessage.Type == InventoryPayload.InventoryType.Block:
                     {
-                        log.LogInformation("Received InvMessage {count}", invMessage.Hashes.Length);
-                        await node.SendGetDataMessage(invMessage.Payload, token);
+                        // log.LogInformation("Received InvMessage {count}", invMessage.Hashes.Length);
+                        // for (var x = 0; x < invMessage.Hashes; x++)
+                        // {
+                        //     storage.AddBlockHash()
+                        // }
+                        // await node.SendGetDataMessage(invMessage.Payload, token);
                     }
                     break;
                 case BlockMessage blocKMessage:
@@ -122,9 +126,11 @@ namespace NeoFx.TestNode
             var remoteNode = nodeFactory.CreateRemoteNode(channel.Writer);
             await remoteNode.Connect(endpoint, localVersionPayload, token);
 
-            // var (index, hash) = storage.GetLastHeaderHash();
-            // log.LogInformation("initial block header height {index}", index);
-            // await remoteNode.SendGetHeadersMessage(new HashListPayload(hash));
+            var (index, hash) = storage.GetLastBlockHash();
+            log.LogInformation("initial block header height {index}", index);
+
+            // var (start, stop) = storage.GetMissingBlockList();
+            // await remoteNode.SendGetBlocksMessage(new HashListPayload(start, stop));
 
             var completionTask = channel.Reader.Completion; 
             while (!completionTask.IsCompleted)

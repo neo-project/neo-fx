@@ -49,6 +49,22 @@ namespace NeoFx.TestNode
             }
         }
 
+        public static unsafe bool TryReadKey<T>(this Iterator iterator, TryRead<T> factory,
+            [MaybeNullWhen(false)] out T value)
+        {
+            IntPtr keyPtr = Native.Instance.rocksdb_iter_key(iterator.Handle, out UIntPtr keyLength);
+            var span = new ReadOnlySpan<byte>((byte*)keyPtr, (int)keyLength);
+            return factory(span, out value);
+        }
+
+        public static unsafe bool TryReadValue<T>(this Iterator iterator, TryRead<T> factory,
+            [MaybeNullWhen(false)] out T value)
+        {
+            IntPtr keyPtr = Native.Instance.rocksdb_iter_value(iterator.Handle, out UIntPtr keyLength);
+            var span = new ReadOnlySpan<byte>((byte*)keyPtr, (int)keyLength);
+            return factory(span, out value);
+        }
+        
         public static unsafe bool KeyExists(this RocksDb db, ReadOnlySpan<byte> key, ColumnFamilyHandle columnFamily, ReadOptions? readOptions = null)
         {
             readOptions = readOptions ?? defaultReadOptions;
