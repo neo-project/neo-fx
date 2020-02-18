@@ -20,10 +20,10 @@ namespace NeoFx.TestNode
         private readonly NetworkOptions networkOptions;
         private readonly NodeOptions nodeOptions;
         private readonly IRemoteNodeFactory nodeFactory;
-        private readonly IStorage storage;
+        // private readonly IStorage storage;
 
         public Worker(IRemoteNodeFactory nodeFactory,
-                      IStorage storage,
+                    //   IStorage storage,
                       IHostApplicationLifetime hostApplicationLifetime,
                       ILogger<Worker> log,
                       IOptions<NetworkOptions> networkOptions,
@@ -34,7 +34,7 @@ namespace NeoFx.TestNode
             this.networkOptions = networkOptions.Value;
             this.nodeOptions = nodeOptions.Value;
             this.nodeFactory = nodeFactory;
-            this.storage = storage;
+            // this.storage = storage;
         }
 
         private static uint GetNonce()
@@ -73,13 +73,21 @@ namespace NeoFx.TestNode
                 //     }
                 //     break;
                 case HeadersMessage headersMessage:
-                    log.LogInformation("Received HeadersMessage {headersCount}", headersMessage.Headers.Length);
+                    log.LogDebug("Received HeadersMessage {headersCount}", headersMessage.Headers.Length);
                     {
-                        var headers = headersMessage.Headers;
-                        for (var x = 0; x < headers.Length; x++)
-                        {
-                            storage.AddHeader(headers[x]);
-                        }
+                        // var headers = headersMessage.Headers;
+                        // for (var x = 0; x < headers.Length; x++)
+                        // {
+                        //     // storage.AddHeader(headers[x]);
+                        // }
+
+                        // var (_, headerHash) = storage.GetLastHeaderHash();
+                        // // await node.SendGetHeadersMessage(new HashListPayload(headerHash));
+
+                        // var (blockIndex, blockHash) = storage.GetLastBlockHash();
+                        // var hashStop = storage.GetHeaderHash(blockIndex + 100);
+
+                        // await node.SendGetBlocksMessage(new HashListPayload(blockHash, hashStop));
                     }
                     break;
                 case InvMessage invMessage when invMessage.Type == InventoryPayload.InventoryType.Block:
@@ -90,8 +98,8 @@ namespace NeoFx.TestNode
                     break;
                 case BlockMessage blocKMessage:
                     {
-                        log.LogInformation("Received BlockMessage {index}", blocKMessage.Block.Index);
-                        storage.AddBlock(blocKMessage.Block);
+                        // log.LogDebug("Received BlockMessage {index}", blocKMessage.Block.Index);
+                        // storage.AddBlock(blocKMessage.Block);
                     }
                     break;
                 default:
@@ -114,12 +122,9 @@ namespace NeoFx.TestNode
             var remoteNode = nodeFactory.CreateRemoteNode(channel.Writer);
             await remoteNode.Connect(endpoint, localVersionPayload, token);
 
-            var (index, hash) = storage.GetLastBlockHash();
-            log.LogInformation("initial block height {index}", index);
-            if (index < remoteNode.VersionPayload.StartHeight)
-            {
-                await remoteNode.SendGetHeadersMessage(new HashListPayload(hash));
-            }
+            // var (index, hash) = storage.GetLastHeaderHash();
+            // log.LogInformation("initial block header height {index}", index);
+            // await remoteNode.SendGetHeadersMessage(new HashListPayload(hash));
 
             var completionTask = channel.Reader.Completion; 
             while (!completionTask.IsCompleted)

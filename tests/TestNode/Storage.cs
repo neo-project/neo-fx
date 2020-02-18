@@ -16,7 +16,7 @@ using RocksDbSharp;
 
 namespace NeoFx.TestNode
 {
-    class Storage : IStorage, IDisposable
+    class Storage : /*IStorage,*/ IDisposable
     {
         const string BLOCKS_FAMILY = "data:blocks";
         const string HEADERS_FAMILY = "data:headers";
@@ -93,6 +93,19 @@ namespace NeoFx.TestNode
             throw new InvalidOperationException("Missing Genesis Block");
         }
 
+        public UInt256 GetHeaderHash(uint index)
+        {
+            Span<byte> indexBuffer = stackalloc byte[sizeof(uint)];
+            BinaryPrimitives.WriteUInt32BigEndian(indexBuffer, index);
+
+            if (db.TryGet<UInt256>(indexBuffer, headersIndexFamily, null, UInt256.TryRead, out var hash))
+            {
+                return hash;
+            }
+
+            return default;
+        }
+
         public void AddBlock(in Block block)
         {
             var (index, hash) = GetLastBlockHash();
@@ -144,7 +157,7 @@ namespace NeoFx.TestNode
 
         UInt256 PutBlock(in Block block, bool syncWrite = false)
         {
-            log.LogDebug("Put block {index}", block.Index);
+            log.LogInformation("Put block {index}", block.Index);
 
             var batch = new WriteBatch();
 
@@ -165,7 +178,7 @@ namespace NeoFx.TestNode
 
         UInt256 PutHeader(in BlockHeader header, bool syncWrite = false)
         {
-            log.LogDebug("Put BlockHeader {index}", header.Index);
+            log.LogInformation("Put BlockHeader {index}", header.Index);
 
             var batch = new WriteBatch();
 

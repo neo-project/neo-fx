@@ -8,11 +8,37 @@ namespace NeoFx.TestNode
     {
         private static readonly ReadOptions defaultReadOptions = new ReadOptions();
 
+        public delegate bool TryRead<T>(ReadOnlySpan<byte> span, [MaybeNullWhen(false)] out T value);
+
         public static bool ColumnFamilyEmpty(this RocksDb db, ColumnFamilyHandle columnFamily, ReadOptions? readOptions = null)
         {
             var iter = db.NewIterator(columnFamily, readOptions);
             iter.SeekToFirst();
             return !iter.Valid();
+        }
+
+        public static unsafe bool TryGet<T>(this RocksDb db,
+                                                     ReadOnlySpan<byte> key,
+                                                     ColumnFamilyHandle columnFamily,
+                                                     ReadOptions? readOptions,
+                                                     TryRead<T> factory,
+                                                     [MaybeNullWhen(false)] out T value)
+        {
+            fixed (byte* keyPtr = key)
+            {
+                var pinnableSlice = Native.Instance.rocksdb_get_pinned_cf(db.Handle, (readOptions ?? defaultReadOptions).Handle,
+                    columnFamily.Handle, (IntPtr)keyPtr, (UIntPtr)key.Length);
+
+                try
+                {
+                    var valuePtr = Native.Instance.rocksdb_pinnableslice_value(pinnableSlice, out var valueLength);
+                    return TryConvert(valuePtr, valueLength, factory, out value);
+                }
+                finally
+                {
+                    Native.Instance.rocksdb_pinnableslice_destroy(pinnableSlice);
+                }
+            }
         }
 
         public static unsafe void Put(this WriteBatch batch, ReadOnlySpan<byte> key, ReadOnlySpan<byte> value, ColumnFamilyHandle columnFamily)
@@ -48,8 +74,6 @@ namespace NeoFx.TestNode
                 }
             }
         }
-
-        public delegate bool TryRead<T>(ReadOnlySpan<byte> span, [MaybeNullWhen(false)] out T value);
 
         public static bool TryConvert<T>(IntPtr intPtr,
                                          UIntPtr length,

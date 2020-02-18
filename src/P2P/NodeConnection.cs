@@ -8,7 +8,6 @@ using NeoFx.P2P.Messages;
 
 namespace NeoFx.P2P
 {
-
     public sealed class NodeConnection : INodeConnection, IDisposable
     {
         private readonly ILogger<NodeConnection> log;

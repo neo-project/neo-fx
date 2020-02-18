@@ -8,15 +8,16 @@
     <TargetFramework>netcoreapp3.1</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\P2P\NeoFx.P2P.csproj"/>
+    <ProjectReference Include="..\..\src\P2P\NeoFx.P2P.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="3.1.1"/>
-    <PackageReference Include="Microsoft.Extensions.Hosting.Systemd" Version="3.1.1"/>
-    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="3.1.1"/>
-    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="3.1.1"/>
-    <PackageReference Include="RocksDbNative" Version="6.2.2"/>
-    <PackageReference Include="RocksDbSharp" Version="6.2.2"/>
-    <PackageReference Include="System.Threading.Channels" Version="4.7.0"/>
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="3.1.1" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Systemd" Version="3.1.1" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="3.1.1" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="3.1.1" />
+    <PackageReference Include="NReco.Logging.File" Version="1.0.4" />
+    <PackageReference Include="RocksDbNative" Version="6.2.2" />
+    <PackageReference Include="RocksDbSharp" Version="6.2.2" />
+    <PackageReference Include="System.Threading.Channels" Version="4.7.0" />
   </ItemGroup>
 </Project>
