@@ -1,6 +1,7 @@
 ﻿using DevHawk.Buffers;
 using NeoFx.Storage;
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 
 namespace NeoFx.P2P.Messages
@@ -26,7 +27,11 @@ namespace NeoFx.P2P.Messages
             Hashes = hashes;
         }
 
-
+        public InventoryPayload(InventoryType type, IEnumerable<UInt256> hashes)
+            : this(type, hashes.ToImmutableArray())
+        {
+        }
+        
         public static bool TryRead(ref BufferReader<byte> reader, out InventoryPayload payload)
         {
             if (reader.TryRead(out byte type)
