@@ -13,31 +13,31 @@ namespace ImportBlocks
     class Database : IDisposable
     {
         const string BLOCKS_FAMILY = "data:blocks";
-        const string TRANSACTIONS_FAMILY = "data:transactions";
         const string BLOCK_INDEX_FAMILY = "ix:block-index";
+        const string TRANSACTIONS_FAMILY = "data:transactions";
 
         private readonly RocksDb db;
-
-        public readonly ColumnFamilyHandle BlocksFamily;
-        public readonly ColumnFamilyHandle TransactionsFamily;
-        public readonly ColumnFamilyHandle BlockIndexFamily;
+        private readonly ColumnFamilyHandle blocksFamily;
+        private readonly ColumnFamilyHandle blockIndexFamily;
+        private readonly ColumnFamilyHandle transactionsFamily;
 
         public Database(string path)
         {
             var columnFamilies = new ColumnFamilies {
                 { BLOCKS_FAMILY, new ColumnFamilyOptions() },
-                { TRANSACTIONS_FAMILY, new ColumnFamilyOptions() },
-                { BLOCK_INDEX_FAMILY, new ColumnFamilyOptions() }};
+                { BLOCK_INDEX_FAMILY, new ColumnFamilyOptions() },
+                { TRANSACTIONS_FAMILY, new ColumnFamilyOptions() }};
 
             var options = new DbOptions()
                 .SetCreateIfMissing(true)
                 .SetCreateMissingColumnFamilies(true);
 
             db = RocksDb.Open(options, path, columnFamilies);
-            BlocksFamily = db.GetColumnFamily(BLOCKS_FAMILY);
-            TransactionsFamily = db.GetColumnFamily(TRANSACTIONS_FAMILY);
-            BlockIndexFamily = db.GetColumnFamily(BLOCK_INDEX_FAMILY);
+            blocksFamily = db.GetColumnFamily(BLOCKS_FAMILY);
+            blockIndexFamily = db.GetColumnFamily(BLOCK_INDEX_FAMILY);
+            transactionsFamily = db.GetColumnFamily(TRANSACTIONS_FAMILY);
         }
+
         public void Dispose()
         {
             db.Dispose();
@@ -56,7 +56,7 @@ namespace ImportBlocks
             writer.Commit();
             Debug.Assert(writer.Span.IsEmpty);
 
-            batch.Put(keyBuffer, txSpan, TransactionsFamily);
+            batch.Put(keyBuffer, txSpan, transactionsFamily);
         }
 
         void PutBlock(in BlockHeader header, ReadOnlySpan<UInt256> txHashes, WriteBatch batch)
@@ -76,15 +76,15 @@ namespace ImportBlocks
             writer.Commit();
             Debug.Assert(writer.Span.IsEmpty);
 
-            batch.Put(hashBuffer, blockSpan, BlocksFamily);
-            batch.Put(hashBuffer, hashBuffer, BlockIndexFamily);
+            batch.Put(hashBuffer, blockSpan, blocksFamily);
+            batch.Put(hashBuffer, hashBuffer, blockIndexFamily);
         }
 
         bool BlockExists(uint index)
         {
             Span<byte> indexBuffer = stackalloc byte[sizeof(uint)];
             BinaryPrimitives.WriteUInt32BigEndian(indexBuffer, index);
-            return db.KeyExists(indexBuffer, BlockIndexFamily);
+            return db.KeyExists(indexBuffer, blockIndexFamily);
         }
 
         public void AddBlock(in Block block)
