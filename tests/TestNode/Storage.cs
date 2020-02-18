@@ -2,34 +2,28 @@ using System;
 using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
 using DevHawk.Buffers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using NeoFx;
 using NeoFx.Models;
 using NeoFx.Storage;
 using RocksDbSharp;
 
 namespace NeoFx.TestNode
 {
-    class Storage : /*IStorage,*/ IDisposable
+    class Storage : IDisposable
     {
         const string BLOCKS_FAMILY = "data:blocks";
-        const string HEADERS_FAMILY = "data:headers";
         const string TRANSACTIONS_FAMILY = "data:transactions";
         const string BLOCK_INDEX_FAMILY = "ix:block-index";
-        const string HEADER_INDEX_FAMILY = "ix:header-index";
 
         readonly RocksDb db;
         readonly ColumnFamilyHandle blocksFamily;
-        readonly ColumnFamilyHandle headersFamily;
         readonly ColumnFamilyHandle transactionsFamily;
         readonly ColumnFamilyHandle blockIndexFamily;
-        readonly ColumnFamilyHandle headersIndexFamily;
 
         readonly SortedDictionary<uint, Block> unverifiedBlocks = new SortedDictionary<uint, Block>();
         readonly ILogger<Storage> log;
@@ -42,10 +36,8 @@ namespace NeoFx.TestNode
 
             var columnFamilies = new ColumnFamilies {
                 { BLOCKS_FAMILY, new ColumnFamilyOptions() },
-                { HEADERS_FAMILY, new ColumnFamilyOptions() },
                 { TRANSACTIONS_FAMILY, new ColumnFamilyOptions() },
                 { BLOCK_INDEX_FAMILY, new ColumnFamilyOptions() },
-                { HEADER_INDEX_FAMILY, new ColumnFamilyOptions() }
             };
 
             var options = new DbOptions()
@@ -56,10 +48,8 @@ namespace NeoFx.TestNode
             log.LogInformation("Database path {path}", path);
             db = RocksDb.Open(options, path, columnFamilies);
             blocksFamily = db.GetColumnFamily(BLOCKS_FAMILY);
-            headersFamily = db.GetColumnFamily(HEADERS_FAMILY);
             transactionsFamily = db.GetColumnFamily(TRANSACTIONS_FAMILY);
             blockIndexFamily = db.GetColumnFamily(BLOCK_INDEX_FAMILY);
-            headersIndexFamily = db.GetColumnFamily(HEADER_INDEX_FAMILY);
 
             if (db.ColumnFamilyEmpty(blockIndexFamily))
             {
@@ -73,15 +63,15 @@ namespace NeoFx.TestNode
             db.Dispose();
         }
 
-        public (uint index, UInt256 hash) GetLastHeaderHash()
-        {
-            if (TryGetLastIndex(db, headersIndexFamily, out var value))
-            {
-                return value;
-            }
+        // public (uint index, UInt256 hash) GetLastHeaderHash()
+        // {
+        //     if (TryGetLastIndex(db, headersIndexFamily, out var value))
+        //     {
+        //         return value;
+        //     }
 
-            return GetLastBlockHash();
-        }
+        //     return GetLastBlockHash();
+        // }
 
         public (uint index, UInt256 hash) GetLastBlockHash()
         {
@@ -93,64 +83,64 @@ namespace NeoFx.TestNode
             throw new InvalidOperationException("Missing Genesis Block");
         }
 
-        public UInt256 GetHeaderHash(uint index)
-        {
-            Span<byte> indexBuffer = stackalloc byte[sizeof(uint)];
-            BinaryPrimitives.WriteUInt32BigEndian(indexBuffer, index);
+        // public UInt256 GetHeaderHash(uint index)
+        // {
+        //     Span<byte> indexBuffer = stackalloc byte[sizeof(uint)];
+        //     BinaryPrimitives.WriteUInt32BigEndian(indexBuffer, index);
 
-            if (db.TryGet<UInt256>(indexBuffer, headersIndexFamily, null, UInt256.TryRead, out var hash))
-            {
-                return hash;
-            }
+        //     if (db.TryGet<UInt256>(indexBuffer, headersIndexFamily, null, UInt256.TryRead, out var hash))
+        //     {
+        //         return hash;
+        //     }
 
-            return default;
-        }
+        //     return default;
+        // }
 
-        public void AddBlock(in Block block)
-        {
-            var (index, hash) = GetLastBlockHash();
+        // public void AddBlock(in Block block)
+        // {
+        //     var (index, hash) = GetLastBlockHash();
 
-            if (index + 1 == block.Index)
-            {
-                PutBlock(block, true);
-            }
-            else
-            {
-                log.LogInformation("Adding Unverified block {index}", block.Index);
-                unverifiedBlocks.Add(block.Index, block);
-            }
-        }
+        //     if (index + 1 == block.Index)
+        //     {
+        //         PutBlock(block, true);
+        //     }
+        //     else
+        //     {
+        //         log.LogInformation("Adding Unverified block {index}", block.Index);
+        //         unverifiedBlocks.Add(block.Index, block);
+        //     }
+        // }
 
-        public void AddHeader(in BlockHeader header)
-        {
-            var (index, hash) = GetLastBlockHash();
-            if (index + 1 == header.Index || index == 0)
-            {
-                PutHeader(header, true);
-            }
-        }
+        // public void AddHeader(in BlockHeader header)
+        // {
+        //     var (index, hash) = GetLastBlockHash();
+        //     if (index + 1 == header.Index || index == 0)
+        //     {
+        //         PutHeader(header, true);
+        //     }
+        // }
 
-        public (UInt256, UInt256) ProcessUnverifiedBlocks()
-        {
-            if (unverifiedBlocks.Count > 0)
-            {
-                var (lastBlockIndex, lastBlockHash) = GetLastBlockHash();
-                while (unverifiedBlocks.TryGetValue(lastBlockIndex + 1, out var unverifiedBlock))
-                {
-                    lastBlockHash = PutBlock(unverifiedBlock);
-                    lastBlockIndex = unverifiedBlock.Index;
-                    unverifiedBlocks.Remove(lastBlockIndex);
-                }
+        // public (UInt256, UInt256) ProcessUnverifiedBlocks()
+        // {
+        //     if (unverifiedBlocks.Count > 0)
+        //     {
+        //         var (lastBlockIndex, lastBlockHash) = GetLastBlockHash();
+        //         while (unverifiedBlocks.TryGetValue(lastBlockIndex + 1, out var unverifiedBlock))
+        //         {
+        //             lastBlockHash = PutBlock(unverifiedBlock);
+        //             lastBlockIndex = unverifiedBlock.Index;
+        //             unverifiedBlocks.Remove(lastBlockIndex);
+        //         }
 
-                if (unverifiedBlocks.Count > 0)
-                {
-                    var firstUnverifiedBlock = unverifiedBlocks.Values.First();
-                    return (lastBlockHash, firstUnverifiedBlock.CalculateHash());
-                }
-            }
+        //         if (unverifiedBlocks.Count > 0)
+        //         {
+        //             var firstUnverifiedBlock = unverifiedBlocks.Values.First();
+        //             return (lastBlockHash, firstUnverifiedBlock.CalculateHash());
+        //         }
+        //     }
 
-            return (UInt256.Zero, UInt256.Zero);
-        }
+        //     return (UInt256.Zero, UInt256.Zero);
+        // }
 
         static WriteOptions syncWriteOptions = new WriteOptions().SetSync(true);
         static WriteOptions asyncWriteOptions = new WriteOptions().SetSync(false);
@@ -176,35 +166,35 @@ namespace NeoFx.TestNode
             return hash;
         }
 
-        UInt256 PutHeader(in BlockHeader header, bool syncWrite = false)
-        {
-            log.LogInformation("Put BlockHeader {index}", header.Index);
+        // UInt256 PutHeader(in BlockHeader header, bool syncWrite = false)
+        // {
+        //     log.LogInformation("Put BlockHeader {index}", header.Index);
 
-            var batch = new WriteBatch();
+        //     var batch = new WriteBatch();
 
-            Span<byte> indexBuffer = stackalloc byte[sizeof(uint)];
-            BinaryPrimitives.WriteUInt32BigEndian(indexBuffer, header.Index);
+        //     Span<byte> indexBuffer = stackalloc byte[sizeof(uint)];
+        //     BinaryPrimitives.WriteUInt32BigEndian(indexBuffer, header.Index);
 
-            Span<byte> hashBuffer = stackalloc byte[UInt256.Size];
-            var hash = header.CalculateHash();
-            hash.Write(hashBuffer);
+        //     Span<byte> hashBuffer = stackalloc byte[UInt256.Size];
+        //     var hash = header.CalculateHash();
+        //     hash.Write(hashBuffer);
 
-            var size = header.Size;
-            using var owner = MemoryPool<byte>.Shared.Rent(size);
-            var blockSpan = owner.Memory.Span.Slice(0, size);
-            var writer = new BufferWriter<byte>(blockSpan);
-            header.WriteTo(ref writer);
-            writer.Commit();
-            Debug.Assert(writer.Span.IsEmpty);
+        //     var size = header.Size;
+        //     using var owner = MemoryPool<byte>.Shared.Rent(size);
+        //     var blockSpan = owner.Memory.Span.Slice(0, size);
+        //     var writer = new BufferWriter<byte>(blockSpan);
+        //     header.WriteTo(ref writer);
+        //     writer.Commit();
+        //     Debug.Assert(writer.Span.IsEmpty);
 
-            batch.Put(hashBuffer, blockSpan, headersFamily);
-            batch.Put(indexBuffer, hashBuffer, headersIndexFamily);
+        //     batch.Put(hashBuffer, blockSpan, headersFamily);
+        //     batch.Put(indexBuffer, hashBuffer, headersIndexFamily);
 
-            var options = syncWrite ? syncWriteOptions : asyncWriteOptions;
-            db.Write(batch, options);
+        //     var options = syncWrite ? syncWriteOptions : asyncWriteOptions;
+        //     db.Write(batch, options);
 
-            return hash;
-        }
+        //     return hash;
+        // }
 
         UInt256 PutTrimmedBlock(WriteBatch batch, in BlockHeader header, ReadOnlySpan<UInt256> txHashes)
         {
