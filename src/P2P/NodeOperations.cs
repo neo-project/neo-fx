@@ -100,10 +100,6 @@ namespace NeoFx.P2P
                 {
                     return message;
                 }
-                else
-                {
-                    continue;
-                }
             }
         }
 
@@ -192,7 +188,7 @@ namespace NeoFx.P2P
             log.LogDebug("Received version message {startHeight} {userAgent}", versionMessage.StartHeight, versionMessage.UserAgent);
 
             log.LogDebug("Sending verack message");
-            await SendMessage<NullPayload>(duplexPipe.Output, magic, VerAckMessage.CommandText, default, log, token).ConfigureAwait(false);
+            await SendEmptyMessage(duplexPipe.Output, magic, VerAckMessage.CommandText, log, token).ConfigureAwait(false);
 
             var verAckMessage = await ReceiveTypedMessage<VerAckMessage>(duplexPipe.Input, magic, log, token).ConfigureAwait(false);
             log.LogDebug("Received verack message");
