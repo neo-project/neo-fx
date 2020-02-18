@@ -61,6 +61,8 @@ namespace NeoFx.TestNode
             });
         }
 
+        ImmutableArray<UInt256> foo = ImmutableArray<UInt256>.Empty;
+
         async Task ProcessMessage(IRemoteNode node, Message message, CancellationToken token)
         {
             switch (message)
@@ -76,8 +78,9 @@ namespace NeoFx.TestNode
                     log.LogInformation("Received HeadersMessage {headersCount}", headersMessage.Headers.Length);
                     {
                         var headers = headersMessage.Headers;
-                        var hashes = headers.Take(100).Select(h => h.CalculateHash());
+                        foo = headers.Take(10).Select(h => h.CalculateHash()).ToImmutableArray();
 
+                        var hashes = headers.Skip(10).Take(10).Select(h => h.CalculateHash());
                         var payload = new InventoryPayload(InventoryPayload.InventoryType.Block, hashes);
                         await node.SendGetDataMessage(payload, token);
 
@@ -107,6 +110,12 @@ namespace NeoFx.TestNode
                     {
                         log.LogInformation("Received BlockMessage {index}", blocKMessage.Block.Index);
                         storage.AddBlock(blocKMessage.Block);
+
+                        if (blocKMessage.Block.Index == 18)
+                        {
+                            var payload = new InventoryPayload(InventoryPayload.InventoryType.Block, foo);
+                            await node.SendGetDataMessage(payload, token);
+                        }
                     }
                     break;
                 default:
@@ -142,7 +151,7 @@ namespace NeoFx.TestNode
                     await ProcessMessage(item.node, item.message, token);
                 }
 
-                // do background stuff
+                storage.Cleanup();
 
                 await channel.Reader.WaitToReadAsync(token);
             }

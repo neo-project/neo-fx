@@ -3,6 +3,7 @@ using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using DevHawk.Buffers;
 using Microsoft.Extensions.Logging;
@@ -17,18 +18,15 @@ namespace NeoFx.TestNode
     class Storage : IDisposable
     {
         const string BLOCKS_FAMILY = "data:blocks";
-        const string TRANSACTIONS_FAMILY = "data:transactions";
         const string BLOCK_INDEX_FAMILY = "ix:block-index";
-        const string BLOCK_HASHES_FAMILY = "ix:block-hashes";
+        const string TRANSACTIONS_FAMILY = "data:transactions";
 
-        readonly RocksDb db;
-        readonly ColumnFamilyHandle blocksFamily;
-        readonly ColumnFamilyHandle blockHashesFamily;
-        readonly ColumnFamilyHandle blockIndexFamily;
-        readonly ColumnFamilyHandle transactionsFamily;
-
-        readonly SortedDictionary<uint, Block> unverifiedBlocks = new SortedDictionary<uint, Block>();
         readonly ILogger<Storage> log;
+        private readonly RocksDb db;
+        private readonly ColumnFamilyHandle blocksFamily;
+        private readonly ColumnFamilyHandle blockIndexFamily;
+        private readonly ColumnFamilyHandle transactionsFamily;
+        private readonly SortedDictionary<uint, Block> unverifiedBlocks = new SortedDictionary<uint, Block>();
 
         public Storage(IOptions<NetworkOptions> networkOptions,
                        IOptions<NodeOptions> nodeOptions,
@@ -38,10 +36,8 @@ namespace NeoFx.TestNode
 
             var columnFamilies = new ColumnFamilies {
                 { BLOCKS_FAMILY, new ColumnFamilyOptions() },
-                { BLOCK_HASHES_FAMILY, new ColumnFamilyOptions() },
                 { BLOCK_INDEX_FAMILY, new ColumnFamilyOptions() },
-                { TRANSACTIONS_FAMILY, new ColumnFamilyOptions() },
-            };
+                { TRANSACTIONS_FAMILY, new ColumnFamilyOptions() }};
 
             var options = new DbOptions()
                 .SetCreateIfMissing(true)
@@ -49,9 +45,9 @@ namespace NeoFx.TestNode
 
             var path = nodeOptions.Value.GetStoragePath();
             log.LogInformation("Database path {path}", path);
+
             db = RocksDb.Open(options, path, columnFamilies);
             blocksFamily = db.GetColumnFamily(BLOCKS_FAMILY);
-            blockHashesFamily = db.GetColumnFamily(BLOCK_HASHES_FAMILY);
             blockIndexFamily = db.GetColumnFamily(BLOCK_INDEX_FAMILY);
             transactionsFamily = db.GetColumnFamily(TRANSACTIONS_FAMILY);
 
@@ -67,27 +63,53 @@ namespace NeoFx.TestNode
             db.Dispose();
         }
 
-        (uint index, UInt256 hash) GetLastBlockHash(ReadOptions readOptions)
-        {
-            if (TryGetLastIndex(db, blockIndexFamily, readOptions, out var value))
-            {
-                return value;
-            }
-
-            throw new InvalidOperationException("Missing Genesis Block");
-
-        }
-
         public (uint index, UInt256 hash) GetLastBlockHash()
         {
             using var snapshot = db.CreateSnapshot();
             var readOptions = new ReadOptions().SetSnapshot(snapshot);
-            return GetLastBlockHash(readOptions);
+
+            var iter = db.NewIterator(blockIndexFamily, readOptions);
+            iter.SeekToLast();
+            if (iter.Valid())
+            {
+                IntPtr keyPtr = Native.Instance.rocksdb_iter_key(iter.Handle, out UIntPtr keyLength);
+                IntPtr valuePtr = Native.Instance.rocksdb_iter_value(iter.Handle, out UIntPtr valueLength);
+
+                if (RocksDbExtensions.TryConvert<uint>(keyPtr, keyLength, BinaryPrimitives.TryReadUInt32BigEndian, out var index)
+                    && RocksDbExtensions.TryConvert<UInt256>(valuePtr, valueLength, UInt256.TryRead, out var hash))
+                {
+                    return (index, hash);
+                }
+            }
+
+            throw new InvalidOperationException("Missing Genesis Block");
+        }
+
+        private uint GetLastBlockIndex()
+        {
+            using var snapshot = db.CreateSnapshot();
+            var readOptions = new ReadOptions().SetSnapshot(snapshot);
+
+            var iter = db.NewIterator(blockIndexFamily, readOptions);
+            iter.SeekToLast();
+            if (iter.Valid())
+            {
+                IntPtr keyPtr = Native.Instance.rocksdb_iter_key(iter.Handle, out UIntPtr keyLength);
+
+                if (RocksDbExtensions.TryConvert<uint>(keyPtr, keyLength, BinaryPrimitives.TryReadUInt32BigEndian, out var index))
+                {
+                    return index;
+                }
+            }
+
+            throw new InvalidOperationException("Missing Genesis Block");
         }
 
         public void AddBlock(in Block block)
         {
-            var (index, hash) = GetLastBlockHash();
+            var index = GetLastBlockIndex();
+            if (block.Index <= index)
+                return;
 
             if (index + 1 == block.Index)
             {
@@ -95,27 +117,46 @@ namespace NeoFx.TestNode
             }
             else
             {
-                log.LogInformation("Adding Unverified block {index}", block.Index);
+                log.LogWarning("Adding Unverified block {index}", block.Index);
                 unverifiedBlocks.Add(block.Index, block);
             }
         }
 
-        public void AddBlockHash(uint index, in UInt256 hash, bool syncWrite = false)
+        public void Cleanup()
         {
-            log.LogInformation("Put block {index}", index);
+            var index = GetLastBlockIndex();
+            index = ProcessUnverifiedBlocks(index); 
+            RemoveProcessedUnverifiedBlocks(index);
+        }
 
-            var batch = new WriteBatch();
+        private uint ProcessUnverifiedBlocks(uint index)
+        {
+            foreach (var kvp in unverifiedBlocks)
+            {
+                if (kvp.Key <= index)
+                    continue;
 
-            Span<byte> indexBuffer = stackalloc byte[sizeof(uint)];
-            BinaryPrimitives.WriteUInt32BigEndian(indexBuffer, index);
+                if (kvp.Key == index + 1)
+                {
+                        log.LogInformation("Processing Unverified block {index}", kvp.Key);
+                        PutBlock(kvp.Value);
+                        index = kvp.Key;
+                        continue;
+                }
+                
+                break;
+            }
 
-            Span<byte> hashBuffer = stackalloc byte[UInt256.Size];
-            hash.Write(hashBuffer);
+            return index;
+        }
 
-            batch.Put(indexBuffer, hashBuffer, blockHashesFamily);
-
-            var options = syncWrite ? syncWriteOptions : asyncWriteOptions;
-            db.Write(batch, options);
+        private void RemoveProcessedUnverifiedBlocks(uint index)
+        {
+            var processedKeys = unverifiedBlocks.Keys.TakeWhile(i => i <= index).ToList();
+            for (var x = 0; x < processedKeys.Count; x++)
+            {
+                unverifiedBlocks.Remove(processedKeys[x]);
+            }
         }
 
         static WriteOptions syncWriteOptions = new WriteOptions().SetSync(true);
