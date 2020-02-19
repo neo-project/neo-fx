@@ -7,9 +7,32 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NeoFx.P2P.Messages;
 using System.Buffers.Binary;
+using System.Net;
+using System.Collections.Immutable;
+using System.Linq;
 
 namespace NeoFx.TestNode
 {
+    static class TaskExtensions
+    {
+        public static Task<T> WithTimeout<T>(this Task<T> task, int timeout, CancellationToken token = default)
+        {
+            return WithTimeout(task, TimeSpan.FromMilliseconds(timeout), token);
+        }        
+
+        public static async Task<T> WithTimeout<T>(this Task<T> task, TimeSpan timeout, CancellationToken token = default)
+        {
+            if (await Task.WhenAny(task, Task.Delay(timeout, token)) == task)
+            {
+                return await task;
+            }
+            else
+            {
+                throw new Exception("timeout");
+            }
+        }
+    }
+
     class RemoteNodeManager : IDisposable
     {
         private readonly IRemoteNodeFactory remoteNodeFactory;
@@ -19,6 +42,7 @@ namespace NeoFx.TestNode
         private readonly uint nonce;
         private readonly string userAgent;
         private readonly List<(IRemoteNode node, ChannelReader<Message> reader)> nodes = new List<(IRemoteNode, ChannelReader<Message>)>(10);
+        private readonly Queue<IPEndPoint> endpoints = new Queue<IPEndPoint>();
 
         public RemoteNodeManager(
             IRemoteNodeFactory remoteNodeFactory,
@@ -81,29 +105,41 @@ namespace NeoFx.TestNode
             throw new Exception("could not connect to any seed nodes");
         }
 
-        public void Execute(CancellationToken token)
-        {
-            ExecuteAsync(token)
-                .ContinueWith(t =>
-                {
-                    if (t.IsFaulted)
-                    {
-                        log.LogError(t.Exception, nameof(RemoteNodeManager) + " exception");
-                    }
-                    else
-                    {
-                        log.LogInformation(nameof(RemoteNodeManager) + " completed {IsCanceled}", t.IsCanceled);
-                    }
-                    // Cleanup?
-                });
-        }
-
-        async Task ExecuteAsync(CancellationToken token)
+        public async Task ExecuteAsync(CancellationToken token)
         {
             await ConnectSeed(token);
 
             while (true)
             {
+                if (token.IsCancellationRequested)
+                    break;
+                // if (nodes.Count == 0)
+                // {
+
+                // }
+                // if (nodes.Capacity > nodes.Count && endpoints.Count > 0)
+                // {
+                //     var endpoint = endpoints.Dequeue();
+                //     log.LogInformation("Connecting to {endpoint}", endpoint);
+
+                //     try
+                //     {
+                //         var channel = Channel.CreateUnbounded<Message>(new UnboundedChannelOptions()
+                //         {
+                //             SingleReader = true,
+                //         });
+                //         var node = remoteNodeFactory.CreateRemoteNode(channel.Writer);
+                //         await node.Connect(endpoint, new VersionPayload(nonce, userAgent), token)
+                //                     .WithTimeout(1000);
+                //         log.LogInformation("{endpoint} connected", endpoint);
+                //         nodes.Add((node, channel.Reader));
+                //     }
+                //     catch (Exception _)
+                //     {
+                //         log.LogWarning("{address}:{port} connection failed", endpoint.Address, endpoint.Port);
+                //     }
+                // }
+
                 for (var x = 0; x < nodes.Count; x++)
                 {
                     var (node, reader) = nodes[x];
@@ -123,52 +159,64 @@ namespace NeoFx.TestNode
             }
         }
 
-        async ValueTask ProcessAddrMessage(AddrMessage addrMessage, CancellationToken token)
-        {
-            var queue = new Queue<NodeAddress>(addrMessage.Addresses);
-            log.LogInformation("Received AddrMessage {addressCount}", queue.Count);
+        // async ValueTask ProcessAddrMessage(ImmutableArray<NodeAddress> addresses, CancellationToken token)
+        // {
+        //     var queue = new Queue<NodeAddress>(addrMessage.Addresses);
+        //     log.LogInformation("Received AddrMessage {addressCount}", queue.Count);
 
-            var localVersion = new VersionPayload(nonce, userAgent);
+        //     var localVersion = new VersionPayload(nonce, userAgent);
             
-            while (nodes.Count < nodes.Capacity && queue.Count > 0)
-            {
-                var channel = Channel.CreateUnbounded<Message>(new UnboundedChannelOptions()
-                {
-                    SingleReader = true,
-                });
+        //     while (nodes.Count < nodes.Capacity && queue.Count > 0)
+        //     {
+        //         var channel = Channel.CreateUnbounded<Message>(new UnboundedChannelOptions()
+        //         {
+        //             SingleReader = true,
+        //         });
 
-                while (queue.TryDequeue(out var address))
-                {
-                    var endpoint = address.EndPoint;
-                    log.LogInformation("Connecting to {address}:{port}", endpoint.Address, endpoint.Port);
+        //         while (queue.TryDequeue(out var address))
+        //         {
+        //             var endpoint = address.EndPoint;
+        //             log.LogInformation("Connecting to {address}:{port}", endpoint.Address, endpoint.Port);
 
-                    try
-                    {
-                        var node = remoteNodeFactory.CreateRemoteNode(channel.Writer);
-                        await node.Connect(endpoint, new VersionPayload(nonce, userAgent), token);
-                        log.LogInformation("{address}:{port} connected", endpoint.Address, endpoint.Port);
+        //             try
+        //             {
+        //                 var node = remoteNodeFactory.CreateRemoteNode(channel.Writer);
+        //                 await node.Connect(endpoint, new VersionPayload(nonce, userAgent), token);
+        //                 log.LogInformation("{address}:{port} connected", endpoint.Address, endpoint.Port);
 
-                        lock(nodes)
-                        {
-                            nodes.Add((node, channel.Reader));
-                        }
+        //                 lock(nodes)
+        //                 {
+        //                     nodes.Add((node, channel.Reader));
+        //                 }
 
-                        break;
-                    }
-                    catch (Exception _)
-                    {
-                        log.LogWarning("{address}:{port} connection failed", endpoint.Address, endpoint.Port);
-                    }
-                }
-            }
-        }
+        //                 break;
+        //             }
+        //             catch (Exception _)
+        //             {
+        //                 log.LogWarning("{address}:{port} connection failed", endpoint.Address, endpoint.Port);
+        //             }
+        //         }
+        //     }
+        // }
 
         async Task ProcessMessage(IRemoteNode node, Message message, CancellationToken token)
         {
             switch (message)
             {
                 case AddrMessage addrMessage:
-                    // await ProcessAddrMessage(addrMessage, token);
+                    {
+                        var addresses = addrMessage.Addresses;
+                        log.LogInformation("Received AddrMessage {addressesCount}", addresses.Length);
+                        var connectedNodes = nodes.Select(n => n.node.RemoteEndPoint).ToImmutableHashSet();
+                        for (var x = 0; x < addresses.Length; x++)
+                        {
+                            var endpoint = addresses[x].EndPoint; 
+                            if (!connectedNodes.Contains(endpoint))
+                            {
+                                endpoints.Enqueue(endpoint);
+                            }
+                        }
+                    }
                     break;
                 case HeadersMessage headersMessage:
                     log.LogInformation("Received HeadersMessage {headersCount}", headersMessage.Headers.Length);
