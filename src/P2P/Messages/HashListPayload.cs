@@ -27,7 +27,7 @@ namespace NeoFx.P2P.Messages
 
         public static bool TryRead(ref BufferReader<byte> reader, out HashListPayload payload)
         {
-            if (reader.TryReadVarArray<UInt256, UInt256.Factory>(out var hashStart)
+            if (reader.TryReadVarArray<UInt256>(UInt256.TryRead, out var hashStart)
                 && UInt256.TryRead(ref reader, out var hashStop))
             {
                 payload = new HashListPayload(hashStart, hashStop);

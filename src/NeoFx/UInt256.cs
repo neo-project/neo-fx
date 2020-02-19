@@ -12,11 +12,6 @@ namespace NeoFx
 
     public readonly struct UInt256 : IEquatable<UInt256>, IComparable<UInt256>, IWritable<UInt256>
     {
-        public readonly struct Factory : IFactoryReader<UInt256>
-        {
-            public bool TryReadItem(ref BufferReader<byte> reader, out UInt256 value) => TryRead(ref reader, out value);
-        }
-
         public static readonly UInt256 Zero = new UInt256(0, 0, 0, 0);
 
         private readonly ulong data1;

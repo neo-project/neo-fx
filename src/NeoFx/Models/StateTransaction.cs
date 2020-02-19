@@ -31,7 +31,7 @@ namespace NeoFx.Models
 
         public static bool TryRead(ref BufferReader<byte> reader, byte version, [NotNullWhen(true)] out StateTransaction? tx)
         {
-            if (reader.TryReadVarArray<StateDescriptor, StateDescriptor.Factory>(out var descriptors)
+            if (reader.TryReadVarArray<StateDescriptor>(StateDescriptor.TryRead, out var descriptors)
                 && TryReadCommonData(ref reader, out var commonData))
             {
                 tx = new StateTransaction(descriptors, version, commonData);

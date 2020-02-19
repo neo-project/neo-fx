@@ -46,12 +46,10 @@ namespace ImportBlocks
             db.Dispose();
         }
 
-        private readonly struct BlockStateFactory : IFactoryReader<(BlockHeader header, ImmutableArray<UInt256> hashes)>
-        {
             public bool TryReadItem(ref BufferReader<byte> reader, out (BlockHeader header, ImmutableArray<UInt256> hashes) value)
             {
                 if (BlockHeader.TryRead(ref reader, out var header)
-                    && reader.TryReadVarArray<UInt256, UInt256.Factory>(out var hashes))
+                    && reader.TryReadVarArray<UInt256>(UInt256.TryRead, out var hashes))
                 {
                     Debug.Assert(reader.Remaining == 0);
                     value = (header, hashes);
@@ -61,10 +59,10 @@ namespace ImportBlocks
                 value = default;
                 return false;
             }
-        }
+
         public IEnumerable<(UInt256 key, (BlockHeader header, ImmutableArray<UInt256> hashes) blockState)> GetBlocks()
         {
-            return db.Iterate<UInt256, UInt256.Factory, (BlockHeader, ImmutableArray<UInt256>), BlockStateFactory>(blocksFamily);
+            return db.Iterate<UInt256, (BlockHeader, ImmutableArray<UInt256>)>(blocksFamily, UInt256.TryRead, TryReadItem);
         }
 
         void PutTransaction(in UInt256 hash, in Transaction tx, WriteBatch batch)

@@ -17,25 +17,22 @@ namespace NeoFx.P2P.Messages
             Headers = headers;
         }
 
-        private readonly struct HeaderFactory : IFactoryReader<BlockHeader>
+        static bool TryReadHeaderWithZeroTransactions(ref BufferReader<byte> reader, out BlockHeader header)
         {
-            public bool TryReadItem(ref BufferReader<byte> reader, out BlockHeader header)
+            if (BlockHeader.TryRead(ref reader, out header)
+                && reader.TryReadVarInt(out var txCount)
+                && txCount == 0)
             {
-                if (BlockHeader.TryRead(ref reader, out header)
-                    && reader.TryReadVarInt(out var txCount)
-                    && txCount == 0)
-                {
-                    return true;
-                }
-
-                header = default;
-                return false;
+                return true;
             }
+
+            header = default;
+            return false;
         }
 
         public static bool TryRead(ref BufferReader<byte> reader, out HeadersPayload payload)
         {
-            if (reader.TryReadVarArray<BlockHeader, HeaderFactory>(out var headers))
+            if (reader.TryReadVarArray<BlockHeader>(TryReadHeaderWithZeroTransactions, out var headers))
             {
                 payload = new HeadersPayload(headers);
                 return true;

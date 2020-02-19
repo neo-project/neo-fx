@@ -7,11 +7,6 @@ namespace NeoFx.Models
 {
     public readonly struct StateDescriptor : IWritable<StateDescriptor>
     {
-        public readonly struct Factory : IFactoryReader<StateDescriptor>
-        {
-            public bool TryReadItem(ref BufferReader<byte> reader, out StateDescriptor value) => StateDescriptor.TryRead(ref reader, out value);
-        }
-
         public enum StateType : byte
         {
             Account = 0x40,

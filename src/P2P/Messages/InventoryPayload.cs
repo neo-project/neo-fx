@@ -35,7 +35,7 @@ namespace NeoFx.P2P.Messages
         public static bool TryRead(ref BufferReader<byte> reader, out InventoryPayload payload)
         {
             if (reader.TryRead(out byte type)
-                && reader.TryReadVarArray<UInt256, UInt256.Factory>(out var hashes))
+                && reader.TryReadVarArray<UInt256>(UInt256.TryRead, out var hashes))
             {
                 payload = new InventoryPayload((InventoryType)type, hashes);
                 return true;

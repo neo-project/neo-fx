@@ -18,7 +18,7 @@ namespace NeoFx.P2P.Messages
 
         public static bool TryRead(ref BufferReader<byte> reader, out AddrPayload payload)
         {
-            if (reader.TryReadVarArray<NodeAddress, NodeAddress.Factory>(out var addresses))
+            if (reader.TryReadVarArray<NodeAddress>(NodeAddress.TryRead, out var addresses))
             {
                 payload = new AddrPayload(addresses);
                 return true;

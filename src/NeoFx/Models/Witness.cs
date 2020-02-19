@@ -7,11 +7,6 @@ namespace NeoFx.Models
 {
     public readonly struct Witness : IWritable<Witness>
     {
-        public readonly struct Factory : IFactoryReader<Witness>
-        {
-            public bool TryReadItem(ref BufferReader<byte> reader, out Witness value) => Witness.TryRead(ref reader, out value);
-        }
-
         const uint MAX_SCRIPT_LENGTH = 65536;
 
         public readonly ImmutableArray<byte> InvocationScript;

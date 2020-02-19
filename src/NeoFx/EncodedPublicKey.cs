@@ -14,11 +14,6 @@ namespace NeoFx
     //       a fixed size buffer
     public readonly struct EncodedPublicKey : IWritable<EncodedPublicKey>
     {
-        public readonly struct Factory : IFactoryReader<EncodedPublicKey>
-        {
-            public bool TryReadItem(ref BufferReader<byte> reader, out EncodedPublicKey value) => EncodedPublicKey.TryRead(ref reader, out value);
-        }
-
         public static readonly EncodedPublicKey Infinity
             = new EncodedPublicKey(ImmutableArray.Create<byte>(0));
 
