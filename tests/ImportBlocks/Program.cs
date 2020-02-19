@@ -7,6 +7,7 @@ using System.Buffers;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
 
 namespace ImportBlocks
 {
@@ -16,10 +17,13 @@ namespace ImportBlocks
         static void Main(string[] args) => CommandLineApplication.Execute<Program>(args);
 
         [Argument(0)]
-        public string OfflinePackage { get; } = string.Empty;
+        private string OfflinePackage { get; } = string.Empty;
 
         [Argument(1)]
-        public string DatabaseDirectory { get; } = string.Empty;
+        private string DatabaseDirectory { get; } = string.Empty;
+
+        [Option]
+        private bool Reset { get; }
 
         static bool ValidateBlock(in Block fxBlock, byte[] array)
         {
@@ -57,8 +61,17 @@ namespace ImportBlocks
                     Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
                     ".neofx-import-blocks");
 
+            if (Reset)
+            {
+                Directory.Delete(dbDirectory, true);
+            }
+
             using var db = new Database(dbDirectory);
 
+            foreach (var b in db.GetBlocks().OrderBy(t => t.blockState.header.Index))
+            {
+                Console.WriteLine($"{b.key} {b.blockState.header.Index}");
+            }
 
             using var archiveFileStream = new FileStream(offlinePackage, FileMode.Open, FileAccess.Read, FileShare.Read);
             using var archive = new ZipArchive(archiveFileStream, ZipArchiveMode.Read);
@@ -83,7 +96,7 @@ namespace ImportBlocks
 
                 db.AddBlock(block);
 
-                // if (index % 1000 == 0) Console.WriteLine($"{index}");
+                if (index % 1000 == 0) Console.WriteLine($"{index}");
             }
             sw.Stop();
 

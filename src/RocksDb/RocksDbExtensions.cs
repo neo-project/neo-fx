@@ -18,6 +18,7 @@ namespace NeoFx.RocksDb
     {
         private static ReadOptions DefaultReadOptions { get; } = new ReadOptions();
 
+
         private unsafe static bool TryConvert<T, TReader>(IntPtr intPtr,
                                                           UIntPtr length,
                                                           TReader factory,
@@ -33,6 +34,30 @@ namespace NeoFx.RocksDb
 
             value = default!;
             return false;
+        }
+
+        public static unsafe bool KeyExists(this RocksDb db,  ColumnFamilyHandle columnFamily, ReadOnlySpan<byte> key)
+        {
+            fixed (byte* keyPtr = key)
+            {
+                var pinnableSlice = Instance.rocksdb_get_pinned_cf(db.Handle, DefaultReadOptions.Handle,
+                    columnFamily.Handle, (IntPtr)keyPtr, (UIntPtr)key.Length);
+
+                try
+                {
+                    var valuePtr = Instance.rocksdb_pinnableslice_value(pinnableSlice, out var valueLength);
+                    if (valuePtr != IntPtr.Zero)
+                    {
+                        return true;
+                    }
+
+                    return false;
+                }
+                finally
+                {
+                    Instance.rocksdb_pinnableslice_destroy(pinnableSlice);
+                }
+            }
         }
 
         public static unsafe bool TryGet<T, TReader>(this RocksDb db,
@@ -90,18 +115,25 @@ namespace NeoFx.RocksDb
             where TKeyReader : IFactoryReader<TKey>
             where TValueReader : IFactoryReader<TValue>
         {
-            while (iterator.Valid())
+            try
             {
-                IntPtr keyPtr = Instance.rocksdb_iter_key(iterator.Handle, out UIntPtr keyLength);
-                var keyReadResult = TryConvert<TKey, TKeyReader>(keyPtr, keyLength, keyFactory, out var key);
-                Debug.Assert(keyReadResult);
+                while (iterator.Valid())
+                {
+                    IntPtr keyPtr = Instance.rocksdb_iter_key(iterator.Handle, out UIntPtr keyLength);
+                    var keyReadResult = TryConvert<TKey, TKeyReader>(keyPtr, keyLength, keyFactory, out var key);
+                    Debug.Assert(keyReadResult);
 
-                IntPtr valuePtr = Instance.rocksdb_iter_value(iterator.Handle, out UIntPtr valueLength);
-                var valueReadResult = TryConvert<TValue, TValueReader>(valuePtr, valueLength, valueFactory, out var value);
-                Debug.Assert(valueReadResult);
+                    IntPtr valuePtr = Instance.rocksdb_iter_value(iterator.Handle, out UIntPtr valueLength);
+                    var valueReadResult = TryConvert<TValue, TValueReader>(valuePtr, valueLength, valueFactory, out var value);
+                    Debug.Assert(valueReadResult);
 
-                yield return (key, value);
-                iterator.Next();
+                    yield return (key, value);
+                    iterator.Next();
+                }
+            }
+            finally
+            {
+                iterator.Dispose();
             }
         }
 
@@ -120,7 +152,7 @@ namespace NeoFx.RocksDb
             where TKeyReader : IFactoryReader<TKey>
             where TValueReader : IFactoryReader<TValue>
         {
-            using var iterator = db.NewIterator(columnFamily);
+            var iterator = db.NewIterator(columnFamily);
             iterator.SeekToFirst();
             return Iterate<TKey, TKeyReader, TValue, TValueReader>(iterator, keyFactory, valueFactory);
         }
@@ -144,7 +176,7 @@ namespace NeoFx.RocksDb
         {
             fixed (byte* prefixPtr = prefix)
             {
-                using var iterator = db.NewIterator(columnFamily);
+                var iterator = db.NewIterator(columnFamily);
                 iterator.Seek(prefixPtr, (ulong)prefix.Length);
                 return Iterate<TKey, TKeyReader, TValue, TValueReader>(iterator, keyFactory, valueFactory);
             }
