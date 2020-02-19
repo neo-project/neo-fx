@@ -6,6 +6,11 @@ using System;
 
 namespace NeoFx.TestNode
 {
+    interface IRemoteNodeFactory
+    {
+        IRemoteNode CreateRemoteNode();
+    }
+
     class RemoteNodeFactory : IRemoteNodeFactory
     {
         private readonly IServiceProvider provider;
@@ -15,12 +20,9 @@ namespace NeoFx.TestNode
             this.provider = provider;
         }
 
-        public IRemoteNode CreateRemoteNode(ChannelWriter<Message> writer)
+        public IRemoteNode CreateRemoteNode()
         {
-            var connectionFactory = provider.GetRequiredService<INodeConnectionFactory>();
-            var logger = provider.GetService<ILogger<RemoteNode>>();
-
-            return new RemoteNode(connectionFactory.CreateConnection(), writer, logger);
+            return provider.GetRequiredService<IRemoteNode>();
         }
     }
 }

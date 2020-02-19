@@ -6,34 +6,69 @@ using NeoFx.P2P.Messages;
 using NeoFx.P2P;
 using Microsoft.Extensions.Logging.Abstractions;
 using System.Net;
+using System;
+using Microsoft.Extensions.Options;
 
 namespace NeoFx.TestNode
 {
-    class RemoteNode : IRemoteNode
+    interface IRemoteNode : IDisposable
     {
-        private readonly ChannelWriter<Message> writer;
-        private readonly INodeConnection connection;
-        private readonly ILogger<RemoteNode> log;
-        public EndPoint RemoteEndPoint => connection.RemoteEndPoint;
+        ValueTask<VersionPayload> ConnectAsync(IPEndPoint endPoint, uint nonce, uint startHeight, ChannelWriter<Message> writer, CancellationToken token = default);
+        ValueTask SendAddrMessage(in AddrPayload payload, CancellationToken token = default);
+        ValueTask SendBlockMessage(in BlockPayload payload, CancellationToken token = default);
+        ValueTask SendConsensusMessage(in ConsensusPayload payload, CancellationToken token = default);
+        ValueTask SendGetAddrMessage(CancellationToken token = default);
+        ValueTask SendGetBlocksMessage(in HashListPayload payload, CancellationToken token = default);
+        ValueTask SendGetDataMessage(in InventoryPayload payload, CancellationToken token = default);
+        ValueTask SendGetHeadersMessage(in HashListPayload payload, CancellationToken token = default);
+        ValueTask SendHeadersMessage(in HeadersPayload payload, CancellationToken token = default);
+        ValueTask SendInvMessage(in InventoryPayload payload, CancellationToken token = default);
+        ValueTask SendPingMessage(in PingPongPayload payload, CancellationToken token = default);
+        ValueTask SendPongMessage(in PingPongPayload payload, CancellationToken token = default);
+        ValueTask SendTransactionMessage(in TransactionPayload payload, CancellationToken token = default);
+    }
 
-        public RemoteNode(INodeConnection connection, ChannelWriter<Message> writer, ILogger<RemoteNode>? logger = null)
+    class RemoteNode : IDisposable, IRemoteNode
+    {
+        private readonly IPipelineSocket pipelineSocket;
+        private readonly ILogger<RemoteNode> log;
+        private readonly uint magic;
+        private readonly string userAgent;
+
+        public RemoteNode(IPipelineSocket pipelineSocket, IOptions<NetworkOptions> networkOptions, IOptions<NodeOptions> nodeOptions, ILogger<RemoteNode>? logger = null)
+            : this(pipelineSocket, networkOptions.Value.Magic, nodeOptions.Value.UserAgent, logger)
         {
-            this.connection = connection;
-            this.writer = writer;
+        }
+
+        public RemoteNode(IPipelineSocket pipelineSocket, uint magic, string userAgent, ILogger<RemoteNode>? logger = null)
+        {
+            this.pipelineSocket = pipelineSocket;
+            this.magic = magic;
+            this.userAgent = userAgent;
             log = logger ?? NullLogger<RemoteNode>.Instance;
         }
 
-        public async Task<VersionPayload> Connect(IPEndPoint endPoint, VersionPayload payload, CancellationToken token = default)
+        public void Dispose()
         {
-            log.LogInformation("Connecting to {address}:{port}", endPoint.Address, endPoint.Port);
-            var versionPayload = await connection.ConnectAsync(endPoint, payload, token);
-            Execute(versionPayload.UserAgent, token);
-            return versionPayload;
+            pipelineSocket.Dispose();
         }
 
-        private void Execute(string userAgent, CancellationToken token)
+        public async ValueTask<VersionPayload> ConnectAsync(IPEndPoint endPoint, uint nonce, uint startHeight, ChannelWriter<Message> writer, CancellationToken token = default)
         {
-            ExecuteAsync(userAgent, token).ContinueWith(t =>
+            var localVersion = new VersionPayload(nonce, userAgent, startHeight);
+
+            log.LogTrace("ConnectAsync {magic} to {host}:{port}", magic, endPoint.Address, endPoint.Port);
+            await pipelineSocket.ConnectAsync(endPoint, token).ConfigureAwait(false);
+            var remoteVersion = await NodeOperations.PerformVersionHandshake(pipelineSocket, magic, localVersion, log, token);
+            log.LogInformation("Connected to {endpoint} {userAgent}", pipelineSocket.RemoteEndPoint, remoteVersion.UserAgent);
+            Execute(writer, token);
+            return remoteVersion;
+        }
+
+        private void Execute(ChannelWriter<Message> writer, CancellationToken token)
+        {
+            MessageReceiveAsync(writer, token)
+                .ContinueWith(t =>
                 {
                     if (t.IsFaulted)
                     {
@@ -43,33 +78,53 @@ namespace NeoFx.TestNode
                     {
                         log.LogInformation(nameof(RemoteNode) + " completed {IsCanceled}", t.IsCanceled);
                     }
-                    writer.Complete(t.Exception);
                 });
         }
 
-        private async Task ExecuteAsync(string userAgent, CancellationToken token)
+        private async Task MessageReceiveAsync(ChannelWriter<Message> writer, CancellationToken token)
         {
-            log.LogInformation("Connected to {endpoint} {userAgent}", connection.RemoteEndPoint, userAgent);
-
             while (true)
             {
-                var message = await connection.ReceiveMessage(token);
+                var message = await NodeOperations.ReceiveMessage(pipelineSocket.Input, magic, log, token);
                 if (log.IsEnabled(LogLevel.Trace)) log.LogTrace("{} message received", message.GetType().Name);
-                await writer.WriteAsync(( message), token);
+                await writer.WriteAsync(message, token);
             }
         }
 
-        public ValueTask SendAddrMessage(in AddrPayload payload, CancellationToken token = default) => connection.SendAddrMessage(payload, token);
-        public ValueTask SendBlockMessage(in BlockPayload payload, CancellationToken token = default) => connection.SendBlockMessage(payload, token);
-        public ValueTask SendConsensusMessage(in ConsensusPayload payload, CancellationToken token = default) => connection.SendConsensusMessage(payload, token);
-        public ValueTask SendGetAddrMessage(CancellationToken token = default) => connection.SendGetAddrMessage(token);
-        public ValueTask SendGetBlocksMessage(in HashListPayload payload, CancellationToken token = default) => connection.SendGetBlocksMessage(payload, token);
-        public ValueTask SendGetDataMessage(in InventoryPayload payload, CancellationToken token = default) => connection.SendGetDataMessage(payload, token);
-        public ValueTask SendGetHeadersMessage(in HashListPayload payload, CancellationToken token = default) => connection.SendGetHeadersMessage(payload, token);
-        public ValueTask SendHeadersMessage(in HeadersPayload payload, CancellationToken token = default) => connection.SendHeadersMessage(payload, token);
-        public ValueTask SendInvMessage(in InventoryPayload payload, CancellationToken token = default) => connection.SendInvMessage(payload, token);
-        public ValueTask SendPingMessage(in PingPongPayload payload, CancellationToken token = default) => connection.SendPingMessage(payload, token);
-        public ValueTask SendPongMessage(in PingPongPayload payload, CancellationToken token = default) => connection.SendPongMessage(payload, token);
-        public ValueTask SendTransactionMessage(in TransactionPayload payload, CancellationToken token = default) => connection.SendTransactionMessage(payload, token);
+        public ValueTask SendAddrMessage(in AddrPayload payload, CancellationToken token = default)
+            => NodeOperations.SendMessage<AddrPayload>(pipelineSocket.Output, magic, AddrMessage.CommandText, payload, log, token);
+
+        public ValueTask SendBlockMessage(in BlockPayload payload, CancellationToken token = default)
+            => NodeOperations.SendMessage<BlockPayload>(pipelineSocket.Output, magic, BlockMessage.CommandText, payload, log, token);
+
+        public ValueTask SendConsensusMessage(in ConsensusPayload payload, CancellationToken token = default)
+            => NodeOperations.SendMessage<ConsensusPayload>(pipelineSocket.Output, magic, ConsensusMessage.CommandText, payload, log, token);
+
+        public ValueTask SendGetAddrMessage(CancellationToken token = default)
+            => NodeOperations.SendEmptyMessage(pipelineSocket.Output, magic, GetAddrMessage.CommandText, log, token);
+
+        public ValueTask SendGetBlocksMessage(in HashListPayload payload, CancellationToken token = default)
+            => NodeOperations.SendMessage<HashListPayload>(pipelineSocket.Output, magic, GetBlocksMessage.CommandText, payload, log, token);
+
+        public ValueTask SendGetDataMessage(in InventoryPayload payload, CancellationToken token = default)
+            => NodeOperations.SendMessage<InventoryPayload>(pipelineSocket.Output, magic, GetDataMessage.CommandText, payload, log, token);
+
+        public ValueTask SendGetHeadersMessage(in HashListPayload payload, CancellationToken token = default)
+            => NodeOperations.SendMessage<HashListPayload>(pipelineSocket.Output, magic, GetHeadersMessage.CommandText, payload, log, token);
+
+        public ValueTask SendHeadersMessage(in HeadersPayload payload, CancellationToken token = default)
+            => NodeOperations.SendMessage<HeadersPayload>(pipelineSocket.Output, magic, HeadersMessage.CommandText, payload, log, token);
+
+        public ValueTask SendInvMessage(in InventoryPayload payload, CancellationToken token = default)
+            => NodeOperations.SendMessage<InventoryPayload>(pipelineSocket.Output, magic, InvMessage.CommandText, payload, log, token);
+
+        public ValueTask SendPingMessage(in PingPongPayload payload, CancellationToken token = default)
+            => NodeOperations.SendMessage<PingPongPayload>(pipelineSocket.Output, magic, PingMessage.CommandText, payload, log, token);
+
+        public ValueTask SendPongMessage(in PingPongPayload payload, CancellationToken token = default)
+            => NodeOperations.SendMessage<PingPongPayload>(pipelineSocket.Output, magic, PongMessage.CommandText, payload, log, token);
+
+        public ValueTask SendTransactionMessage(in TransactionPayload payload, CancellationToken token = default)
+            => NodeOperations.SendMessage<TransactionPayload>(pipelineSocket.Output, magic, TransactionMessage.CommandText, payload, log, token);
     }
 }

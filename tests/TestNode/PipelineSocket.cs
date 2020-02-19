@@ -9,13 +9,10 @@ using System.Threading.Tasks;
 
 namespace NeoFx.TestNode
 {
-    public interface IPipelineSocket : IDisposable
+    public interface IPipelineSocket : IDuplexPipe, IDisposable
     {
-        PipeReader Input { get; }
-        PipeWriter Output { get; }
         EndPoint RemoteEndPoint { get; }
-
-        Task ConnectAsync(IPEndPoint endpoint, CancellationToken token = default);
+        ValueTask ConnectAsync(IPEndPoint endpoint, CancellationToken token = default);
     }
 
     public sealed class PipelineSocket : IPipelineSocket, IDisposable
@@ -25,17 +22,28 @@ namespace NeoFx.TestNode
         private readonly Pipe recvPipe = new Pipe();
         private readonly ILogger<PipelineSocket> log;
 
+        public PipeReader Input => recvPipe.Reader;
+        public PipeWriter Output => sendPipe.Writer;
+        public EndPoint RemoteEndPoint => socket.RemoteEndPoint;
+
         public PipelineSocket(ILogger<PipelineSocket>? log = null)
         {
             this.log = log ?? NullLogger<PipelineSocket>.Instance;
         }
+        
+        public void Dispose()
+        {
+            socket.Dispose();
+        }
 
-        public PipeReader Input => recvPipe.Reader;
+        public async ValueTask ConnectAsync(IPEndPoint endpoint, CancellationToken token = default)
+        {
+            log.LogInformation("connecting to {host}:{port}", endpoint.Address, endpoint.Port);
 
-        public PipeWriter Output => sendPipe.Writer;
-
-        public EndPoint RemoteEndPoint => socket.RemoteEndPoint;
-
+            await socket.ConnectAsync(endpoint).ConfigureAwait(false);
+            Execute(token);
+        }
+        
         private void Execute(CancellationToken token)
         {
             SocketReceiveAsync(token)
@@ -65,19 +73,6 @@ namespace NeoFx.TestNode
                     }
                     sendPipe.Reader.Complete(t.Exception);
                 });
-        }
-
-        public async Task ConnectAsync(IPEndPoint endpoint, CancellationToken token = default)
-        {
-            log.LogInformation("connecting to {host} : {port}", endpoint.Address, endpoint.Port);
-
-            await socket.ConnectAsync(endpoint).ConfigureAwait(false);
-            Execute(token);
-        }
-
-        public void Dispose()
-        {
-            socket.Dispose();
         }
 
         private async Task SocketReceiveAsync(CancellationToken token)

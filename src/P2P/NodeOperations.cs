@@ -95,30 +95,16 @@ namespace NeoFx.P2P
             }
         }
 
-        public static ValueTask SendMessage<T>(PipeWriter writer, uint magic, string command, in T payload, ILogger log, CancellationToken token)
-            where T : IWritable<T>
+        private static ValueTask SendMessage(PipeWriter writer, uint magic, string command, Span<byte> messageSpan, ILogger log, CancellationToken token)
         {
-            log.LogDebug("SendMessage {magic} {command} {payload}", magic, command, typeof(T).Name);
-
-            var payloadSize = payload.Size;
-            var messageSize = MessageHeader.Size + payloadSize;
-            var messageMemory = writer.GetMemory(messageSize);
-
-            Span<byte> payloadSpan = default;
-            if (payloadSize > 0)
-            {
-                payloadSpan = messageMemory.Slice(MessageHeader.Size, payloadSize).Span;
-                var payloadWriter = new BufferWriter<byte>(payloadSpan);
-                payload.WriteTo(ref payloadWriter);
-                payloadWriter.Commit();
-                Debug.Assert(payloadWriter.Span.IsEmpty);
-            }
+            log.LogDebug("SendMessage {magic} {command} {messageSize}", magic, command, messageSpan.Length);
+            var payloadSpan = messageSpan.Slice(MessageHeader.Size);
 
             Span<byte> hashBuffer = stackalloc byte[32];
             HashHelpers.TryHash256(payloadSpan, hashBuffer);
             var checksum = BitConverter.ToUInt32(hashBuffer.Slice(0, 4));
 
-            var headerWriter = new BufferWriter<byte>(messageMemory.Slice(0, MessageHeader.Size).Span);
+            var headerWriter = new BufferWriter<byte>(messageSpan.Slice(0, MessageHeader.Size));
             headerWriter.WriteLittleEndian(magic);
             {
                 using var commandOwner = MemoryPool<byte>.Shared.Rent(MessageHeader.CommandSize);
@@ -132,7 +118,7 @@ namespace NeoFx.P2P
             headerWriter.Commit();
             Debug.Assert(headerWriter.Span.IsEmpty);
 
-            writer.Advance(messageSize);
+            writer.Advance(messageSpan.Length);
 
             // https://github.com/dotnet/runtime/issues/31503#issuecomment-554415966
             var task = writer.FlushAsync(token);
@@ -145,23 +131,57 @@ namespace NeoFx.P2P
             return new ValueTask(task.AsTask());
         }
 
+        public static ValueTask SendMessage<T>(PipeWriter writer, uint magic, string command, in T payload, ILogger log, CancellationToken token)
+            where T : IWritable<T>
+        {
+            log.LogDebug("SendMessage<{payload}> {magic} {command}", typeof(T).Name, magic, command);
+
+            var payloadSize = payload.Size;
+            var messageSize = MessageHeader.Size + payloadSize;
+            var messageSpan = writer.GetMemory(messageSize).Slice(0, messageSize).Span;
+
+            if (payloadSize > 0)
+            {
+                var payloadSpan = messageSpan.Slice(MessageHeader.Size, payloadSize);
+                var payloadWriter = new BufferWriter<byte>(payloadSpan);
+                payload.WriteTo(ref payloadWriter);
+                payloadWriter.Commit();
+                Debug.Assert(payloadWriter.Span.IsEmpty);
+            }
+
+            return SendMessage(writer, magic, command, messageSpan, log, token);
+        }
+
         public static ValueTask SendEmptyMessage(PipeWriter writer, uint magic, string command, ILogger log, CancellationToken token)
         {
-            return SendMessage<NullPayload>(writer, magic, command, default, log, token);
+            var messageSpan = writer.GetMemory(MessageHeader.Size).Slice(0, MessageHeader.Size).Span;
+            return SendMessage(writer, magic, command, messageSpan, log, token);
         }
 
-        private struct NullPayload : IWritable<NullPayload>
+        public static ValueTask<VersionPayload> PerformVersionHandshake(IDuplexPipe duplexPipe, uint magic, in VersionPayload payload, ILogger log, CancellationToken token = default)
         {
-            public int Size => 0;
+            log.LogDebug("Sending version message");
+            var sendVersionTask = SendMessage<VersionPayload>(duplexPipe.Output, magic, VersionMessage.CommandText, payload, log, token);
+            return AwaitHelper(sendVersionTask);
 
-            public void WriteTo(ref BufferWriter<byte> writer)
+            // break await operations into separate helper function so VersionPayload can be an in parameter
+            async ValueTask<VersionPayload> AwaitHelper(ValueTask task)
             {
-            }
-        }
+                await task.ConfigureAwait(false);
 
-        public static async Task<VersionPayload> PerformVersionHandshake(IDuplexPipe duplexPipe, uint magic, VersionPayload payload, ILogger log, CancellationToken token = default)
-        {
-            static async Task<T> ReceiveTypedMessage<T>(PipeReader reader, uint magic, ILogger log, CancellationToken token)
+                var versionMessage = await ReceiveTypedMessage<VersionMessage>(duplexPipe.Input, magic, log, token).ConfigureAwait(false);
+                log.LogDebug("Received version message {startHeight} {userAgent}", versionMessage.StartHeight, versionMessage.UserAgent);
+
+                log.LogDebug("Sending verack message");
+                await SendEmptyMessage(duplexPipe.Output, magic, VerAckMessage.CommandText, log, token).ConfigureAwait(false);
+
+                var verAckMessage = await ReceiveTypedMessage<VerAckMessage>(duplexPipe.Input, magic, log, token).ConfigureAwait(false);
+                log.LogDebug("Received verack message");
+
+                return versionMessage.Payload;
+            }
+
+            static async ValueTask<T> ReceiveTypedMessage<T>(PipeReader reader, uint magic, ILogger log, CancellationToken token)
                 where T : Message
             {
                 var message = await ReceiveMessage(reader, magic, log, token).ConfigureAwait(false);
@@ -172,20 +192,6 @@ namespace NeoFx.P2P
 
                 throw new InvalidOperationException($"Expected {typeof(T).Name} message, received {message.GetType().Name}");
             }
-
-            log.LogDebug("Sending version message");
-            await SendMessage<VersionPayload>(duplexPipe.Output, magic, VersionMessage.CommandText, payload, log, token).ConfigureAwait(false);
-
-            var versionMessage = await ReceiveTypedMessage<VersionMessage>(duplexPipe.Input, magic, log, token).ConfigureAwait(false);
-            log.LogDebug("Received version message {startHeight} {userAgent}", versionMessage.StartHeight, versionMessage.UserAgent);
-
-            log.LogDebug("Sending verack message");
-            await SendEmptyMessage(duplexPipe.Output, magic, VerAckMessage.CommandText, log, token).ConfigureAwait(false);
-
-            var verAckMessage = await ReceiveTypedMessage<VerAckMessage>(duplexPipe.Input, magic, log, token).ConfigureAwait(false);
-            log.LogDebug("Received verack message");
-
-            return versionMessage.Payload;
         }
     }
 }

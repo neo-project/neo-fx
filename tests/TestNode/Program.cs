@@ -31,17 +31,14 @@ namespace NeoFx.TestNode
                 // .UseSystemd()
                 .ConfigureServices((context, services) =>
                 {
-                    services.Configure<NodeOptions>(context.Configuration.GetSection("NodeOptions"));
-                    services.Configure<NetworkOptions>(context.Configuration.GetSection("NetworkOptions"));
-                    services.AddTransient<IPipelineSocket, PipelineSocket>();
-                    services.AddSingleton<Blockchain>();
-                    services.AddSingleton<RemoteNodeManager>();
-
-                    // services.AddSingleton<Storage>();
-                    // services.AddSingleton<RemoteNodeManager>();
-                    // services.AddSingleton<INodeConnectionFactory, NodeConnectionFactory>();
-                    // services.AddSingleton<IRemoteNodeFactory, RemoteNodeFactory>();
-                    services.AddHostedService<LocalNode>();
+                    services.Configure<NodeOptions>(context.Configuration.GetSection("NodeOptions"))
+                        .Configure<NetworkOptions>(context.Configuration.GetSection("NetworkOptions"))
+                        .AddTransient<IPipelineSocket, PipelineSocket>()
+                        .AddTransient<IRemoteNode, RemoteNode>()
+                        .AddTransient<IRemoteNodeFactory, RemoteNodeFactory>()
+                        .AddSingleton<Blockchain>()
+                        .AddSingleton<RemoteNodeManager>()
+                        .AddHostedService<LocalNode>();
                 });
         }
     }
