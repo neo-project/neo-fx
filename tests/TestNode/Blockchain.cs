@@ -3,13 +3,7 @@ using NeoFx.Models;
 
 namespace NeoFx.TestNode
 {
-    interface IBlockchain
-    {
-        Task<(uint index, UInt256 hash)> GetLastBlockHash();
-        Task AddBlock(in Block block);
-    }
-
-    class Blockchain : IBlockchain
+    class Blockchain 
     {
         public Task AddBlock(in Block block)
         {

@@ -16,7 +16,7 @@
     <Compile Remove="NodeConnectionFactory.cs" />
     <Compile Remove="RemoteNode.cs" />
     <Compile Remove="RemoteNodeFactory.cs" />
-    <Compile Remove="RemoteNodeManager.cs" />
+    <Compile Remove="oldRemoteNodeManager.cs" />
     <Compile Remove="RocksDbExtensions.cs" />
     <Compile Remove="Storage.cs" />
     <Compile Remove="Worker.cs" />
