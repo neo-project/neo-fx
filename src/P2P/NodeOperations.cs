@@ -14,14 +14,20 @@ namespace NeoFx.P2P
 {
     public static class NodeOperations
     {
-        static uint CalculateChecksum(ReadOnlySequence<byte> sequence)
+        public static async ValueTask<Message> ReceiveMessage(PipeReader reader, uint magic, ILogger log, CancellationToken token = default)
         {
-            Span<byte> hashBuffer = stackalloc byte[32];
-            HashHelpers.TryHash256(sequence, hashBuffer);
-            return BitConverter.ToUInt32(hashBuffer.Slice(0, 4));
+            while (true)
+            {
+                var readResult = await reader.ReadAsync(token).ConfigureAwait(false);
+                var message = ReceiveMessage(readResult, reader, magic, log, token);
+                if (message != null)
+                {
+                    return message;
+                }
+            }
         }
 
-        private static Message? ReceiveMessage(ReadResult readResult, PipeReader reader, uint magic, ILogger log, CancellationToken token = default)
+        private static Message? ReceiveMessage(ReadResult readResult, PipeReader reader, uint magic, ILogger log, CancellationToken token)
         {
             log.LogDebug("read {length} bytes from pipe {IsCompleted} {IsCanceled}",
                 readResult.Buffer.Length, readResult.IsCompleted, readResult.IsCanceled);
@@ -82,24 +88,10 @@ namespace NeoFx.P2P
             }
             else
             {
-                // TODO: save messages that fail to parse for later review
                 log.LogError("Message Parse {command} {length} {checksum}",
                     header.Command, header.Length, header.Checksum);
 
                 throw new Exception($"could not parse message {header.Command}");
-            }
-        }
-
-        public static async ValueTask<Message> ReceiveMessage(PipeReader reader, uint magic, ILogger log, CancellationToken token = default)
-        {
-            while (true)
-            {
-                var readResult = await reader.ReadAsync(token).ConfigureAwait(false);
-                var message = ReceiveMessage(readResult, reader, magic, log, token);
-                if (message != null)
-                {
-                    return message;
-                }
             }
         }
 

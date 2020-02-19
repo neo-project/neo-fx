@@ -6,9 +6,9 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NeoFx.P2P.Messages;
 
-namespace NeoFx.P2P
+namespace NeoFx.TestNode
 {
-    public sealed class NodeConnection : INodeConnection, IDisposable
+    public sealed class NodeConnection : IDisposable
     {
         private readonly ILogger<NodeConnection> log;
         private readonly PipelineSocket pipelineSocket;

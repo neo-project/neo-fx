@@ -8,6 +8,21 @@
     <TargetFramework>netcoreapp3.1</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="INodeConnectionFactory.cs" />
+    <Compile Remove="IRemoteNode.cs" />
+    <Compile Remove="IRemoteNodeFactory.cs" />
+    <Compile Remove="NodeConnection.cs" />
+    <Compile Remove="NodeConnectionExtensions.cs" />
+    <Compile Remove="NodeConnectionFactory.cs" />
+    <Compile Remove="PipelineSocket.cs" />
+    <Compile Remove="RemoteNode.cs" />
+    <Compile Remove="RemoteNodeFactory.cs" />
+    <Compile Remove="RemoteNodeManager.cs" />
+    <Compile Remove="RocksDbExtensions.cs" />
+    <Compile Remove="Storage.cs" />
+    <Compile Remove="Worker.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\..\src\P2P\NeoFx.P2P.csproj" />
   </ItemGroup>
   <ItemGroup>

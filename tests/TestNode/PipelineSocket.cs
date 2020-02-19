@@ -7,7 +7,7 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace NeoFx.P2P
+namespace NeoFx.TestNode
 {
     public sealed class PipelineSocket : IDuplexPipe, IDisposable
     {
