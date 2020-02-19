@@ -86,6 +86,7 @@ namespace NeoFx.TestNode
                     services.Configure<NodeOptions>(context.Configuration.GetSection("NodeOptions"));
                     services.Configure<NetworkOptions>(context.Configuration.GetSection("NetworkOptions"));
                     services.AddTransient<IPipelineSocket, PipelineSocket>();
+                    services.AddSingleton<IBlockchain, Blockchain>();
 
                     // services.AddSingleton<Storage>();
                     // services.AddSingleton<RemoteNodeManager>();
