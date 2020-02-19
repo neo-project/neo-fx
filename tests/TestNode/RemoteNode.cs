@@ -13,7 +13,6 @@ namespace NeoFx.TestNode
 {
     interface IRemoteNode : IDisposable
     {
-        ValueTask<VersionPayload> ConnectAsync(IPEndPoint endPoint, uint nonce, uint startHeight, ChannelWriter<Message> writer, CancellationToken token = default);
         ValueTask SendAddrMessage(in AddrPayload payload, CancellationToken token = default);
         ValueTask SendBlockMessage(in BlockPayload payload, CancellationToken token = default);
         ValueTask SendConsensusMessage(in ConsensusPayload payload, CancellationToken token = default);
@@ -78,6 +77,7 @@ namespace NeoFx.TestNode
                     {
                         log.LogInformation(nameof(RemoteNode) + " completed {IsCanceled}", t.IsCanceled);
                     }
+                    Dispose();
                 });
         }
 
@@ -87,7 +87,15 @@ namespace NeoFx.TestNode
             {
                 var message = await NodeOperations.ReceiveMessage(pipelineSocket.Input, magic, log, token);
                 if (log.IsEnabled(LogLevel.Trace)) log.LogTrace("{} message received", message.GetType().Name);
-                await writer.WriteAsync(message, token);
+
+                while (!writer.TryWrite(message))
+                {
+                    // if WaitToWriteAsync returns false, the channel has been closed  
+                    if (!await writer.WaitToWriteAsync(token)) 
+                    {
+                        return;
+                    }
+                }
             }
         }
 

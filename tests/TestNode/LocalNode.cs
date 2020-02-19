@@ -8,30 +8,23 @@ namespace NeoFx.TestNode
 {
     class LocalNode : IHostedService
     {
+        readonly RemoteNodeManager remoteNodeManager;
         readonly ILogger<LocalNode> logger;
         readonly CancellationTokenSource cts = new CancellationTokenSource();
 
-        public LocalNode(ILogger<LocalNode> logger)
+        public LocalNode(RemoteNodeManager remoteNodeManager, ILogger<LocalNode> logger)
         {
+            this.remoteNodeManager = remoteNodeManager;
             this.logger = logger;
         }
 
-        public void Callback(object? _)
+        public Task StartAsync(CancellationToken _)
         {
-            while (!cts.IsCancellationRequested)
-            {
-                logger.LogInformation("Worker running at: {time}", DateTimeOffset.Now);
-                Thread.Sleep(1000);
-            }
-        }
-
-        public Task StartAsync(CancellationToken cancellationToken)
-        {
-            ThreadPool.QueueUserWorkItem(Callback);
+            remoteNodeManager.Execute(cts.Token);
             return Task.CompletedTask;
         }
 
-        public Task StopAsync(CancellationToken cancellationToken)
+        public Task StopAsync(CancellationToken _)
         {
             cts.Cancel();
             return Task.CompletedTask;
