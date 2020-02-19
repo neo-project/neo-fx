@@ -14,7 +14,6 @@
     <Compile Remove="NodeConnection.cs" />
     <Compile Remove="NodeConnectionExtensions.cs" />
     <Compile Remove="NodeConnectionFactory.cs" />
-    <Compile Remove="PipelineSocket.cs" />
     <Compile Remove="RemoteNode.cs" />
     <Compile Remove="RemoteNodeFactory.cs" />
     <Compile Remove="RemoteNodeManager.cs" />

@@ -9,7 +9,16 @@ using System.Threading.Tasks;
 
 namespace NeoFx.TestNode
 {
-    public sealed class PipelineSocket : IDuplexPipe, IDisposable
+    public interface IPipelineSocket : IDisposable
+    {
+        PipeReader Input { get; }
+        PipeWriter Output { get; }
+        EndPoint RemoteEndPoint { get; }
+
+        Task ConnectAsync(IPEndPoint endpoint, CancellationToken token = default);
+    }
+
+    public sealed class PipelineSocket : IPipelineSocket, IDisposable
     {
         private readonly Socket socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
         private readonly Pipe sendPipe = new Pipe();

@@ -8,7 +8,7 @@ using NeoFx.P2P;
 
 namespace NeoFx.TestNode
 {
-    public class FakeWorker : BackgroundService
+    class FakeWorker : BackgroundService
     {
         private readonly ILogger<FakeWorker> _logger;
 
@@ -26,6 +26,7 @@ namespace NeoFx.TestNode
             }
         }
     }
+
 
     class Program
     {
@@ -50,13 +51,14 @@ namespace NeoFx.TestNode
                 // .UseSystemd()
                 .ConfigureServices((context, services) =>
                 {
-                    // services.AddSingleton<Storage>();
-                    // services.AddSingleton<RemoteNodeManager>();
-                    // services.AddTransient<PipelineSocket>();
-                    // services.AddSingleton<INodeConnectionFactory, NodeConnectionFactory>();
-                    // services.AddSingleton<IRemoteNodeFactory, RemoteNodeFactory>();
                     services.Configure<NodeOptions>(context.Configuration.GetSection("NodeOptions"));
                     services.Configure<NetworkOptions>(context.Configuration.GetSection("NetworkOptions"));
+
+                    // services.AddSingleton<Storage>();
+                    // services.AddSingleton<RemoteNodeManager>();
+                    services.AddTransient<IPipelineSocket, PipelineSocket>();
+                    // services.AddSingleton<INodeConnectionFactory, NodeConnectionFactory>();
+                    // services.AddSingleton<IRemoteNodeFactory, RemoteNodeFactory>();
                     services.AddHostedService<FakeWorker>();
                 });
         }
