@@ -11,29 +11,29 @@ namespace NeoFx.TestNode
 {
     class RemoteNode : IRemoteNode
     {
-        private readonly ChannelWriter<(IRemoteNode, Message)> writer;
+        private readonly ChannelWriter<Message> writer;
         private readonly INodeConnection connection;
         private readonly ILogger<RemoteNode> log;
-        public VersionPayload VersionPayload { get; private set; }
         public EndPoint RemoteEndPoint => connection.RemoteEndPoint;
 
-        public RemoteNode(INodeConnection connection, ChannelWriter<(IRemoteNode, Message)> writer, ILogger<RemoteNode>? logger = null)
+        public RemoteNode(INodeConnection connection, ChannelWriter<Message> writer, ILogger<RemoteNode>? logger = null)
         {
             this.connection = connection;
             this.writer = writer;
             log = logger ?? NullLogger<RemoteNode>.Instance;
         }
 
-        public async Task Connect(IPEndPoint endPoint, VersionPayload payload, CancellationToken token = default)
+        public async Task<VersionPayload> Connect(IPEndPoint endPoint, VersionPayload payload, CancellationToken token = default)
         {
             log.LogInformation("Connecting to {address}:{port}", endPoint.Address, endPoint.Port);
-            VersionPayload = await connection.ConnectAsync(endPoint, payload, token);
-            Execute(token);
+            var versionPayload = await connection.ConnectAsync(endPoint, payload, token);
+            Execute(versionPayload.UserAgent, token);
+            return versionPayload;
         }
 
-        private void Execute(CancellationToken token)
+        private void Execute(string userAgent, CancellationToken token)
         {
-            ExecuteAsync(token).ContinueWith(t =>
+            ExecuteAsync(userAgent, token).ContinueWith(t =>
                 {
                     if (t.IsFaulted)
                     {
@@ -47,15 +47,15 @@ namespace NeoFx.TestNode
                 });
         }
 
-        private async Task ExecuteAsync(CancellationToken token)
+        private async Task ExecuteAsync(string userAgent, CancellationToken token)
         {
-            log.LogInformation("Connected to {userAgent}", VersionPayload.UserAgent);
+            log.LogInformation("Connected to {endpoint} {userAgent}", connection.RemoteEndPoint, userAgent);
 
             while (true)
             {
                 var message = await connection.ReceiveMessage(token);
                 if (log.IsEnabled(LogLevel.Trace)) log.LogTrace("{} message received", message.GetType().Name);
-                await writer.WriteAsync((this, message), token);
+                await writer.WriteAsync(( message), token);
             }
         }
 

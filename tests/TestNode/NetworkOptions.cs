@@ -27,7 +27,7 @@ namespace NeoFx.TestNode
         public async Task<(IPEndPoint, string)> GetRandomSeedAsync() 
         {
             var random = new Random();
-            foreach (var seed in Seeds.OrderBy(_ => random.NextDouble()))
+            foreach (var seed in Seeds) //.OrderBy(_ => random.NextDouble()))
             {
                 var (host, port) = ParseSeed(seed);
                 var addresses = await Dns.GetHostAddressesAsync(host);
@@ -39,6 +39,20 @@ namespace NeoFx.TestNode
             }
 
             throw new Exception("seed address not found");
+        }
+
+        public async IAsyncEnumerable<(IPEndPoint, string)> GetSeeds()
+        {
+            foreach (var seed in Seeds)
+            {
+                var (host, port) = ParseSeed(seed);
+                var addresses = await Dns.GetHostAddressesAsync(host);
+                if (addresses.Length > 0)
+                {
+                    var endPoint = new IPEndPoint(addresses[0], port);
+                    yield return (endPoint, seed);
+                }
+            }
         }
 
         public IEnumerable<ECPoint> GetValidators()

@@ -5,6 +5,6 @@ namespace NeoFx.TestNode
 {
     interface IRemoteNodeFactory
     {
-        IRemoteNode CreateRemoteNode(ChannelWriter<(IRemoteNode, Message)> writer);
+        IRemoteNode CreateRemoteNode(ChannelWriter<Message> writer);
     }
 }

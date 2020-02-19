@@ -7,9 +7,8 @@ namespace NeoFx.TestNode
 {
     interface IRemoteNode
     {
-        VersionPayload VersionPayload { get; }
         EndPoint RemoteEndPoint { get; }
-        Task Connect(IPEndPoint endPoint, VersionPayload payload, CancellationToken token = default);
+        Task<VersionPayload> Connect(IPEndPoint endPoint, VersionPayload payload, CancellationToken token = default);
         ValueTask SendAddrMessage(in AddrPayload payload, CancellationToken token = default);
         ValueTask SendBlockMessage(in BlockPayload payload, CancellationToken token = default);
         ValueTask SendConsensusMessage(in ConsensusPayload payload, CancellationToken token = default);

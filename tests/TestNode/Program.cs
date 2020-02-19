@@ -32,6 +32,7 @@ namespace NeoFx.TestNode
                 .ConfigureServices((context, services) =>
                 {
                     services.AddSingleton<Storage>();
+                    services.AddSingleton<RemoteNodeManager>();
                     services.AddTransient<PipelineSocket>();
                     services.AddSingleton<INodeConnectionFactory, NodeConnectionFactory>();
                     services.AddSingleton<IRemoteNodeFactory, RemoteNodeFactory>();
