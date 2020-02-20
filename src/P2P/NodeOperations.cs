@@ -1,6 +1,7 @@
 using System;
 using System.Buffers;
 using System.Diagnostics;
+using System.IO;
 using System.IO.Pipelines;
 using System.Text;
 using System.Threading;
@@ -14,84 +15,72 @@ namespace NeoFx.P2P
 {
     public static class NodeOperations
     {
+        private static uint CalculateChecksum(ReadOnlySequence<byte> buffer)
+        {
+            Span<byte> hashBuffer = stackalloc byte[32];
+            HashHelpers.TryHash256(buffer, hashBuffer);
+            return BitConverter.ToUInt32(hashBuffer.Slice(0, 4));
+        }
+
         public static async ValueTask<Message> ReceiveMessage(PipeReader reader, uint magic, ILogger log, CancellationToken token = default)
         {
             while (true)
             {
                 var readResult = await reader.ReadAsync(token).ConfigureAwait(false);
-                var message = ReceiveMessage(readResult, reader, magic, log, token);
-                if (message != null)
+                log.LogDebug("read {length} bytes from pipe {IsCompleted} {IsCanceled}",
+                    readResult.Buffer.Length, readResult.IsCompleted, readResult.IsCanceled);
+
+                var buffer = readResult.Buffer;
+                if (buffer.Length < MessageHeader.Size)
                 {
+                    log.LogDebug("Haven't received enough data to read the message header {bufferLength}", buffer.Length);
+                    reader.AdvanceTo(buffer.Start, buffer.End);
+                    continue;
+                }
+
+                if (!MessageHeader.TryRead(buffer, out var header))
+                {
+                    throw new InvalidDataException("MessageHeader could not be parsed");
+                }
+                log.LogDebug("Received {command} message header {magic} {length} {checksum}",
+                    header.Command, header.Magic, header.Length, header.Checksum);
+
+                var messageLength = MessageHeader.Size + header.Length;
+                if (buffer.Length < messageLength)
+                {
+                    log.LogDebug("Haven't received enough data to read the message payload {bufferNeeded} {bufferLength}",
+                        messageLength, buffer.Length);
+                    reader.AdvanceTo(buffer.Start, buffer.End);
+                    continue;
+                }
+
+                if (header.Magic != magic)
+                {
+                    // ignore messages sent with the wrong magic value
+                    log.LogWarning("Ignoring message with incorrect magic {expected} {actual}", magic, header.Magic);
+                    reader.AdvanceTo(buffer.GetPosition(messageLength));
+                    continue;
+                }
+
+                var checksum =  CalculateChecksum(buffer.Slice(MessageHeader.Size, header.Length)); 
+                if (header.Checksum != checksum)
+                {
+                    // ignore messages sent with invalid checksum
+                    log.LogWarning("Ignoring message with incorrect checksum {expected} {actual}", checksum, header.Checksum);
+                    reader.AdvanceTo(buffer.GetPosition(messageLength));
+                    continue;
+                }
+
+                if (Message.TryRead(buffer.Slice(0, messageLength), header, out var message))
+                {
+                    log.LogDebug("Receive {message}", message.GetType().Name);
+                    reader.AdvanceTo(buffer.GetPosition(messageLength));
                     return message;
                 }
-            }
-        }
-
-        private static Message? ReceiveMessage(ReadResult readResult, PipeReader reader, uint magic, ILogger log, CancellationToken token)
-        {
-            log.LogDebug("read {length} bytes from pipe {IsCompleted} {IsCanceled}",
-                readResult.Buffer.Length, readResult.IsCompleted, readResult.IsCanceled);
-            if (readResult.IsCompleted || readResult.IsCanceled || token.IsCancellationRequested)
-            {
-                throw new OperationCanceledException();
-            }
-
-            var buffer = readResult.Buffer;
-            if (buffer.Length < MessageHeader.Size)
-            {
-                log.LogDebug("Haven't received enough data to read the message header {bufferLength}", buffer.Length);
-                reader.AdvanceTo(buffer.GetPosition(0), buffer.GetPosition(buffer.Length));
-                return null;
-            }
-
-            if (!MessageHeader.TryRead(buffer, out var header))
-            {
-                throw new Exception("could not parse message header");
-            }
-            log.LogDebug("Received {command} message header {magic} {length} {checksum}",
-                header.Command, header.Magic, header.Length, header.Checksum);
-
-            var messageLength = MessageHeader.Size + header.Length;
-            if (buffer.Length < messageLength)
-            {
-                log.LogDebug("Haven't received enough data to read the message payload {bufferNeeded} {bufferLength}",
-                    messageLength, buffer.Length);
-                reader.AdvanceTo(buffer.GetPosition(0), buffer.GetPosition(buffer.Length));
-                return null;
-            }
-
-            if (header.Magic != magic)
-            {
-                // ignore messages sent with the wrong magic value
-                log.LogWarning("Ignoring message with incorrect magic {expected} {actual}", magic, header.Magic);
-                reader.AdvanceTo(buffer.GetPosition(messageLength));
-                return null;
-            }
-
-            Span<byte> hashBuffer = stackalloc byte[32];
-            HashHelpers.TryHash256(buffer.Slice(MessageHeader.Size, header.Length), hashBuffer);
-            var checksum = BitConverter.ToUInt32(hashBuffer.Slice(0, 4));
-            if (header.Checksum != checksum)
-            {
-                // ignore messages sent with invalid checksum
-                log.LogWarning("Ignoring message with incorrect checksum {expected} {actual}", checksum, header.Checksum);
-                reader.AdvanceTo(buffer.GetPosition(messageLength));
-                return null;
-            }
-
-            if (Message.TryRead(buffer.Slice(0, messageLength), header, out var message))
-            {
-                log.LogDebug("Receive {message}", message.GetType().Name);
-                reader.AdvanceTo(buffer.GetPosition(messageLength));
-
-                return message;
-            }
-            else
-            {
-                log.LogError("Message Parse {command} {length} {checksum}",
-                    header.Command, header.Length, header.Checksum);
-
-                throw new Exception($"could not parse message {header.Command}");
+                else
+                {
+                    throw new InvalidDataException($"'{header.Command}' Message could not be parsed");
+                }
             }
         }
 
@@ -169,22 +158,22 @@ namespace NeoFx.P2P
             {
                 await task.ConfigureAwait(false);
 
-                var versionMessage = await ReceiveTypedMessage<VersionMessage>(duplexPipe.Input, magic, log, token).ConfigureAwait(false);
+                var versionMessage = await ReceiveTypedMessage<VersionMessage>().ConfigureAwait(false);
                 log.LogDebug("Received version message {startHeight} {userAgent}", versionMessage.StartHeight, versionMessage.UserAgent);
 
                 log.LogDebug("Sending verack message");
                 await SendEmptyMessage(duplexPipe.Output, magic, VerAckMessage.CommandText, log, token).ConfigureAwait(false);
 
-                var verAckMessage = await ReceiveTypedMessage<VerAckMessage>(duplexPipe.Input, magic, log, token).ConfigureAwait(false);
+                var verAckMessage = await ReceiveTypedMessage<VerAckMessage>().ConfigureAwait(false);
                 log.LogDebug("Received verack message");
 
                 return versionMessage.Payload;
             }
 
-            static async ValueTask<T> ReceiveTypedMessage<T>(PipeReader reader, uint magic, ILogger log, CancellationToken token)
+            async ValueTask<T> ReceiveTypedMessage<T>()
                 where T : Message
             {
-                var message = await ReceiveMessage(reader, magic, log, token).ConfigureAwait(false);
+                var message = await ReceiveMessage(duplexPipe.Input, magic, log, token).ConfigureAwait(false);
                 if (message is T typedMessage)
                 {
                     return typedMessage;
