@@ -15,30 +15,66 @@ namespace NeoFx.P2P
 {
     public static class NodeOperations
     {
-        private static uint CalculateChecksum(ReadOnlySequence<byte> buffer)
-        {
-            Span<byte> hashBuffer = stackalloc byte[32];
-            HashHelpers.TryHash256(buffer, hashBuffer);
-            return BitConverter.ToUInt32(hashBuffer.Slice(0, 4));
-        }
-
-        public static async ValueTask<Message> ReceiveMessage(PipeReader reader, uint magic, ILogger log, CancellationToken token = default)
+        public static async ValueTask<Message?> ReceiveMessage(PipeReader reader, uint magic, ILogger log, CancellationToken token = default)
         {
             while (true)
             {
                 var readResult = await reader.ReadAsync(token).ConfigureAwait(false);
+                var buffer = readResult.Buffer;
                 log.LogDebug("read {length} bytes from pipe {IsCompleted} {IsCanceled}",
                     readResult.Buffer.Length, readResult.IsCompleted, readResult.IsCanceled);
+                SequencePosition consumed = buffer.Start;
+                SequencePosition examined = buffer.End;
 
-                var buffer = readResult.Buffer;
-                if (buffer.Length < MessageHeader.Size)
+                try
+                {                
+                    if (readResult.IsCanceled)
+                    {
+                        throw new OperationCanceledException();
+                    }
+
+                    var messageRead = TryReadMessage(ref buffer, out var message, out var advance);
+
+                    if (advance)
+                    {
+                        consumed = buffer.End;
+                        examined = consumed;
+                    }
+
+                    if (messageRead)
+                    {
+                        Debug.Assert(message != null);
+                        return message;
+                    }
+
+                    if (readResult.IsCompleted)
+                    {
+                        if (buffer.Length > 0)
+                        {
+                            throw new InvalidDataException("Incomplete message.");
+                        }
+
+                        return null;
+                    }
+                }
+                finally
                 {
-                    log.LogDebug("Haven't received enough data to read the message header {bufferLength}", buffer.Length);
-                    reader.AdvanceTo(buffer.Start, buffer.End);
-                    continue;
+                    reader.AdvanceTo(consumed, examined);
+                }
+            }
+
+            bool TryReadMessage(ref ReadOnlySequence<byte> _buffer, out Message? _message, out bool _advance)
+            {
+                _message = null;
+                _advance = false;
+
+                if (_buffer.Length < MessageHeader.Size)
+                {
+                    log.LogDebug("Haven't received enough data to read the message header {bufferLength}", _buffer.Length);
+                    return false;
                 }
 
-                if (!MessageHeader.TryRead(buffer, out var header))
+                if (!MessageHeader.TryRead(_buffer, out var header))
                 {
                     throw new InvalidDataException("MessageHeader could not be parsed");
                 }
@@ -46,42 +82,69 @@ namespace NeoFx.P2P
                     header.Command, header.Magic, header.Length, header.Checksum);
 
                 var messageLength = MessageHeader.Size + header.Length;
-                if (buffer.Length < messageLength)
+                if (_buffer.Length < messageLength)
                 {
                     log.LogDebug("Haven't received enough data to read the message payload {bufferNeeded} {bufferLength}",
-                        messageLength, buffer.Length);
-                    reader.AdvanceTo(buffer.Start, buffer.End);
-                    continue;
+                        messageLength, _buffer.Length);
+                    return false;
                 }
 
+                _buffer = _buffer.Slice(0, messageLength);
+                _advance = true;
                 if (header.Magic != magic)
                 {
                     // ignore messages sent with the wrong magic value
                     log.LogWarning("Ignoring message with incorrect magic {expected} {actual}", magic, header.Magic);
-                    reader.AdvanceTo(buffer.GetPosition(messageLength));
-                    continue;
+                    return false;
                 }
 
-                var checksum =  CalculateChecksum(buffer.Slice(MessageHeader.Size, header.Length)); 
+                Span<byte> hashBuffer = stackalloc byte[32];
+                HashHelpers.TryHash256(_buffer.Slice(MessageHeader.Size), hashBuffer);
+                var checksum = BitConverter.ToUInt32(hashBuffer.Slice(0, 4));
                 if (header.Checksum != checksum)
                 {
                     // ignore messages sent with invalid checksum
                     log.LogWarning("Ignoring message with incorrect checksum {expected} {actual}", checksum, header.Checksum);
-                    reader.AdvanceTo(buffer.GetPosition(messageLength));
-                    continue;
+                    return false;
                 }
 
-                if (Message.TryRead(buffer.Slice(0, messageLength), header, out var message))
+                if (Message.TryRead(_buffer, header, out _message))
                 {
-                    log.LogDebug("Receive {message}", message.GetType().Name);
-                    reader.AdvanceTo(buffer.GetPosition(messageLength));
-                    return message;
+                    log.LogDebug("Receive {message}", _message.GetType().Name);
+                    return true;
                 }
                 else
                 {
                     throw new InvalidDataException($"'{header.Command}' Message could not be parsed");
                 }
             }
+        }
+
+        public static ValueTask SendMessage<T>(PipeWriter writer, uint magic, string command, in T payload, ILogger log, CancellationToken token)
+            where T : IWritable<T>
+        {
+            log.LogDebug("SendMessage<{payload}> {magic} {command}", typeof(T).Name, magic, command);
+
+            var payloadSize = payload.Size;
+            var messageSize = MessageHeader.Size + payloadSize;
+            var messageSpan = writer.GetMemory(messageSize).Slice(0, messageSize).Span;
+
+            if (payloadSize > 0)
+            {
+                var payloadSpan = messageSpan.Slice(MessageHeader.Size, payloadSize);
+                var payloadWriter = new BufferWriter<byte>(payloadSpan);
+                payload.WriteTo(ref payloadWriter);
+                payloadWriter.Commit();
+                Debug.Assert(payloadWriter.Span.IsEmpty);
+            }
+
+            return SendMessage(writer, magic, command, messageSpan, log, token);
+        }
+
+        public static ValueTask SendMessage(PipeWriter writer, uint magic, string command, ILogger log, CancellationToken token)
+        {
+            var messageSpan = writer.GetMemory(MessageHeader.Size).Slice(0, MessageHeader.Size).Span;
+            return SendMessage(writer, magic, command, messageSpan, log, token);
         }
 
         private static ValueTask SendMessage(PipeWriter writer, uint magic, string command, Span<byte> messageSpan, ILogger log, CancellationToken token)
@@ -120,33 +183,6 @@ namespace NeoFx.P2P
             return new ValueTask(task.AsTask());
         }
 
-        public static ValueTask SendMessage<T>(PipeWriter writer, uint magic, string command, in T payload, ILogger log, CancellationToken token)
-            where T : IWritable<T>
-        {
-            log.LogDebug("SendMessage<{payload}> {magic} {command}", typeof(T).Name, magic, command);
-
-            var payloadSize = payload.Size;
-            var messageSize = MessageHeader.Size + payloadSize;
-            var messageSpan = writer.GetMemory(messageSize).Slice(0, messageSize).Span;
-
-            if (payloadSize > 0)
-            {
-                var payloadSpan = messageSpan.Slice(MessageHeader.Size, payloadSize);
-                var payloadWriter = new BufferWriter<byte>(payloadSpan);
-                payload.WriteTo(ref payloadWriter);
-                payloadWriter.Commit();
-                Debug.Assert(payloadWriter.Span.IsEmpty);
-            }
-
-            return SendMessage(writer, magic, command, messageSpan, log, token);
-        }
-
-        public static ValueTask SendEmptyMessage(PipeWriter writer, uint magic, string command, ILogger log, CancellationToken token)
-        {
-            var messageSpan = writer.GetMemory(MessageHeader.Size).Slice(0, MessageHeader.Size).Span;
-            return SendMessage(writer, magic, command, messageSpan, log, token);
-        }
-
         public static ValueTask<VersionPayload> PerformVersionHandshake(IDuplexPipe duplexPipe, uint magic, in VersionPayload payload, ILogger log, CancellationToken token = default)
         {
             log.LogDebug("Sending version message");
@@ -162,7 +198,7 @@ namespace NeoFx.P2P
                 log.LogDebug("Received version message {startHeight} {userAgent}", versionMessage.StartHeight, versionMessage.UserAgent);
 
                 log.LogDebug("Sending verack message");
-                await SendEmptyMessage(duplexPipe.Output, magic, VerAckMessage.CommandText, log, token).ConfigureAwait(false);
+                await SendMessage(duplexPipe.Output, magic, VerAckMessage.CommandText, log, token).ConfigureAwait(false);
 
                 var verAckMessage = await ReceiveTypedMessage<VerAckMessage>().ConfigureAwait(false);
                 log.LogDebug("Received verack message");
@@ -179,7 +215,8 @@ namespace NeoFx.P2P
                     return typedMessage;
                 }
 
-                throw new InvalidOperationException($"Expected {typeof(T).Name} message, received {message.GetType().Name}");
+                var name = message == null ? "name" : message.GetType().Name; 
+                throw new InvalidOperationException($"Expected {typeof(T).Name} message, received {name}");
             }
         }
     }
