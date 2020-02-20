@@ -23,7 +23,7 @@ namespace NeoFx.TestNode
         private readonly NetworkOptions networkOptions;
         private readonly ILogger<RemoteNodeManager> log;
         private readonly uint nonce;
-        private readonly List<IRemoteNode> nodes = new List<IRemoteNode>(10);
+        private readonly Channel<(IRemoteNode node, Message message)> channel = Channel.CreateUnbounded<(IRemoteNode node, Message msg)>(); 
         
         public RemoteNodeManager(
             IBlockchain blockchain,
@@ -47,63 +47,55 @@ namespace NeoFx.TestNode
         public void Execute(CancellationToken token)
         {
             ExecuteAsync(token)
-                .ContinueWith(t =>
-                {
-                    if (t.IsFaulted)
-                    {
-                        log.LogError(t.Exception, nameof(RemoteNodeManager) + " exception");
-                    }
-                    else
-                    {
-                        log.LogInformation(nameof(RemoteNodeManager) + " completed {IsCanceled}", t.IsCanceled);
-                    }
-                    // channel.Writer.Complete(t.Exception);
-                });
-
+                .LogResult(log, nameof(ExecuteAsync), ex => channel.Writer.Complete(ex));
         }
 
         async Task ExecuteAsync(CancellationToken token)
         {
             var node = await ConnectSeed(token);
-            lock (nodes)
-            {
-                nodes.Add(node);
-            }
-
-            await ReceiveMessagesAsync(token);
-
+            StartReceivingMessages(node, token)
+                .LogResult(log, nameof(StartReceivingMessages));
             
+            await StartProcessingMessages(token);
         }
 
-        async ValueTask ReceiveMessagesAsync(CancellationToken token)
+        async Task StartReceivingMessages(IRemoteNode node, CancellationToken token)
         {
-            // while (true)
-            // {
-            //     var nodes = this.nodes;
-            //     var deadNodes = new List<IRemoteNode
-            //     foreach (var (node, channel) in nodes)
-            //     {
-            //         node.
-            //     }
-            // }
-            // var reader = channel.Reader;
-            // while (!reader.Completion.IsCompleted)
-            // {
-            //     while (reader.TryRead(out var message))
-            //     {
-            //         await ProcessMessage(message, token);
-            //     }
+            while (true)
+            {
+                var message = await node.ReceiveMessage(token);
+                if (message != null)
+                {
+                    await channel.Writer.WriteAsync((node, message), token);
+                }
+                else
+                {
+                    break;
+                }
+            }
+        }
 
-            //     if (!await reader.WaitToReadAsync())
-            //     {
-            //         return;
-            //     }
-            // }
+        async ValueTask StartProcessingMessages(CancellationToken token)
+        {
+            var reader = channel.Reader;
+            while (true)
+            {
+                while (reader.TryRead(out var item))
+                {
+                    await ProcessMessageAsync(item.node, item.message, token);
+                }
+
+                if (!await reader.WaitToReadAsync(token))
+                {
+                    return;
+                }
+            }
         } 
 
 
-        async ValueTask ProcessMessage(Message message, CancellationToken token)
+        async ValueTask ProcessMessageAsync(IRemoteNode node, Message message, CancellationToken token)
         {
+            log.LogInformation("Received {messageType}", message.GetType().Name);
             // switch (message)
             // {
             //     case AddrMessage addrMessage:
