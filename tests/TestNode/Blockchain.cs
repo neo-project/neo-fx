@@ -3,6 +3,7 @@ using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NeoFx.Models;
 
@@ -17,14 +18,18 @@ namespace NeoFx.TestNode
     class Blockchain : IBlockchain
     {
         readonly NetworkOptions networkOptions;
+        readonly ILogger<Blockchain> log;
 
-        public Blockchain(IOptions<NetworkOptions> networkOptions)
+        public Blockchain(IOptions<NetworkOptions> networkOptions,
+            ILogger<Blockchain> logger)
         {
             this.networkOptions = networkOptions.Value;
+            this.log = logger;
         }
 
         public ValueTask AddBlock(in Block block)
         {
+            log.LogCritical("block {index} not really saved", block.Index);
             return default;
         }
 

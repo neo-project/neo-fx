@@ -11,6 +11,8 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using MoreLinq;
+using NeoFx.Models;
 using NeoFx.P2P.Messages;
 
 namespace NeoFx.TestNode
@@ -23,13 +25,15 @@ namespace NeoFx.TestNode
         private readonly NetworkOptions networkOptions;
         private readonly ILogger<RemoteNodeManager> log;
         private readonly uint nonce;
-        private readonly Channel<(IRemoteNode node, Message message)> channel = Channel.CreateUnbounded<(IRemoteNode node, Message msg)>(); 
-        
+        private readonly Channel<(IRemoteNode node, Message message)> channel = Channel.CreateUnbounded<(IRemoteNode node, Message msg)>();
+        private ImmutableList<IRemoteNode> connectedNodes = ImmutableList<IRemoteNode>.Empty;
+        private ImmutableHashSet<IPEndPoint> unconnectedNodes = ImmutableHashSet<IPEndPoint>.Empty;
+
         public RemoteNodeManager(
             IBlockchain blockchain,
             IRemoteNodeFactory remoteNodeFactory,
             IHostApplicationLifetime hostApplicationLifetime,
-            IOptions<NetworkOptions> networkOptions, 
+            IOptions<NetworkOptions> networkOptions,
             ILogger<RemoteNodeManager> logger)
         {
             this.blockchain = blockchain;
@@ -55,21 +59,44 @@ namespace NeoFx.TestNode
             var node = await ConnectSeed(token);
             StartReceivingMessages(node, token)
                 .LogResult(log, nameof(StartReceivingMessages));
-            
+
             await StartProcessingMessages(token);
+        }
+
+        void AddUnconnectedNodes(IEnumerable<IPEndPoint> endpoints)
+        {
+            ImmutableInterlocked.Update(ref unconnectedNodes, original =>
+            {
+                foreach (var endpoint in endpoints)
+                {
+                    if (connectedNodes.Any(n => n.RemoteEndPoint.Equals(endpoint)))
+                        continue;
+                    original = original.Add(endpoint);
+                }
+                return original;
+            });
+        }
+
+        void RemoveUnconnectedNode(IPEndPoint endpoint)
+        {
+            ImmutableInterlocked.Update(ref unconnectedNodes, original => original.Remove(endpoint));
         }
 
         async Task StartReceivingMessages(IRemoteNode node, CancellationToken token)
         {
+            ImmutableInterlocked.Update(ref connectedNodes, original => original.Add(node));
             while (true)
             {
                 var message = await node.ReceiveMessage(token);
                 if (message != null)
                 {
+                    log.LogDebug("Received message on {address}", node.RemoteEndPoint);
                     await channel.Writer.WriteAsync((node, message), token);
                 }
                 else
                 {
+                    log.LogWarning("{address} disconnected", node.RemoteEndPoint);
+                    ImmutableInterlocked.Update(ref connectedNodes, original => original.Remove(node));
                     break;
                 }
             }
@@ -90,47 +117,33 @@ namespace NeoFx.TestNode
                     return;
                 }
             }
-        } 
+        }
 
-
-        async ValueTask ProcessMessageAsync(IRemoteNode node, Message message, CancellationToken token)
+        async Task ProcessMessageAsync(IRemoteNode node, Message message, CancellationToken token)
         {
-            log.LogInformation("Received {messageType}", message.GetType().Name);
-            // switch (message)
-            // {
-            //     case AddrMessage addrMessage:
-            //         {
-            //             var addresses = new ConcurrentBag<NodeAddress>(addrMessage.Addresses);
-            //             log.LogInformation("Received AddrMessage {addressesCount}", addresses.Count);
+            switch (message)
+            {
+                case AddrMessage addrMessage:
+                    {
+                        var addresses = addrMessage.Addresses;
+                        log.LogInformation("Received AddrMessage {addressesCount}", addresses.Length);
+                        AddUnconnectedNodes(addresses.Select(a => a.EndPoint));
+                        log.LogInformation("{addressesCount} unconnected nodes", unconnectedNodes.Count);
+                    }
+                    break;
+                case HeadersMessage headersMessage:
+                    {
+                        var headers = headersMessage.Headers;
+                        log.LogInformation("Received HeadersMessage {headersCount}", headers.Length);
 
-            //             var _ = Task.Run(async () => {
-            //                 while (nodes.Count <= 10 && addresses.TryTake(out var address))
-            //                 {
-            //                     var endpoint = address.EndPoint;
-                               
-            //                     try
-            //                     {
-            //                         if (nodes.Any(n => n.RemoteEndPoint.Equals(endpoint)))
-            //                         {
-            //                             continue;
-            //                         }
-
-            //                         log.LogInformation("Connecting to {endpoint}", address.EndPoint);
-            //                         var (node, version) = await remoteNodeFactory.ConnectAsync(endpoint, nonce, 0, channel.Writer, token);
-            //                         log.LogInformation("{endpoint} connected", address.EndPoint);
-            //                         nodes.Add(node);
-            //                     }
-            //                     catch (Exception ex)
-            //                     {
-            //                         log.LogWarning(ex, "{endpoint} connection failed", endpoint);
-            //                     }
-            //                 }
-            //             });
-
-            //         }
-            //         break;
-                // case HeadersMessage headersMessage:
-                //     log.LogInformation("Received HeadersMessage {headersCount}", headersMessage.Headers.Length);
+                        var (index, _) = await blockchain.GetLastBlockHash();
+                        foreach (var batch in headers.Where(h => h.Index > index).Batch(500))
+                        {
+                            var payload = new InventoryPayload(InventoryPayload.InventoryType.Block, batch.Select(h => h.CalculateHash()));
+                            await node.SendGetDataMessage(payload, token);
+                        }
+                    }
+                    break;
                 //     {
                 //         // var headers = headersMessage.Headers;
                 //         // foo = headers.Take(10).Select(h => h.CalculateHash()).ToImmutableArray();
@@ -151,28 +164,24 @@ namespace NeoFx.TestNode
                 // case InvMessage invMessage:
                 //     log.LogInformation("Received InvMessage {type} {count}", invMessage.Type, invMessage.Hashes.Length);
                 //     break;
-                // // case InvMessage invMessage when invMessage.Type == InventoryPayload.InventoryType.Block:
-                // //     {
-                // //         // log.LogInformation("Received InvMessage {count}", invMessage.Hashes.Length);
-                // //         // for (var x = 0; x < invMessage.Hashes; x++)
-                // //         // {
-                // //         //     storage.AddBlockHash()
-                // //         // }
-                // //         // await node.SendGetDataMessage(invMessage.Payload, token);
-                // //     }
-                // //     break;
-                // case BlockMessage blocKMessage:
-                //     {
-                //         log.LogInformation("Received BlockMessage {index}", blocKMessage.Block.Index);
-                //         storage.AddBlock(blocKMessage.Block);
-                //     }
-                //     break;
-            //     default:
-            //         log.LogInformation("Received {messageType}", message.GetType().Name);
-            //         break;
-            // }
+                case InvMessage invMessage when invMessage.Type == InventoryPayload.InventoryType.Block:
+                    {
+                        log.LogInformation("Received Block InvMessage {count}", invMessage.Hashes.Length);
+                        await node.SendGetDataMessage(invMessage.Payload, token);
+                    }
+                    break;
+                case BlockMessage blocKMessage:
+                    {
+                        log.LogInformation("Received BlockMessage {index}", blocKMessage.Block.Index);
+                        await blockchain.AddBlock(blocKMessage.Block);
+                    }
+                    break;
+                default:
+                    log.LogInformation("Received {messageType}", message.GetType().Name);
+                    break;
+            }
         }
-    
+
         async ValueTask<IRemoteNode> ConnectSeed(CancellationToken token)
         {
             var (index, hash) = await blockchain.GetLastBlockHash();
@@ -195,13 +204,13 @@ namespace NeoFx.TestNode
 
                     return node;
                 }
-                catch(Exception ex)
+                catch (Exception ex)
                 {
                     log.LogWarning(ex, "{seed} connection failed", seed);
                 }
             }
 
-            var errorMessage = "could not connect to any seed nodes"; 
+            var errorMessage = "could not connect to any seed nodes";
             log.LogCritical(errorMessage);
             throw new System.IO.IOException(errorMessage);
 
