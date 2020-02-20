@@ -69,7 +69,7 @@ namespace NeoFx.TestNode
 
         private void Execute(ChannelWriter<Message> writer, CancellationToken token)
         {
-            MessageReceiveAsync(writer, token)
+            StartMessageReceive(writer, token)
                 .ContinueWith(t =>
                 {
                     if (t.IsFaulted)
@@ -84,11 +84,16 @@ namespace NeoFx.TestNode
                 });
         }
 
-        private async Task MessageReceiveAsync(ChannelWriter<Message> writer, CancellationToken token)
+        private async Task StartMessageReceive(ChannelWriter<Message> writer, CancellationToken token)
         {
             while (true)
             {
                 var message = await NodeOperations.ReceiveMessage(pipelineSocket.Input, magic, log, token);
+                if (message == null)
+                {
+                    break;
+                }
+
                 if (log.IsEnabled(LogLevel.Trace)) log.LogTrace("{} message received", message.GetType().Name);
 
                 while (!writer.TryWrite(message))
@@ -112,7 +117,7 @@ namespace NeoFx.TestNode
             => NodeOperations.SendMessage<ConsensusPayload>(pipelineSocket.Output, magic, ConsensusMessage.CommandText, payload, log, token);
 
         public ValueTask SendGetAddrMessage(CancellationToken token = default)
-            => NodeOperations.SendEmptyMessage(pipelineSocket.Output, magic, GetAddrMessage.CommandText, log, token);
+            => NodeOperations.SendMessage(pipelineSocket.Output, magic, GetAddrMessage.CommandText, log, token);
 
         public ValueTask SendGetBlocksMessage(in HashListPayload payload, CancellationToken token = default)
             => NodeOperations.SendMessage<HashListPayload>(pipelineSocket.Output, magic, GetBlocksMessage.CommandText, payload, log, token);

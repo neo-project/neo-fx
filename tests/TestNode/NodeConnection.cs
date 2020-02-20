@@ -36,7 +36,7 @@ namespace NeoFx.TestNode
             return await NodeOperations.PerformVersionHandshake(pipelineSocket, magic, payload, log, token);
         }
 
-        public ValueTask<Message> ReceiveMessage(CancellationToken token)
+        public ValueTask<Message?> ReceiveMessage(CancellationToken token)
         {
             return NodeOperations.ReceiveMessage(pipelineSocket.Input, magic, log, token);
         }
@@ -51,7 +51,7 @@ namespace NeoFx.TestNode
             => NodeOperations.SendMessage<ConsensusPayload>(pipelineSocket.Output, magic, ConsensusMessage.CommandText, payload, log, token);
 
         public ValueTask SendGetAddrMessage(CancellationToken token = default)
-            => NodeOperations.SendEmptyMessage(pipelineSocket.Output, magic, GetAddrMessage.CommandText, log, token);
+            => NodeOperations.SendMessage(pipelineSocket.Output, magic, GetAddrMessage.CommandText, log, token);
 
         public ValueTask SendGetBlocksMessage(in HashListPayload payload, CancellationToken token = default)
             => NodeOperations.SendMessage<HashListPayload>(pipelineSocket.Output, magic, GetBlocksMessage.CommandText, payload, log, token);
