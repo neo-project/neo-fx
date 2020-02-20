@@ -13,6 +13,7 @@ namespace NeoFx.TestNode
 {
     interface IRemoteNode : IDisposable
     {
+        EndPoint RemoteEndPoint { get; }
         ValueTask SendAddrMessage(in AddrPayload payload, CancellationToken token = default);
         ValueTask SendBlockMessage(in BlockPayload payload, CancellationToken token = default);
         ValueTask SendConsensusMessage(in ConsensusPayload payload, CancellationToken token = default);
@@ -33,6 +34,8 @@ namespace NeoFx.TestNode
         private readonly ILogger<RemoteNode> log;
         private readonly uint magic;
         private readonly string userAgent;
+
+        public EndPoint RemoteEndPoint => pipelineSocket.RemoteEndPoint;
 
         public RemoteNode(IPipelineSocket pipelineSocket, IOptions<NetworkOptions> networkOptions, IOptions<NodeOptions> nodeOptions, ILogger<RemoteNode>? logger = null)
             : this(pipelineSocket, networkOptions.Value.Magic, nodeOptions.Value.UserAgent, logger)
