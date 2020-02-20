@@ -120,7 +120,7 @@ namespace NeoFx.P2P
             }
         }
 
-        public static ValueTask SendMessage<T>(PipeWriter writer, uint magic, string command, in T payload, ILogger log, CancellationToken token)
+        public static ValueTask<FlushResult> SendMessage<T>(PipeWriter writer, uint magic, string command, in T payload, ILogger log, CancellationToken token)
             where T : IWritable<T>
         {
             log.LogDebug("SendMessage<{payload}> {magic} {command}", typeof(T).Name, magic, command);
@@ -141,13 +141,13 @@ namespace NeoFx.P2P
             return SendMessage(writer, magic, command, messageSpan, log, token);
         }
 
-        public static ValueTask SendMessage(PipeWriter writer, uint magic, string command, ILogger log, CancellationToken token)
+        public static ValueTask<FlushResult> SendMessage(PipeWriter writer, uint magic, string command, ILogger log, CancellationToken token)
         {
             var messageSpan = writer.GetMemory(MessageHeader.Size).Slice(0, MessageHeader.Size).Span;
             return SendMessage(writer, magic, command, messageSpan, log, token);
         }
 
-        private static ValueTask SendMessage(PipeWriter writer, uint magic, string command, Span<byte> messageSpan, ILogger log, CancellationToken token)
+        private static ValueTask<FlushResult> SendMessage(PipeWriter writer, uint magic, string command, Span<byte> messageSpan, ILogger log, CancellationToken token)
         {
             log.LogDebug("SendMessage {magic} {command} {messageSize}", magic, command, messageSpan.Length);
             var payloadSpan = messageSpan.Slice(MessageHeader.Size);
@@ -171,26 +171,17 @@ namespace NeoFx.P2P
             Debug.Assert(headerWriter.Span.IsEmpty);
 
             writer.Advance(messageSpan.Length);
-
-            // https://github.com/dotnet/runtime/issues/31503#issuecomment-554415966
-            var task = writer.FlushAsync(token);
-            if (task.IsCompletedSuccessfully)
-            {
-                var _ = task.Result;
-                return default;
-            }
-
-            return new ValueTask(task.AsTask());
+            return writer.FlushAsync(token);
         }
 
-        public static ValueTask<VersionPayload> PerformVersionHandshake(IDuplexPipe duplexPipe, uint magic, in VersionPayload payload, ILogger log, CancellationToken token = default)
+        public static Task<VersionPayload> PerformVersionHandshake(IDuplexPipe duplexPipe, uint magic, in VersionPayload payload, ILogger log, CancellationToken token = default)
         {
             log.LogDebug("Sending version message");
             var sendVersionTask = SendMessage<VersionPayload>(duplexPipe.Output, magic, VersionMessage.CommandText, payload, log, token);
             return AwaitHelper(sendVersionTask);
 
             // break await operations into separate helper function so VersionPayload can be an in parameter
-            async ValueTask<VersionPayload> AwaitHelper(ValueTask task)
+            async Task<VersionPayload> AwaitHelper(ValueTask<FlushResult> task)
             {
                 await task.ConfigureAwait(false);
 
@@ -206,7 +197,7 @@ namespace NeoFx.P2P
                 return versionMessage.Payload;
             }
 
-            async ValueTask<T> ReceiveTypedMessage<T>()
+            async Task<T> ReceiveTypedMessage<T>()
                 where T : Message
             {
                 var message = await ReceiveMessage(duplexPipe.Input, magic, log, token).ConfigureAwait(false);

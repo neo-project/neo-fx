@@ -23,9 +23,7 @@ namespace NeoFx.TestNode
         private readonly NetworkOptions networkOptions;
         private readonly ILogger<RemoteNodeManager> log;
         private readonly uint nonce;
-        private readonly Channel<Message> channel = Channel.CreateUnbounded<Message>();
-        private readonly ConcurrentBag<IRemoteNode> nodes = new ConcurrentBag<IRemoteNode>();
-        private readonly ConcurrentQueue<IPEndPoint> endpoints = new ConcurrentQueue<IPEndPoint>();
+        private readonly List<IRemoteNode> nodes = new List<IRemoteNode>(10);
         
         public RemoteNodeManager(
             IBlockchain blockchain,
@@ -59,71 +57,86 @@ namespace NeoFx.TestNode
                     {
                         log.LogInformation(nameof(RemoteNodeManager) + " completed {IsCanceled}", t.IsCanceled);
                     }
-                    channel.Writer.Complete(t.Exception);
+                    // channel.Writer.Complete(t.Exception);
                 });
 
         }
 
         async Task ExecuteAsync(CancellationToken token)
         {
-            await ConnectSeed(token);
+            var node = await ConnectSeed(token);
+            lock (nodes)
+            {
+                nodes.Add(node);
+            }
 
             await ReceiveMessagesAsync(token);
+
+            
         }
 
         async ValueTask ReceiveMessagesAsync(CancellationToken token)
         {
-            var reader = channel.Reader;
-            while (!reader.Completion.IsCompleted)
-            {
-                while (reader.TryRead(out var message))
-                {
-                    await ProcessMessage(message, token);
-                }
+            // while (true)
+            // {
+            //     var nodes = this.nodes;
+            //     var deadNodes = new List<IRemoteNode
+            //     foreach (var (node, channel) in nodes)
+            //     {
+            //         node.
+            //     }
+            // }
+            // var reader = channel.Reader;
+            // while (!reader.Completion.IsCompleted)
+            // {
+            //     while (reader.TryRead(out var message))
+            //     {
+            //         await ProcessMessage(message, token);
+            //     }
 
-                if (!await reader.WaitToReadAsync())
-                {
-                    return;
-                }
-            }
+            //     if (!await reader.WaitToReadAsync())
+            //     {
+            //         return;
+            //     }
+            // }
         } 
 
 
         async ValueTask ProcessMessage(Message message, CancellationToken token)
         {
-            switch (message)
-            {
-                case AddrMessage addrMessage:
-                    {
-                        var addresses = new ConcurrentBag<NodeAddress>(addrMessage.Addresses);
-                        log.LogInformation("Received AddrMessage {addressesCount}", addresses.Count);
+            // switch (message)
+            // {
+            //     case AddrMessage addrMessage:
+            //         {
+            //             var addresses = new ConcurrentBag<NodeAddress>(addrMessage.Addresses);
+            //             log.LogInformation("Received AddrMessage {addressesCount}", addresses.Count);
 
-                        var _ = Task.Run(async () => {
-                            while (nodes.Count <= 10 && addresses.TryTake(out var address))
-                            {
-                                var endpoint = address.EndPoint;
+            //             var _ = Task.Run(async () => {
+            //                 while (nodes.Count <= 10 && addresses.TryTake(out var address))
+            //                 {
+            //                     var endpoint = address.EndPoint;
                                
-                                try
-                                {
-                                    if (nodes.Any(n => n.RemoteEndPoint.Equals(endpoint)))
-                                    {
-                                        continue;
-                                    }
+            //                     try
+            //                     {
+            //                         if (nodes.Any(n => n.RemoteEndPoint.Equals(endpoint)))
+            //                         {
+            //                             continue;
+            //                         }
 
-                                    log.LogInformation("Connecting to {endpoint}", address.EndPoint);
-                                    var (node, version) = await remoteNodeFactory.ConnectAsync(endpoint, nonce, 0, channel.Writer, token);
-                                    log.LogInformation("{endpoint} connected", address.EndPoint);
-                                    nodes.Add(node);
-                                }
-                                catch (Exception ex)
-                                {
-                                    log.LogWarning("{endpoint} connection failed", endpoint);
-                                }
-                            }
-                        });
+            //                         log.LogInformation("Connecting to {endpoint}", address.EndPoint);
+            //                         var (node, version) = await remoteNodeFactory.ConnectAsync(endpoint, nonce, 0, channel.Writer, token);
+            //                         log.LogInformation("{endpoint} connected", address.EndPoint);
+            //                         nodes.Add(node);
+            //                     }
+            //                     catch (Exception ex)
+            //                     {
+            //                         log.LogWarning(ex, "{endpoint} connection failed", endpoint);
+            //                     }
+            //                 }
+            //             });
 
-                    }
-                    break;
+            //         }
+            //         break;
                 // case HeadersMessage headersMessage:
                 //     log.LogInformation("Received HeadersMessage {headersCount}", headersMessage.Headers.Length);
                 //     {
@@ -162,45 +175,43 @@ namespace NeoFx.TestNode
                 //         storage.AddBlock(blocKMessage.Block);
                 //     }
                 //     break;
-                default:
-                    log.LogInformation("Received {messageType}", message.GetType().Name);
-                    break;
-            }
+            //     default:
+            //         log.LogInformation("Received {messageType}", message.GetType().Name);
+            //         break;
+            // }
         }
     
-        async ValueTask ConnectSeed(CancellationToken token)
+        async ValueTask<IRemoteNode> ConnectSeed(CancellationToken token)
         {
             var (index, hash) = await blockchain.GetLastBlockHash();
 
             await foreach (var (endpoint, seed) in ResolveSeeds(networkOptions.Seeds))
             {
-                if (nodes.Any(n => n.RemoteEndPoint.Equals(endpoint)))
-                {
-                    continue;
-                }
+                token.ThrowIfCancellationRequested();
 
                 try
                 {
                     log.LogInformation("Connecting to {seed}", seed);
-                    var (node, version) = await remoteNodeFactory.ConnectAsync(endpoint, nonce, index, channel.Writer, token);
+                    var (node, version) = await remoteNodeFactory.ConnectAsync(endpoint, nonce, index, token);
                     log.LogInformation("{seed} connected", seed);
 
-                    await node.SendGetAddrMessage();
+                    await node.SendGetAddrMessage(token);
                     if (version.StartHeight > index)
                     {
-                        await node.SendGetHeadersMessage(new HashListPayload(hash));
+                        await node.SendGetHeadersMessage(new HashListPayload(hash), token);
                     }
 
-                    nodes.Add(node);
-                    return;
+                    return node;
                 }
                 catch(Exception ex)
                 {
-                    log.LogWarning("{seed} connection failed", seed);
+                    log.LogWarning(ex, "{seed} connection failed", seed);
                 }
             }
 
-            throw new Exception("could not connect to any seed nodes");
+            var errorMessage = "could not connect to any seed nodes"; 
+            log.LogCritical(errorMessage);
+            throw new System.IO.IOException(errorMessage);
 
             static async IAsyncEnumerable<(IPEndPoint, string)> ResolveSeeds(string[] seeds)
             {

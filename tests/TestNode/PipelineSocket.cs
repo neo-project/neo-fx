@@ -12,7 +12,7 @@ namespace NeoFx.TestNode
     public interface IPipelineSocket : IDuplexPipe, IDisposable
     {
         EndPoint RemoteEndPoint { get; }
-        ValueTask ConnectAsync(IPEndPoint endpoint, CancellationToken token = default);
+        Task ConnectAsync(IPEndPoint endpoint, CancellationToken token = default);
     }
 
     public sealed class PipelineSocket : IPipelineSocket, IDisposable
@@ -36,7 +36,7 @@ namespace NeoFx.TestNode
             socket.Dispose();
         }
 
-        public async ValueTask ConnectAsync(IPEndPoint endpoint, CancellationToken token = default)
+        public async Task ConnectAsync(IPEndPoint endpoint, CancellationToken token = default)
         {
             log.LogInformation("connecting to {host}:{port}", endpoint.Address, endpoint.Port);
 
@@ -47,32 +47,12 @@ namespace NeoFx.TestNode
         private void Execute(CancellationToken token)
         {
             StartSocketReceive(token)
-                .ContinueWith(t =>
-                {
-                    if (t.IsFaulted)
-                    {
-                        log.LogError(t.Exception, nameof(StartSocketReceive) + " exception");
-                    }
-                    else
-                    {
-                        log.LogInformation(nameof(StartSocketReceive) + " completed {IsCanceled}", t.IsCanceled);
-                    }
-                    recvPipe.Writer.Complete(t.Exception);
-                });
+                .LogResult(log, nameof(StartSocketReceive),
+                    ex => recvPipe.Writer.Complete(ex));
 
             StartSocketSend(token)
-                .ContinueWith(t =>
-                {
-                    if (t.IsFaulted)
-                    {
-                        log.LogError(t.Exception, nameof(StartSocketSend) + " exception");
-                    }
-                    else
-                    {
-                        log.LogInformation(nameof(StartSocketSend) + " completed {IsCanceled}", t.IsCanceled);
-                    }
-                    sendPipe.Reader.Complete(t.Exception);
-                });
+                .LogResult(log, nameof(StartSocketSend),
+                    ex => sendPipe.Reader.Complete(ex));
         }
 
         private async Task StartSocketReceive(CancellationToken token)
