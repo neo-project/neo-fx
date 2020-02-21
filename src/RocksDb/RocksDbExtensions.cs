@@ -8,63 +8,71 @@ using NeoFx.Storage;
 
 namespace NeoFx.RocksDb
 {
-    using RocksDb = RocksDbSharp.RocksDb;
-    using ReadOptions = RocksDbSharp.ReadOptions;
     using ColumnFamilyHandle = RocksDbSharp.ColumnFamilyHandle;
+    using Iterator = RocksDbSharp.Iterator;
+    using ReadOptions = RocksDbSharp.ReadOptions;
+    using RocksDb = RocksDbSharp.RocksDb;
     using WriteBatch = RocksDbSharp.WriteBatch;
+
     using static RocksDbSharp.Native;
 
     public static class RocksDbExtensions
     {
         private static ReadOptions DefaultReadOptions { get; } = new ReadOptions();
 
-        private unsafe static bool TryConvert<T, TReader>(IntPtr intPtr,
-                                                          UIntPtr length,
-                                                          TReader factory,
-                                                          [MaybeNullWhen(false)] out T value)
-            where TReader : IFactoryReader<T>
+        public static bool ColumnFamilyEmpty(this RocksDb db, ColumnFamilyHandle columnFamily, ReadOptions? readOptions = null)
+        {
+            var iter = db.NewIterator(columnFamily, readOptions);
+            iter.SeekToFirst();
+            return !iter.Valid();
+        }
+
+        private unsafe static bool TryConvert<T>(IntPtr intPtr,
+                                                 UIntPtr length,
+                                                 TryReadItem<T> factory,
+                                                 [MaybeNullWhen(false)] out T value)
         {
             if (intPtr != IntPtr.Zero)
             {
                 var span = new ReadOnlySpan<byte>((byte*)intPtr, (int)length);
                 var reader = new BufferReader<byte>(span);
-                return factory.TryReadItem(ref reader, out value);
+                return factory(ref reader, out value);
             }
 
             value = default!;
             return false;
         }
 
-        public static unsafe bool TryGet<T, TReader>(this RocksDb db,
-                                                     ReadOnlySpan<byte> key,
-                                                     ColumnFamilyHandle columnFamily,
-                                                     [MaybeNullWhen(false)] out T value)
-            where TReader : struct, IFactoryReader<T>
-            => TryGet<T, TReader>(db, key, columnFamily, null, default, out value);
+        public static unsafe bool KeyExists(this RocksDb db, ColumnFamilyHandle columnFamily, ReadOnlySpan<byte> key)
+        {
+            fixed (byte* keyPtr = key)
+            {
+                var pinnableSlice = Instance.rocksdb_get_pinned_cf(db.Handle, DefaultReadOptions.Handle,
+                    columnFamily.Handle, (IntPtr)keyPtr, (UIntPtr)key.Length);
 
-        public static unsafe bool TryGet<T, TReader>(this RocksDb db,
-                                                     ReadOnlySpan<byte> key,
-                                                     ColumnFamilyHandle columnFamily,
-                                                     TReader factory,
-                                                     [MaybeNullWhen(false)] out T value)
-            where TReader : IFactoryReader<T>
-            => TryGet(db, key, columnFamily, null, factory, out value);
+                try
+                {
+                    var valuePtr = Instance.rocksdb_pinnableslice_value(pinnableSlice, out var valueLength);
+                    if (valuePtr != IntPtr.Zero)
+                    {
+                        return true;
+                    }
 
-        public static unsafe bool TryGet<T, TReader>(this RocksDb db,
-                                                     ReadOnlySpan<byte> key,
-                                                     ColumnFamilyHandle columnFamily,
-                                                     ReadOptions? readOptions,
-                                                     [MaybeNullWhen(false)] out T value)
-            where TReader : struct, IFactoryReader<T>
-            => TryGet<T, TReader>(db, key, columnFamily, readOptions, default, out value);
+                    return false;
+                }
+                finally
+                {
+                    Instance.rocksdb_pinnableslice_destroy(pinnableSlice);
+                }
+            }
+        }
 
-        public static unsafe bool TryGet<T, TReader>(this RocksDb db,
-                                                     ReadOnlySpan<byte> key,
-                                                     ColumnFamilyHandle columnFamily,
-                                                     ReadOptions? readOptions,
-                                                     TReader factory,
-                                                     [MaybeNullWhen(false)] out T value)
-            where TReader : IFactoryReader<T>
+        public static unsafe bool TryGet<T>(this RocksDb db,
+                                            ReadOnlySpan<byte> key,
+                                            ColumnFamilyHandle columnFamily,
+                                            TryReadItem<T> factory,
+                                            [MaybeNullWhen(false)] out T value,
+                                            ReadOptions? readOptions = null)
         {
             fixed (byte* keyPtr = key)
             {
@@ -83,70 +91,70 @@ namespace NeoFx.RocksDb
             }
         }
 
-        private static IEnumerable<(TKey key, TValue value)> Iterate<TKey, TKeyReader, TValue, TValueReader>(
-            RocksDbSharp.Iterator iterator,
-            TKeyReader keyFactory,
-            TValueReader valueFactory)
-            where TKeyReader : IFactoryReader<TKey>
-            where TValueReader : IFactoryReader<TValue>
+        public static bool TryGetKey<T>(this Iterator iterator, TryReadItem<T> keyFactory, [MaybeNullWhen(false)] out T key)
         {
-            while (iterator.Valid())
+            Debug.Assert(iterator.Valid());
+
+            IntPtr keyPtr = Instance.rocksdb_iter_key(iterator.Handle, out UIntPtr keyLength);
+            return TryConvert<T>(keyPtr, keyLength, keyFactory, out key);
+        }
+
+        public static bool TryGetValue<T>(this Iterator iterator, TryReadItem<T> valueFactory, [MaybeNullWhen(false)] out T value)
+        {
+            Debug.Assert(iterator.Valid());
+
+            IntPtr valuePtr = Instance.rocksdb_iter_value(iterator.Handle, out UIntPtr valueLength);
+            return TryConvert<T>(valuePtr, valueLength, valueFactory, out value);
+        }
+
+        private static IEnumerable<(TKey key, TValue value)> Iterate<TKey, TValue>(
+            RocksDbSharp.Iterator iterator,
+            TryReadItem<TKey> keyFactory,
+            TryReadItem<TValue> valueFactory)
+        {
+            try
             {
-                IntPtr keyPtr = Instance.rocksdb_iter_key(iterator.Handle, out UIntPtr keyLength);
-                var keyReadResult = TryConvert<TKey, TKeyReader>(keyPtr, keyLength, keyFactory, out var key);
-                Debug.Assert(keyReadResult);
+                while (iterator.Valid())
+                {
+                    var keyReadResult = iterator.TryGetKey(keyFactory, out var key);
+                    Debug.Assert(keyReadResult);
 
-                IntPtr valuePtr = Instance.rocksdb_iter_value(iterator.Handle, out UIntPtr valueLength);
-                var valueReadResult = TryConvert<TValue, TValueReader>(valuePtr, valueLength, valueFactory, out var value);
-                Debug.Assert(valueReadResult);
+                    var valueReadResult = iterator.TryGetValue(valueFactory, out var value); 
+                    Debug.Assert(valueReadResult);
 
-                yield return (key, value);
-                iterator.Next();
+                    yield return (key, value);
+                    iterator.Next();
+                }
+            }
+            finally
+            {
+                iterator.Dispose();
             }
         }
 
-        public static IEnumerable<(TKey key, TValue value)> Iterate<TKey, TKeyReader, TValue, TValueReader>(
-            this RocksDb db,
-            ColumnFamilyHandle columnFamily)
-            where TKeyReader : struct, IFactoryReader<TKey>
-            where TValueReader : struct, IFactoryReader<TValue>
-            => Iterate<TKey, TKeyReader, TValue, TValueReader>(db, columnFamily, default, default);
-
-        public static IEnumerable<(TKey key, TValue value)> Iterate<TKey, TKeyReader, TValue, TValueReader>(
+        public static IEnumerable<(TKey key, TValue value)> Iterate<TKey, TValue>(
             this RocksDb db,
             ColumnFamilyHandle columnFamily,
-            TKeyReader keyFactory,
-            TValueReader valueFactory)
-            where TKeyReader : IFactoryReader<TKey>
-            where TValueReader : IFactoryReader<TValue>
+            TryReadItem<TKey> keyFactory,
+            TryReadItem<TValue> valueFactory)
         {
-            using var iterator = db.NewIterator(columnFamily);
+            var iterator = db.NewIterator(columnFamily);
             iterator.SeekToFirst();
-            return Iterate<TKey, TKeyReader, TValue, TValueReader>(iterator, keyFactory, valueFactory);
+            return Iterate<TKey, TValue>(iterator, keyFactory, valueFactory);
         }
 
-        public static unsafe IEnumerable<(TKey key, TValue value)> Search<TKey, TKeyReader, TValue, TValueReader>(
-            this RocksDb db,
-            ColumnFamilyHandle columnFamily,
-            Span<byte> prefix)
-            where TKeyReader : struct, IFactoryReader<TKey>
-            where TValueReader : struct, IFactoryReader<TValue>
-            => Search<TKey, TKeyReader, TValue, TValueReader>(db, columnFamily, prefix, default, default);
-
-        public static unsafe IEnumerable<(TKey key, TValue value)> Search<TKey, TKeyReader, TValue, TValueReader>(
+        public static unsafe IEnumerable<(TKey key, TValue value)> Search<TKey, TValue>(
             this RocksDb db,
             ColumnFamilyHandle columnFamily,
             Span<byte> prefix,
-            TKeyReader keyFactory,
-            TValueReader valueFactory)
-            where TKeyReader : IFactoryReader<TKey>
-            where TValueReader : IFactoryReader<TValue>
+            TryReadItem<TKey> keyFactory,
+            TryReadItem<TValue> valueFactory)
         {
             fixed (byte* prefixPtr = prefix)
             {
-                using var iterator = db.NewIterator(columnFamily);
+                var iterator = db.NewIterator(columnFamily);
                 iterator.Seek(prefixPtr, (ulong)prefix.Length);
-                return Iterate<TKey, TKeyReader, TValue, TValueReader>(iterator, keyFactory, valueFactory);
+                return Iterate<TKey, TValue>(iterator, keyFactory, valueFactory);
             }
         }
 
@@ -165,7 +173,7 @@ namespace NeoFx.RocksDb
             where TKey : IWritable<TKey>
             where TValue : IWritable<TValue>
         {
-            const int MAX_STACKALLOC_SIZE = 512;
+            const int MAX_STACKALLOC_SIZE = 1024;
 
             static void PutValue(WriteBatch batch,
                                  ColumnFamilyHandle columnFamily,

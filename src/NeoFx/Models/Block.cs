@@ -30,7 +30,7 @@ namespace NeoFx.Models
         public static bool TryRead(ref BufferReader<byte> reader, out Block value)
         {
             if (BlockHeader.TryRead(ref reader, out var header)
-                && reader.TryReadVarArray<Transaction, Transaction.Factory>(out var transactions))
+                && reader.TryReadVarArray<Transaction>(Transaction.TryRead, out var transactions))
             {
                 value = new Block(header, transactions);
                 return true;

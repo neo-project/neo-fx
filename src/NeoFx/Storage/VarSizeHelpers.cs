@@ -9,6 +9,8 @@ using DevHawk.Buffers;
 
 namespace NeoFx.Storage
 {
+    public delegate bool TryReadItem<T>(ref BufferReader<byte> reader, [MaybeNullWhen(false)] out T value);
+
     public static class VarSizeHelpers
     {
         public static int GetVarSize(ulong value)
@@ -182,26 +184,12 @@ namespace NeoFx.Storage
             return false;
         }
 
-        public static bool TryReadVarArray<T, TFactory>(ref this BufferReader<byte> reader, out ImmutableArray<T> value)
-            where TFactory : struct, IFactoryReader<T>
-        {
-            return TryReadVarArray(ref reader, 0x1000000, default(TFactory), out value);
-        }
-
-        public static bool TryReadVarArray<T, TFactory>(ref this BufferReader<byte> reader, uint max, out ImmutableArray<T> value)
-            where TFactory : struct, IFactoryReader<T>
-        {
-            return TryReadVarArray(ref reader, max, default(TFactory), out value);
-        }
-
-        public static bool TryReadVarArray<T, TFactory>(ref this BufferReader<byte> reader, TFactory factory, out ImmutableArray<T> value)
-            where TFactory : IFactoryReader<T>
+        public static bool TryReadVarArray<T>(ref this BufferReader<byte> reader, TryReadItem<T> factory, out ImmutableArray<T> value)
         {
             return TryReadVarArray(ref reader, 0x1000000, factory, out value);
         }
 
-        public static bool TryReadVarArray<T, TFactory>(ref this BufferReader<byte> reader, uint max, TFactory factory, out ImmutableArray<T> value)
-            where TFactory : IFactoryReader<T>
+        public static bool TryReadVarArray<T>(ref this BufferReader<byte> reader, uint max, TryReadItem<T> factory, out ImmutableArray<T> value)
         {
             if (reader.TryReadVarInt(max, out var length))
             {
@@ -210,7 +198,7 @@ namespace NeoFx.Storage
                 var array = new T[(int)length];
                 for (int index = 0; index < (int)length; index++)
                 {
-                    if (!factory.TryReadItem(ref reader, out array[index]))
+                    if (!factory(ref reader, out array[index]))
                     {
                         value = default;
                         return false;

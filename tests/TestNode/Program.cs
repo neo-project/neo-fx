@@ -1,6 +1,9 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.IO;
+using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using NeoFx.P2P;
 
 namespace NeoFx.TestNode
@@ -12,20 +15,32 @@ namespace NeoFx.TestNode
             return CreateHostBuilder(args).Build().RunAsync();
         }
 
-        public static IHostBuilder CreateHostBuilder(string[] args) =>
-            Host.CreateDefaultBuilder(args)
-                .UseWindowsService()
-                .UseSystemd()
+        public static IHostBuilder CreateHostBuilder(string[] args)
+        {
+            if (!Directory.Exists("logs"))
+            {
+                Directory.CreateDirectory("logs");
+            }
+
+            var dateTimeString = DateTimeOffset.Now.ToString("yyyyMMdd-HHmmss");
+            var logFilename = $"logs/app-{dateTimeString}.log";
+
+            return Host.CreateDefaultBuilder(args)
+                .ConfigureLogging((_, builder) => builder.AddFile(logFilename))
+                // .UseWindowsService()
+                // .UseSystemd()
                 .ConfigureServices((context, services) =>
                 {
-                    // services.AddTransient<IHeaderStorage, MemoryHeaderStorage>();
-                    // services.AddSingleton<IHeaderStorage>(_ => new RocksDbHeaderStorage(@"C:\Users\harry\.neofx-testnode"));
-                    services.AddTransient<PipelineSocket>();
-                    services.AddSingleton<INodeConnectionFactory, NodeConnectionFactory>();
-                    services.AddSingleton<IRemoteNodeFactory, RemoteNodeFactory>();
-                    services.Configure<NodeOptions>(context.Configuration.GetSection("NodeOptions"));
-                    services.Configure<NetworkOptions>(context.Configuration.GetSection("NetworkOptions"));
-                    services.AddHostedService<Worker>();
+                    services.Configure<NodeOptions>(context.Configuration.GetSection("NodeOptions"))
+                        .Configure<NetworkOptions>(context.Configuration.GetSection("NetworkOptions"))
+                        .AddTransient<IPipelineSocket, PipelineSocket>()
+                        .AddTransient<IRemoteNode, RemoteNode>()
+                        .AddTransient<IRemoteNodeFactory, RemoteNodeFactory>()
+                        .AddSingleton<IBlockchain, Blockchain>()
+                        .AddSingleton<IStorage, Storage>()
+                        .AddSingleton<RemoteNodeManager>()
+                        .AddHostedService<LocalNode>();
                 });
+        }
     }
 }

@@ -16,32 +16,7 @@ namespace NeoFx.TestNode
         public string[] Seeds { get; set; } = Array.Empty<string>();
         public string[] Validators { get; set; } = Array.Empty<string>();
 
-        private (string address, int port) ParseSeed(string seed)
-        {
-            var colonIndex = seed.IndexOf(':');
-            var address = seed.Substring(0, colonIndex);
-            var port = int.Parse(seed.AsSpan().Slice(colonIndex + 1));
-            return (address, port);
-        }
-
-        public async Task<(IPEndPoint, string)> GetRandomSeedAsync() 
-        {
-            var random = new Random();
-            foreach (var seed in Seeds.OrderBy(_ => random.NextDouble()))
-            {
-                var (host, port) = ParseSeed(seed);
-                var addresses = await Dns.GetHostAddressesAsync(host);
-                if (addresses.Length > 0)
-                {
-                    var endPoint = new IPEndPoint(addresses[0], port);
-                    return (endPoint, seed);
-                }
-            }
-
-            throw new Exception("seed address not found");
-        }
-
-        public IEnumerable<ECPoint> GetValidators()
+        public static IEnumerable<ECPoint> ConvertValidators(string[] validators)
         {
             static bool TryConvertHexString(string hex, out ImmutableArray<byte> value)
             {
@@ -71,9 +46,9 @@ namespace NeoFx.TestNode
 
             var curve = ECCurve.NamedCurves.nistP256.GetExplicit();
 
-            for (int i = 0; i < Validators.Length; i++)
+            for (int i = 0; i < validators.Length; i++)
             {
-                if (TryConvertHexString(Validators[i], out var bytes)
+                if (TryConvertHexString(validators[i], out var bytes)
                     && (new EncodedPublicKey(bytes)).TryDecode(curve, out var point))
                 {
                     yield return point;
@@ -81,9 +56,5 @@ namespace NeoFx.TestNode
             }
         }
 
-        public Block GetGenesisBlock()
-        {
-            return Genesis.CreateGenesisBlock(GetValidators());
-        }
     }
 }

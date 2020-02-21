@@ -28,9 +28,8 @@ namespace NeoFx.P2P.Messages
             }
         }
 
-        public VersionPayload(uint nonce, string userAgent, ushort port = 0,
-            uint startHeight = 0, bool relay = true, uint version = PROTOCOL_VERSION, ulong services = NODE_NETWORK,
-            DateTimeOffset timestamp = default)
+        public VersionPayload(uint nonce, string userAgent, uint startHeight = 0, ushort port = 0, bool relay = true,
+            uint version = PROTOCOL_VERSION, ulong services = NODE_NETWORK, DateTimeOffset timestamp = default)
         {
             Version = version;
             Services = services;
@@ -56,8 +55,8 @@ namespace NeoFx.P2P.Messages
                 payload = new VersionPayload(
                     nonce: nonce,
                     userAgent: userAgent,
-                    port: port,
                     startHeight: startHeight,
+                    port: port,
                     relay: relay != 0,
                     version: version,
                     services: services,

@@ -6,11 +6,6 @@ namespace NeoFx.Models
 {
     public readonly struct TransactionOutput : IWritable<TransactionOutput>
     {
-        public readonly struct Factory : IFactoryReader<TransactionOutput>
-        {
-            public bool TryReadItem(ref BufferReader<byte> reader, out TransactionOutput value) => TransactionOutput.TryRead(ref reader, out value);
-        }
-
         public readonly UInt256 AssetId;
         public readonly Fixed8 Value;
         public readonly UInt160 ScriptHash;

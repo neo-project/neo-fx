@@ -9,14 +9,6 @@ namespace NeoFx.Models
 {
     public abstract class Transaction : IWritable<Transaction>
     {
-        public readonly struct Factory : IFactoryReader<Transaction>
-        {
-            public bool TryReadItem(ref BufferReader<byte> reader, [MaybeNullWhen(false)] out Transaction value)
-            {
-                return TryRead(ref reader, out value!);
-            }
-        }
-
         protected readonly struct CommonData
         {
             public readonly ImmutableArray<TransactionAttribute> Attributes;
@@ -89,7 +81,7 @@ namespace NeoFx.Models
             Witnesses = ToImmutableArray(witnesses);
         }
 
-        public static bool TryRead(ref BufferReader<byte> reader, [NotNullWhen(true)] out Transaction? tx)
+        public static bool TryRead(ref BufferReader<byte> reader, [MaybeNullWhen(false)] out Transaction tx)
         {
             if (reader.TryRead(out byte type)
                 && reader.TryRead(out byte version))
@@ -184,16 +176,16 @@ namespace NeoFx.Models
                 }
             }
 
-            tx = null;
+            tx = null!;
             return false;
         }
 
         protected static bool TryReadCommonData(ref BufferReader<byte> reader, out CommonData commonData)
         {
-            if (reader.TryReadVarArray<TransactionAttribute, TransactionAttribute.Factory>(out var attributes)
-                && reader.TryReadVarArray<CoinReference, CoinReference.Factory>(out var inputs)
-                && reader.TryReadVarArray<TransactionOutput, TransactionOutput.Factory>(out var outputs)
-                && reader.TryReadVarArray<Witness, Witness.Factory>(out var witnesses))
+            if (reader.TryReadVarArray<TransactionAttribute>(TransactionAttribute.TryRead, out var attributes)
+                && reader.TryReadVarArray<CoinReference>(CoinReference.TryRead, out var inputs)
+                && reader.TryReadVarArray<TransactionOutput>(TransactionOutput.TryRead, out var outputs)
+                && reader.TryReadVarArray<Witness>(Witness.TryRead, out var witnesses))
             {
                 commonData = new CommonData(attributes, inputs, outputs, witnesses);
                 return true;

@@ -8,11 +8,6 @@ namespace NeoFx.Models
 {
     public readonly struct TransactionAttribute : IWritable<TransactionAttribute>
     {
-        public readonly struct Factory : IFactoryReader<TransactionAttribute>
-        {
-            public bool TryReadItem(ref BufferReader<byte> reader, out TransactionAttribute value) => TransactionAttribute.TryRead(ref reader, out value);
-        }
-
         public enum UsageType : byte
         {
             ContractHash = 0x00,

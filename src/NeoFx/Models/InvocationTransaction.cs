@@ -66,7 +66,7 @@ namespace NeoFx.Models
 
         public override int GetTransactionDataSize()
         {
-            return Script.GetVarSize() + Fixed8.Size;
+            return Script.GetVarSize() + ((Version >= 1) ? Fixed8.Size : 0);
         }
 
         public override void WriteTransactionData(ref BufferWriter<byte> writer)

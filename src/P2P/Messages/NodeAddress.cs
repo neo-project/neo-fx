@@ -9,11 +9,6 @@ namespace NeoFx.P2P.Messages
 {
     public readonly struct NodeAddress : IWritable<NodeAddress>
     {
-        public readonly struct Factory : IFactoryReader<NodeAddress>
-        {
-            public bool TryReadItem(ref BufferReader<byte> reader, out NodeAddress value) => TryRead(ref reader, out value);
-        }
-
         public readonly DateTimeOffset Timestamp;
         public readonly ulong Services;
         public readonly IPEndPoint EndPoint;

@@ -29,7 +29,7 @@ namespace NeoFx.Models
         {
             if (UInt160.TryRead(ref reader, out var scriptHash)
                 && reader.TryRead(out byte isFrozen)
-                && reader.TryReadVarArray<EncodedPublicKey, EncodedPublicKey.Factory>(out var votes)
+                && reader.TryReadVarArray<EncodedPublicKey>(EncodedPublicKey.TryRead, out var votes)
                 && reader.TryReadVarInt(out var balancesCount))
             {
                 Debug.Assert(balancesCount < int.MaxValue);

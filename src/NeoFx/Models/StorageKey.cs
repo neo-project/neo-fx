@@ -10,11 +10,6 @@ namespace NeoFx.Models
 {
     public readonly struct StorageKey
     {
-        public readonly struct Factory : IFactoryReader<StorageKey>
-        {
-            public bool TryReadItem(ref BufferReader<byte> reader, out StorageKey value) => TryRead(reader, out value);
-        }
-
         public readonly UInt160 ScriptHash;
         public readonly ImmutableArray<byte> Key;
 
@@ -34,7 +29,7 @@ namespace NeoFx.Models
         // allowed to have padding. Read blocks of BLOCK_SIZE + 1 until padding indication byte
         // is greater than zero.
 
-        public static bool TryRead(BufferReader<byte> reader, out StorageKey value)
+        public static bool TryRead(ref BufferReader<byte> reader, out StorageKey value)
         {
             const int READ_BLOCK_SIZE = BLOCK_SIZE + 1;
 
