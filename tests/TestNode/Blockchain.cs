@@ -35,11 +35,11 @@ namespace NeoFx.TestNode
 
         public ValueTask<(uint index, UInt256 hash)> GetLastBlockHash()
         {
-            var genesis = Genesis.CreateGenesisBlock(GetValidators());
+            var genesis = Genesis.CreateGenesisBlock(GetValidators(networkOptions.Validators));
             return new ValueTask<(uint, UInt256)>((genesis.Index, genesis.CalculateHash()));
         }
 
-        IEnumerable<ECPoint> GetValidators()
+        public static IEnumerable<ECPoint> GetValidators(string[] validators)
         {
             static bool TryConvertHexString(string hex, out ImmutableArray<byte> value)
             {
@@ -69,7 +69,6 @@ namespace NeoFx.TestNode
 
             var curve = ECCurve.NamedCurves.nistP256.GetExplicit();
 
-            var validators = networkOptions.Validators;
             for (int i = 0; i < validators.Length; i++)
             {
                 if (TryConvertHexString(validators[i], out var bytes)

@@ -3,18 +3,25 @@ using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using DevHawk.Buffers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NeoFx.Models;
+using NeoFx.RocksDb;
 using NeoFx.Storage;
 using RocksDbSharp;
 
 namespace NeoFx.TestNode
 {
+    // type aliases needed to avoid collision between RocksDbSharp.RocksDb type 
+    // and NeoFx.Storage.RocksDb namespace.
+
+    using RocksDb = RocksDbSharp.RocksDb;
+    using ColumnFamilies = RocksDbSharp.ColumnFamilies;
+    using ColumnFamilyOptions = RocksDbSharp.ColumnFamilyOptions;
+
     class Storage : IDisposable
     {
         const string BLOCKS_FAMILY = "data:blocks";
@@ -43,7 +50,7 @@ namespace NeoFx.TestNode
                 .SetCreateIfMissing(true)
                 .SetCreateMissingColumnFamilies(true);
 
-            var path = nodeOptions.Value.GetStoragePath();
+            var path = nodeOptions.Value.StoragePath;
             log.LogInformation("Database path {path}", path);
 
             db = RocksDb.Open(options, path, columnFamilies);
@@ -54,7 +61,8 @@ namespace NeoFx.TestNode
             if (db.ColumnFamilyEmpty(blockIndexFamily))
             {
                 log.LogInformation("Adding Genesis Block");
-                PutBlock(networkOptions.Value.GetGenesisBlock(), true);
+                var genesis = Genesis.CreateGenesisBlock(Blockchain.GetValidators(networkOptions.Value.Validators));
+                PutBlock(genesis, true);
             }
         }
 
@@ -70,16 +78,11 @@ namespace NeoFx.TestNode
 
             var iter = db.NewIterator(blockIndexFamily, readOptions);
             iter.SeekToLast();
-            if (iter.Valid())
+            if (iter.Valid() 
+                && iter.TryGetKey<uint>(BufferReaderExtensions.TryReadBigEndian, out var index)
+                && iter.TryGetValue<UInt256>(UInt256.TryRead, out var hash))
             {
-                IntPtr keyPtr = Native.Instance.rocksdb_iter_key(iter.Handle, out UIntPtr keyLength);
-                IntPtr valuePtr = Native.Instance.rocksdb_iter_value(iter.Handle, out UIntPtr valueLength);
-
-                if (RocksDbExtensions.TryConvert<uint>(keyPtr, keyLength, BinaryPrimitives.TryReadUInt32BigEndian, out var index)
-                    && RocksDbExtensions.TryConvert<UInt256>(valuePtr, valueLength, UInt256.TryRead, out var hash))
-                {
-                    return (index, hash);
-                }
+                return (index, hash);
             }
 
             throw new InvalidOperationException("Missing Genesis Block");
@@ -92,14 +95,10 @@ namespace NeoFx.TestNode
 
             var iter = db.NewIterator(blockIndexFamily, readOptions);
             iter.SeekToLast();
-            if (iter.Valid())
+            if (iter.Valid()
+                && iter.TryGetKey<uint>(BufferReaderExtensions.TryReadBigEndian, out var index))
             {
-                IntPtr keyPtr = Native.Instance.rocksdb_iter_key(iter.Handle, out UIntPtr keyLength);
-
-                if (RocksDbExtensions.TryConvert<uint>(keyPtr, keyLength, BinaryPrimitives.TryReadUInt32BigEndian, out var index))
-                {
-                    return index;
-                }
+                return index;
             }
 
             throw new InvalidOperationException("Missing Genesis Block");
@@ -201,8 +200,8 @@ namespace NeoFx.TestNode
             writer.Commit();
             Debug.Assert(writer.Span.IsEmpty);
 
-            batch.Put(hashBuffer, blockSpan, blocksFamily);
-            batch.Put(indexBuffer, hashBuffer, blockIndexFamily);
+            batch.Put(blocksFamily, hashBuffer, blockSpan);
+            batch.Put(blockIndexFamily, indexBuffer, hashBuffer);
             return hash;
         }
 
@@ -219,29 +218,7 @@ namespace NeoFx.TestNode
             writer.Commit();
             Debug.Assert(writer.Span.IsEmpty);
 
-            batch.Put(keyBuffer, txSpan, transactionsFamily);
-        }
-
-        static bool TryGetLastIndex(RocksDb db, ColumnFamilyHandle columnFamily, ReadOptions readOptions, out (uint index, UInt256 hash) value)
-        {
-            var iter = db.NewIterator(columnFamily, readOptions);
-            iter.SeekToLast();
-
-            if (iter.Valid())
-            {
-                IntPtr keyPtr = Native.Instance.rocksdb_iter_key(iter.Handle, out UIntPtr keyLength);
-                IntPtr valuePtr = Native.Instance.rocksdb_iter_value(iter.Handle, out UIntPtr valueLength);
-
-                if (RocksDbExtensions.TryConvert<uint>(keyPtr, keyLength, BinaryPrimitives.TryReadUInt32BigEndian, out var index)
-                    && RocksDbExtensions.TryConvert<UInt256>(valuePtr, valueLength, UInt256.TryRead, out var hash))
-                {
-                    value = (index, hash);
-                    return true;
-                }
-            }
-
-            value = default;
-            return false;
+            batch.Put(transactionsFamily, keyBuffer, txSpan);
         }
     }
 }

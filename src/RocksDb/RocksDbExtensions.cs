@@ -8,17 +8,24 @@ using NeoFx.Storage;
 
 namespace NeoFx.RocksDb
 {
-    using RocksDb = RocksDbSharp.RocksDb;
-    using ReadOptions = RocksDbSharp.ReadOptions;
     using ColumnFamilyHandle = RocksDbSharp.ColumnFamilyHandle;
+    using Iterator = RocksDbSharp.Iterator;
+    using ReadOptions = RocksDbSharp.ReadOptions;
+    using RocksDb = RocksDbSharp.RocksDb;
     using WriteBatch = RocksDbSharp.WriteBatch;
-    using static RocksDbSharp.Native;
 
+    using static RocksDbSharp.Native;
 
     public static class RocksDbExtensions
     {
         private static ReadOptions DefaultReadOptions { get; } = new ReadOptions();
 
+        public static bool ColumnFamilyEmpty(this RocksDb db, ColumnFamilyHandle columnFamily, ReadOptions? readOptions = null)
+        {
+            var iter = db.NewIterator(columnFamily, readOptions);
+            iter.SeekToFirst();
+            return !iter.Valid();
+        }
 
         private unsafe static bool TryConvert<T>(IntPtr intPtr,
                                                  UIntPtr length,
@@ -61,11 +68,11 @@ namespace NeoFx.RocksDb
         }
 
         public static unsafe bool TryGet<T>(this RocksDb db,
-                                                     ReadOnlySpan<byte> key,
-                                                     ColumnFamilyHandle columnFamily,
-                                                     TryReadItem<T> factory,
-                                                     [MaybeNullWhen(false)] out T value,
-                                                    ReadOptions? readOptions = null)
+                                            ReadOnlySpan<byte> key,
+                                            ColumnFamilyHandle columnFamily,
+                                            TryReadItem<T> factory,
+                                            [MaybeNullWhen(false)] out T value,
+                                            ReadOptions? readOptions = null)
         {
             fixed (byte* keyPtr = key)
             {
@@ -84,6 +91,22 @@ namespace NeoFx.RocksDb
             }
         }
 
+        public static bool TryGetKey<T>(this Iterator iterator, TryReadItem<T> keyFactory, [MaybeNullWhen(false)] out T key)
+        {
+            Debug.Assert(iterator.Valid());
+
+            IntPtr keyPtr = Instance.rocksdb_iter_key(iterator.Handle, out UIntPtr keyLength);
+            return TryConvert<T>(keyPtr, keyLength, keyFactory, out key);
+        }
+
+        public static bool TryGetValue<T>(this Iterator iterator, TryReadItem<T> valueFactory, [MaybeNullWhen(false)] out T value)
+        {
+            Debug.Assert(iterator.Valid());
+
+            IntPtr valuePtr = Instance.rocksdb_iter_value(iterator.Handle, out UIntPtr valueLength);
+            return TryConvert<T>(valuePtr, valueLength, valueFactory, out value);
+        }
+
         private static IEnumerable<(TKey key, TValue value)> Iterate<TKey, TValue>(
             RocksDbSharp.Iterator iterator,
             TryReadItem<TKey> keyFactory,
@@ -93,12 +116,10 @@ namespace NeoFx.RocksDb
             {
                 while (iterator.Valid())
                 {
-                    IntPtr keyPtr = Instance.rocksdb_iter_key(iterator.Handle, out UIntPtr keyLength);
-                    var keyReadResult = TryConvert<TKey>(keyPtr, keyLength, keyFactory, out var key);
+                    var keyReadResult = iterator.TryGetKey(keyFactory, out var key);
                     Debug.Assert(keyReadResult);
 
-                    IntPtr valuePtr = Instance.rocksdb_iter_value(iterator.Handle, out UIntPtr valueLength);
-                    var valueReadResult = TryConvert<TValue>(valuePtr, valueLength, valueFactory, out var value);
+                    var valueReadResult = iterator.TryGetValue(valueFactory, out var value); 
                     Debug.Assert(valueReadResult);
 
                     yield return (key, value);
