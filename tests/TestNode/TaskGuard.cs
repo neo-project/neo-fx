@@ -13,26 +13,29 @@ namespace NeoFx.TestNode
         readonly string name;
         readonly ILogger logger;
         readonly TimeSpan guardTime;
+        readonly bool hasZeroGuardTime;
 
-        public TaskGuard(Func<CancellationToken, Task> action, string name, ILogger logger, double guardTime = 10)
+        public TaskGuard(Func<CancellationToken, Task> action, string name, ILogger logger, double guardTime)
             : this(action, name, logger, TimeSpan.FromSeconds(guardTime))
         {
         }
 
-        public TaskGuard(Func<CancellationToken, Task> action, string name, ILogger logger, TimeSpan guardTime)
+        public TaskGuard(Func<CancellationToken, Task> action, string name, ILogger logger, TimeSpan guardTime = default)
         {
             this.action = action;
             this.name = name;
             this.logger = logger;
             this.guardTime = guardTime;
+            this.hasZeroGuardTime = guardTime.Ticks == 0;
         }
 
         public void Run(CancellationToken token)
         {
-            if (DateTimeOffset.Now < lastCheck.Add(guardTime) || running != 0)
-                return;
-
-            RunAsync(token).LogResult(logger, name);
+            if (running == 0 && 
+                (hasZeroGuardTime || lastCheck.Add(guardTime) >= DateTimeOffset.Now))
+            {
+                RunAsync(token).LogResult(logger, name);
+            }
         }
 
         async Task RunAsync(CancellationToken token)

@@ -30,7 +30,7 @@ namespace NeoFx.TestNode
         private ImmutableHashSet<IPEndPoint> unconnectedNodes = ImmutableHashSet<IPEndPoint>.Empty;
         readonly TaskGuard connectPeers;
         readonly TaskGuard checkBlockGap;
-         
+
         public RemoteNodeManager(
             IBlockchain blockchain,
             IRemoteNodeFactory remoteNodeFactory,
@@ -44,8 +44,8 @@ namespace NeoFx.TestNode
             this.networkOptions = networkOptions.Value;
             this.log = logger;
 
-            connectPeers = new TaskGuard(PeerConnectorAsync, nameof(PeerConnectorAsync), logger);
-            checkBlockGap = new TaskGuard(GapCheckAsync, nameof(GapCheckAsync), logger);
+            connectPeers = new TaskGuard(PeerConnectorAsync, nameof(PeerConnectorAsync), logger, 10);
+            checkBlockGap = new TaskGuard(GapCheckAsync, nameof(GapCheckAsync), logger, 10);
 
             var random = new Random();
             Span<byte> span = stackalloc byte[4];
