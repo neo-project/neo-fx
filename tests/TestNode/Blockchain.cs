@@ -31,8 +31,7 @@ namespace NeoFx.TestNode
 
         public void Dispose()
         {
-            // Do not dispose due to https://github.com/warrenfalk/rocksdb-sharp/issues/76
-            // storage.Dispose();
+            storage.Dispose();
         }
 
         public Task<(uint index, UInt256 hash)> GetLastBlockHash()

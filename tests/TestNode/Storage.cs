@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Threading;
 using DevHawk.Buffers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -81,9 +82,16 @@ namespace NeoFx.TestNode
             }
         }
 
+        private int alreadyDisposed = 0;
         public void Dispose()
         {
-            db.Dispose();
+            // work around double dispose issue in RocksDB
+            // https://github.com/warrenfalk/rocksdb-sharp/issues/76
+
+            if (Interlocked.Increment(ref alreadyDisposed) == 1)
+            {
+                db.Dispose();
+            }
         }
 
         public (uint index, UInt256 hash) GetLastBlockHash()
