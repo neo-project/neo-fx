@@ -131,7 +131,7 @@ namespace NeoFx.TestNode
         async Task GapCheckAsync(CancellationToken token)
         {
             var gap = await blockchain.TryGetBlockGap();
-            log.LogInformation("GapCheckAsync {success} {start} {stop}", gap.success, gap.start, gap.stop);
+            log.LogInformation(nameof(GapCheckAsync) + " {success} {start} {stop}", gap.success, gap.start, gap.stop);
 
             if (gap.success)
             {
@@ -150,7 +150,7 @@ namespace NeoFx.TestNode
         {
             while (connectedNodes.Count <= 10 && !token.IsCancellationRequested)
             {
-                log.LogInformation("ConnectPeersAsync Connected: {connected} / Unconnected: {unconnected}",
+                log.LogInformation(nameof(PeerConnectorAsync) + " Connected: {connected} / Unconnected: {unconnected}",
                     connectedNodes.Count, unconnectedNodes.Count);
 
                 var endpoint = unconnectedNodes.FirstOrDefault();
@@ -268,53 +268,6 @@ namespace NeoFx.TestNode
                         var endPoint = new IPEndPoint(addresses[0], port);
                         yield return (endPoint, seed);
                     }
-                }
-            }
-        }
-
-        class TaskGuard
-        {
-            DateTimeOffset lastCheck = DateTimeOffset.MinValue;
-            int running = 0;
-            readonly Func<CancellationToken, Task> action;
-            readonly string name;
-            readonly ILogger logger;
-            readonly TimeSpan guardTime;
-
-            public TaskGuard(Func<CancellationToken, Task> action, string name, ILogger logger, double guardTime = 10)
-                : this(action, name, logger, TimeSpan.FromSeconds(guardTime))
-            {
-            }
-
-            public TaskGuard(Func<CancellationToken, Task> action, string name, ILogger logger, TimeSpan guardTime)
-            {
-                this.action = action;
-                this.name = name;
-                this.logger = logger;
-                this.guardTime = guardTime;
-            }
-
-            public void Run(CancellationToken token)
-            {
-                if (DateTimeOffset.Now < lastCheck.Add(guardTime) || running != 0)
-                    return;
-
-                RunAsync(token).LogResult(logger, name);
-            }
-
-            async Task RunAsync(CancellationToken token)
-            {
-                if (Interlocked.CompareExchange(ref running, 1, 0) != 0)
-                    return;
-
-                try
-                {
-                    await action(token);
-                }
-                finally
-                {
-                    lastCheck = DateTimeOffset.Now;
-                    running = 0;
                 }
             }
         }

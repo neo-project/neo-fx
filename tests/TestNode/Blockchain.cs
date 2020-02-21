@@ -43,12 +43,8 @@ namespace NeoFx.TestNode
 
         public Task<(bool success, UInt256 start, UInt256 stop)> TryGetBlockGap()
         {
-            if (storage.TryGetBlockGap(out var start, out var stop))
-            {
-                return Task.FromResult((true, start, stop));
-            }
-
-            return Task.FromResult((false, UInt256.Zero, UInt256.Zero));
+            var result = storage.TryGetBlockGap(out var start, out var stop);
+            return Task.FromResult((result, start, stop));
         }
 
         public Task AddBlock(in Block block)
