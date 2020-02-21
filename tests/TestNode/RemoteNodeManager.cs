@@ -223,7 +223,7 @@ namespace NeoFx.TestNode
             }
         }
 
-        async ValueTask<IRemoteNode> ConnectSeed(CancellationToken token)
+        async Task<IRemoteNode> ConnectSeed(CancellationToken token)
         {
             var (index, hash) = await blockchain.GetLastBlockHash();
 

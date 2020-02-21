@@ -12,7 +12,7 @@ namespace NeoFx.TestNode
 {
     interface IRemoteNodeFactory
     {
-        ValueTask<(IRemoteNode, VersionPayload)> ConnectAsync(IPEndPoint endPoint, uint nonce, uint startHeight, CancellationToken token = default);
+        Task<(IRemoteNode, VersionPayload)> ConnectAsync(IPEndPoint endPoint, uint nonce, uint startHeight, CancellationToken token = default);
     }
 
     class RemoteNodeFactory : IRemoteNodeFactory
@@ -24,7 +24,7 @@ namespace NeoFx.TestNode
             this.provider = provider;
         }
 
-        public async ValueTask<(IRemoteNode, VersionPayload)> ConnectAsync(IPEndPoint endPoint, uint nonce, uint startHeight, CancellationToken token = default)
+        public async Task<(IRemoteNode, VersionPayload)> ConnectAsync(IPEndPoint endPoint, uint nonce, uint startHeight, CancellationToken token = default)
         {
             var pipelineSocket = provider.GetRequiredService<IPipelineSocket>();
             var networkOptions = provider.GetRequiredService<IOptions<NetworkOptions>>();
