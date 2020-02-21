@@ -28,7 +28,9 @@ namespace NeoFx.TestNode
         private readonly Channel<(IRemoteNode node, Message message)> channel = Channel.CreateUnbounded<(IRemoteNode node, Message msg)>();
         private ImmutableList<IRemoteNode> connectedNodes = ImmutableList<IRemoteNode>.Empty;
         private ImmutableHashSet<IPEndPoint> unconnectedNodes = ImmutableHashSet<IPEndPoint>.Empty;
-
+        readonly TaskGuard connectPeers;
+        readonly TaskGuard checkBlockGap;
+         
         public RemoteNodeManager(
             IBlockchain blockchain,
             IRemoteNodeFactory remoteNodeFactory,
@@ -41,6 +43,9 @@ namespace NeoFx.TestNode
             this.hostApplicationLifetime = hostApplicationLifetime;
             this.networkOptions = networkOptions.Value;
             this.log = logger;
+
+            connectPeers = new TaskGuard(PeerConnectorAsync, nameof(PeerConnectorAsync), logger);
+            checkBlockGap = new TaskGuard(GapCheckAsync, nameof(GapCheckAsync), logger);
 
             var random = new Random();
             Span<byte> span = stackalloc byte[4];
@@ -84,6 +89,8 @@ namespace NeoFx.TestNode
 
         async Task StartReceivingMessages(IRemoteNode node, CancellationToken token)
         {
+            log.LogInformation("StartReceivingMessages {node}", node.RemoteEndPoint);
+
             ImmutableInterlocked.Update(ref connectedNodes, original => original.Add(node));
             while (true)
             {
@@ -102,11 +109,13 @@ namespace NeoFx.TestNode
             }
         }
 
-        async ValueTask StartProcessingMessages(CancellationToken token)
+        async Task StartProcessingMessages(CancellationToken token)
         {
             var reader = channel.Reader;
             while (true)
             {
+                connectPeers.Run(token);
+
                 while (reader.TryRead(out var item))
                 {
                     await ProcessMessageAsync(item.node, item.message, token);
@@ -119,6 +128,53 @@ namespace NeoFx.TestNode
             }
         }
 
+        async Task GapCheckAsync(CancellationToken token)
+        {
+            var gap = await blockchain.TryGetBlockGap();
+            log.LogInformation("GapCheckAsync {success} {start} {stop}", gap.success, gap.start, gap.stop);
+
+            if (gap.success)
+            {
+                log.LogInformation("Sending GetBlocks {start} {stop}", gap.start, gap.stop);
+                var payload = new HashListPayload(gap.start);
+
+                var nodes = connectedNodes;
+                foreach (var node in nodes)
+                {
+                    await node.SendGetBlocksMessage(payload, token);
+                }
+            } 
+        }
+
+        async Task PeerConnectorAsync(CancellationToken token)
+        {
+            while (connectedNodes.Count <= 10 && !token.IsCancellationRequested)
+            {
+                log.LogInformation("ConnectPeersAsync Connected: {connected} / Unconnected: {unconnected}",
+                    connectedNodes.Count, unconnectedNodes.Count);
+
+                var endpoint = unconnectedNodes.FirstOrDefault();
+                if (endpoint == null)
+                    break;
+
+                RemoveUnconnectedNode(endpoint);
+
+                try
+                {
+                    log.LogInformation("Connecting to {endpoint}", endpoint);
+                    var (node, version) = await remoteNodeFactory.ConnectAsync(endpoint, nonce, 0, token);
+                    log.LogInformation("{endpoint} connected", endpoint);
+                    await node.SendGetAddrMessage(token);
+                    StartReceivingMessages(node, token)
+                        .LogResult(log, nameof(StartReceivingMessages));
+                }
+                catch (Exception ex)
+                {
+                    log.LogWarning(ex, "{endpoint} connection failed", endpoint);
+                }
+            }
+        }
+
         async Task ProcessMessageAsync(IRemoteNode node, Message message, CancellationToken token)
         {
             switch (message)
@@ -126,15 +182,14 @@ namespace NeoFx.TestNode
                 case AddrMessage addrMessage:
                     {
                         var addresses = addrMessage.Addresses;
-                        log.LogInformation("Received AddrMessage {addressesCount}", addresses.Length);
+                        log.LogInformation("Received AddrMessage {addressesCount} {node}", addresses.Length, node.RemoteEndPoint);
                         AddUnconnectedNodes(addresses.Select(a => a.EndPoint));
-                        log.LogInformation("{addressesCount} unconnected nodes", unconnectedNodes.Count);
                     }
                     break;
                 case HeadersMessage headersMessage:
                     {
                         var headers = headersMessage.Headers;
-                        log.LogInformation("Received HeadersMessage {headersCount}", headers.Length);
+                        log.LogInformation("Received HeadersMessage {headersCount} {node}", headers.Length, node.RemoteEndPoint);
 
                         // The Neo docs suggest sending a getblocks message to retrieve a list 
                         // of block hashes to sync. However, we can calculate the block hashes 
@@ -150,18 +205,20 @@ namespace NeoFx.TestNode
                     break;
                 case InvMessage invMessage when invMessage.Type == InventoryPayload.InventoryType.Block:
                     {
-                        log.LogInformation("Received Block InvMessage {count}", invMessage.Hashes.Length);
+                        var hashes = invMessage.Hashes;
+                        log.LogInformation("Received Block InvMessage {count} {node}", hashes.Length, node.RemoteEndPoint);
                         await node.SendGetDataMessage(invMessage.Payload, token);
+                        checkBlockGap.Run(token);
                     }
                     break;
-                case BlockMessage blocKMessage:
+                case BlockMessage blockMessage:
                     {
-                        log.LogInformation("Received BlockMessage {index}", blocKMessage.Block.Index);
-                        await blockchain.AddBlock(blocKMessage.Block);
+                        log.LogInformation("Received BlockMessage {index} {node}", blockMessage.Block.Index, node.RemoteEndPoint);
+                        await blockchain.AddBlock(blockMessage.Block);
                     }
                     break;
                 default:
-                    log.LogInformation("Received {messageType}", message.GetType().Name);
+                    log.LogInformation("Received {messageType} {node}", message.GetType().Name, node.RemoteEndPoint);
                     break;
             }
         }
@@ -211,6 +268,53 @@ namespace NeoFx.TestNode
                         var endPoint = new IPEndPoint(addresses[0], port);
                         yield return (endPoint, seed);
                     }
+                }
+            }
+        }
+
+        class TaskGuard
+        {
+            DateTimeOffset lastCheck = DateTimeOffset.MinValue;
+            int running = 0;
+            readonly Func<CancellationToken, Task> action;
+            readonly string name;
+            readonly ILogger logger;
+            readonly TimeSpan guardTime;
+
+            public TaskGuard(Func<CancellationToken, Task> action, string name, ILogger logger, double guardTime = 10)
+                : this(action, name, logger, TimeSpan.FromSeconds(guardTime))
+            {
+            }
+
+            public TaskGuard(Func<CancellationToken, Task> action, string name, ILogger logger, TimeSpan guardTime)
+            {
+                this.action = action;
+                this.name = name;
+                this.logger = logger;
+                this.guardTime = guardTime;
+            }
+
+            public void Run(CancellationToken token)
+            {
+                if (DateTimeOffset.Now < lastCheck.Add(guardTime) || running != 0)
+                    return;
+
+                RunAsync(token).LogResult(logger, name);
+            }
+
+            async Task RunAsync(CancellationToken token)
+            {
+                if (Interlocked.CompareExchange(ref running, 1, 0) != 0)
+                    return;
+
+                try
+                {
+                    await action(token);
+                }
+                finally
+                {
+                    lastCheck = DateTimeOffset.Now;
+                    running = 0;
                 }
             }
         }

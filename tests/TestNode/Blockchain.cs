@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
@@ -9,74 +10,50 @@ using NeoFx.Models;
 
 namespace NeoFx.TestNode
 {
-    interface IBlockchain
+    interface IBlockchain : IDisposable
     {
-        ValueTask AddBlock(in Block block);
-        ValueTask<(uint index, UInt256 hash)> GetLastBlockHash();
+        Task<(uint index, UInt256 hash)> GetLastBlockHash();
+        Task<(bool success, UInt256 start, UInt256 stop)> TryGetBlockGap();
+        Task AddBlock(in Block block);
     }
 
     class Blockchain : IBlockchain
     {
-        readonly NetworkOptions networkOptions;
+        readonly IStorage storage;
         readonly ILogger<Blockchain> log;
 
-        public Blockchain(IOptions<NetworkOptions> networkOptions,
+        public Blockchain(IStorage storage,
             ILogger<Blockchain> logger)
         {
-            this.networkOptions = networkOptions.Value;
+            this.storage = storage;
             this.log = logger;
         }
 
-        public ValueTask AddBlock(in Block block)
+        public void Dispose()
         {
-            log.LogCritical("block {index} not really saved", block.Index);
-            return default;
+            storage.Dispose();
         }
 
-        public ValueTask<(uint index, UInt256 hash)> GetLastBlockHash()
+        public Task<(uint index, UInt256 hash)> GetLastBlockHash()
         {
-            var genesis = Genesis.CreateGenesisBlock(GetValidators(networkOptions.Validators));
-            return new ValueTask<(uint, UInt256)>((genesis.Index, genesis.CalculateHash()));
+            var tuple = storage.GetLastBlockHash();
+            return Task.FromResult(tuple); 
         }
 
-        public static IEnumerable<ECPoint> GetValidators(string[] validators)
+        public Task<(bool success, UInt256 start, UInt256 stop)> TryGetBlockGap()
         {
-            static bool TryConvertHexString(string hex, out ImmutableArray<byte> value)
+            if (storage.TryGetBlockGap(out var start, out var stop))
             {
-                static int GetHexVal(char hex)
-                {
-                    return (int)hex - ((int)hex < 58 ? 48 : ((int)hex < 97 ? 55 : 87));
-                }
-
-                if (hex.Length % 2 == 0)
-                {
-                    var bytesLength = hex.Length >> 1;
-                    var array = new byte[bytesLength];
-
-                    for (int i = 0; i < bytesLength; ++i)
-                    {
-                        var charIndex = i << 1;
-                        array[i] = (byte)((GetHexVal(hex[charIndex]) << 4) + (GetHexVal(hex[charIndex + 1])));
-                    }
-
-                    value = Unsafe.As<byte[], ImmutableArray<byte>>(ref array);
-                    return true;
-                }
-
-                value = default;
-                return false;
+                return Task.FromResult((true, start, stop));
             }
 
-            var curve = ECCurve.NamedCurves.nistP256.GetExplicit();
+            return Task.FromResult((false, UInt256.Zero, UInt256.Zero));
+        }
 
-            for (int i = 0; i < validators.Length; i++)
-            {
-                if (TryConvertHexString(validators[i], out var bytes)
-                    && (new EncodedPublicKey(bytes)).TryDecode(curve, out var point))
-                {
-                    yield return point;
-                }
-            }
+        public Task AddBlock(in Block block)
+        {
+            storage.AddBlock(block);
+            return Task.CompletedTask;
         }
     }
 }

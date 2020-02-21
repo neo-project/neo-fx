@@ -37,6 +37,7 @@ namespace NeoFx.TestNode
                         .AddTransient<IRemoteNode, RemoteNode>()
                         .AddTransient<IRemoteNodeFactory, RemoteNodeFactory>()
                         .AddSingleton<IBlockchain, Blockchain>()
+                        .AddSingleton<IStorage, Storage>()
                         .AddSingleton<RemoteNodeManager>()
                         .AddHostedService<LocalNode>();
                 });

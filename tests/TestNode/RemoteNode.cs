@@ -56,19 +56,19 @@ namespace NeoFx.TestNode
             pipelineSocket.Dispose();
         }
 
-        public async Task<VersionPayload> ConnectAsync(IPEndPoint endPoint, uint nonce, uint startHeight, CancellationToken token = default)
+        public async Task<VersionPayload> ConnectAsync(IPEndPoint endpoint, uint nonce, uint startHeight, CancellationToken token = default)
         {
             var localVersion = new VersionPayload(nonce, userAgent, startHeight);
 
-            log.LogTrace("ConnectAsync {magic} to {host}:{port}", magic, endPoint.Address, endPoint.Port);
-            await pipelineSocket.ConnectAsync(endPoint, token).ConfigureAwait(false);
-            var remoteVersion = await NodeOperations.PerformVersionHandshake(pipelineSocket, magic, localVersion, log, token);
+            log.LogTrace("ConnectAsync {magic} to {endpoint}", magic, endpoint);
+            await pipelineSocket.ConnectAsync(endpoint, token).ConfigureAwait(false);
+            var remoteVersion = await NodeOperations.PerformVersionHandshake(pipelineSocket, endpoint, magic, localVersion, log, token);
             log.LogInformation("Connected to {endpoint} {userAgent}", pipelineSocket.RemoteEndPoint, remoteVersion.UserAgent);
             return remoteVersion;
         }
 
         public ValueTask<Message?> ReceiveMessage(CancellationToken token = default)
-            => NodeOperations.ReceiveMessage(pipelineSocket.Input, magic, log, token);
+            => NodeOperations.ReceiveMessage(pipelineSocket.Input, pipelineSocket.RemoteEndPoint, magic, log, token);
 
         public ValueTask SendAddrMessage(in AddrPayload payload, CancellationToken token = default)
             => NodeOperations

@@ -3,6 +3,7 @@ using System.Buffers;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Pipelines;
+using System.Net;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,14 +16,14 @@ namespace NeoFx.P2P
 {
     public static class NodeOperations
     {
-        public static async ValueTask<Message?> ReceiveMessage(PipeReader reader, uint magic, ILogger log, CancellationToken token = default)
+        public static async ValueTask<Message?> ReceiveMessage(PipeReader reader, EndPoint address, uint magic, ILogger log, CancellationToken token = default)
         {
             while (true)
             {
                 var readResult = await reader.ReadAsync(token).ConfigureAwait(false);
                 var buffer = readResult.Buffer;
-                log.LogDebug("read {length} bytes from pipe {IsCompleted} {IsCanceled}",
-                    readResult.Buffer.Length, readResult.IsCompleted, readResult.IsCanceled);
+                log.LogDebug("read {length} bytes from pipe {address} {IsCompleted} {IsCanceled} ",
+                    readResult.Buffer.Length, address, readResult.IsCompleted, readResult.IsCanceled);
                 SequencePosition consumed = buffer.Start;
                 SequencePosition examined = buffer.End;
 
@@ -70,7 +71,7 @@ namespace NeoFx.P2P
 
                 if (_buffer.Length < MessageHeader.Size)
                 {
-                    log.LogDebug("Haven't received enough data to read the message header {bufferLength}", _buffer.Length);
+                    log.LogDebug("Haven't received enough data to read the message header {bufferLength} {address}", _buffer.Length, address);
                     return false;
                 }
 
@@ -78,14 +79,14 @@ namespace NeoFx.P2P
                 {
                     throw new InvalidDataException("MessageHeader could not be parsed");
                 }
-                log.LogDebug("Received {command} message header {magic} {length} {checksum}",
-                    header.Command, header.Magic, header.Length, header.Checksum);
+                log.LogDebug("Received {command} message header {magic} {length} {checksum} {address}",
+                    header.Command, header.Magic, header.Length, header.Checksum, address);
 
                 var messageLength = MessageHeader.Size + header.Length;
                 if (_buffer.Length < messageLength)
                 {
-                    log.LogDebug("Haven't received enough data to read the message payload {bufferNeeded} {bufferLength}",
-                        messageLength, _buffer.Length);
+                    log.LogDebug("Haven't received enough data to read the message payload {bufferNeeded} {bufferLength} {address}",
+                        messageLength, _buffer.Length, address);
                     return false;
                 }
 
@@ -94,7 +95,7 @@ namespace NeoFx.P2P
                 if (header.Magic != magic)
                 {
                     // ignore messages sent with the wrong magic value
-                    log.LogWarning("Ignoring message with incorrect magic {expected} {actual}", magic, header.Magic);
+                    log.LogWarning("Ignoring message with incorrect magic {expected} {actual} {address}", magic, header.Magic, address);
                     return false;
                 }
 
@@ -104,13 +105,13 @@ namespace NeoFx.P2P
                 if (header.Checksum != checksum)
                 {
                     // ignore messages sent with invalid checksum
-                    log.LogWarning("Ignoring message with incorrect checksum {expected} {actual}", checksum, header.Checksum);
+                    log.LogWarning("Ignoring message with incorrect checksum {expected} {actual} {address}", checksum, header.Checksum, address);
                     return false;
                 }
 
                 if (Message.TryRead(_buffer, header, out _message))
                 {
-                    log.LogDebug("Receive {message}", _message.GetType().Name);
+                    log.LogDebug("Receive {message} {address}", _message.GetType().Name, address);
                     return true;
                 }
                 else
@@ -174,7 +175,7 @@ namespace NeoFx.P2P
             return writer.FlushAsync(token);
         }
 
-        public static Task<VersionPayload> PerformVersionHandshake(IDuplexPipe duplexPipe, uint magic, in VersionPayload payload, ILogger log, CancellationToken token = default)
+        public static Task<VersionPayload> PerformVersionHandshake(IDuplexPipe duplexPipe, EndPoint address, uint magic, in VersionPayload payload, ILogger log, CancellationToken token = default)
         {
             log.LogDebug("Sending version message");
             var sendVersionTask = SendMessage<VersionPayload>(duplexPipe.Output, magic, VersionMessage.CommandText, payload, log, token);
@@ -200,7 +201,7 @@ namespace NeoFx.P2P
             async Task<T> ReceiveTypedMessage<T>()
                 where T : Message
             {
-                var message = await ReceiveMessage(duplexPipe.Input, magic, log, token).ConfigureAwait(false);
+                var message = await ReceiveMessage(duplexPipe.Input, address, magic, log, token).ConfigureAwait(false);
                 if (message is T typedMessage)
                 {
                     return typedMessage;

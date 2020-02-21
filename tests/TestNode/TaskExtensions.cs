@@ -13,11 +13,14 @@ namespace NeoFx.TestNode
             {
                 if (t.IsFaulted)
                 {
-                    log.LogError(t.Exception, name + " exception");
+                    var ex = t.Exception?.InnerExceptions?.Count == 1
+                            ? t.Exception?.InnerExceptions?[0]
+                            : t.Exception;
+                    log.LogError(ex, name + " exception");
                 }
                 else
                 {
-                    log.LogInformation(name + " completed {IsCanceled}", t.IsCanceled);
+                    log.LogInformation(name + " {status}", t.Status);
                 }
                 onComplete?.Invoke(t.Exception);
             }).Forget();

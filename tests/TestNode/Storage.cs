@@ -3,6 +3,7 @@ using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using DevHawk.Buffers;
 using Microsoft.Extensions.Logging;
@@ -22,7 +23,14 @@ namespace NeoFx.TestNode
     using ColumnFamilies = RocksDbSharp.ColumnFamilies;
     using ColumnFamilyOptions = RocksDbSharp.ColumnFamilyOptions;
 
-    class Storage : IDisposable
+    interface IStorage : IDisposable
+    {
+        (uint index, UInt256 hash) GetLastBlockHash();
+        bool TryGetBlockGap(out UInt256 start, out UInt256 stop);
+        void AddBlock(in Block block);
+    }
+
+    class Storage : IStorage
     {
         const string BLOCKS_FAMILY = "data:blocks";
         const string BLOCK_INDEX_FAMILY = "ix:block-index";
@@ -33,10 +41,17 @@ namespace NeoFx.TestNode
         private readonly ColumnFamilyHandle blocksFamily;
         private readonly ColumnFamilyHandle blockIndexFamily;
         private readonly ColumnFamilyHandle transactionsFamily;
-        private readonly SortedDictionary<uint, Block> unverifiedBlocks = new SortedDictionary<uint, Block>();
+        private readonly SortedSet<Block> unverifiedBlocks = new SortedSet<Block>(new BlockComparer());
 
         public Storage(IOptions<NetworkOptions> networkOptions,
                        IOptions<NodeOptions> nodeOptions,
+                       ILogger<Storage>? logger = null)
+            : this(nodeOptions.Value.StoragePath, networkOptions.Value.Validators, logger)
+        {
+        }
+
+        public Storage(string storagePath,
+                       string[] validators,
                        ILogger<Storage>? logger = null)
         {
             log = logger ?? NullLogger<Storage>.Instance;
@@ -50,10 +65,9 @@ namespace NeoFx.TestNode
                 .SetCreateIfMissing(true)
                 .SetCreateMissingColumnFamilies(true);
 
-            var path = nodeOptions.Value.StoragePath;
-            log.LogInformation("Database path {path}", path);
+            log.LogInformation("Database path {path}", storagePath);
 
-            db = RocksDb.Open(options, path, columnFamilies);
+            db = RocksDb.Open(options, storagePath, columnFamilies);
             blocksFamily = db.GetColumnFamily(BLOCKS_FAMILY);
             blockIndexFamily = db.GetColumnFamily(BLOCK_INDEX_FAMILY);
             transactionsFamily = db.GetColumnFamily(TRANSACTIONS_FAMILY);
@@ -61,7 +75,8 @@ namespace NeoFx.TestNode
             if (db.ColumnFamilyEmpty(blockIndexFamily))
             {
                 log.LogInformation("Adding Genesis Block");
-                var genesis = Genesis.CreateGenesisBlock(Blockchain.GetValidators(networkOptions.Value.Validators));
+                var _validators = NetworkOptions.ConvertValidators(validators);
+                var genesis = Genesis.CreateGenesisBlock(_validators);
                 PutBlock(genesis, true);
             }
         }
@@ -78,7 +93,7 @@ namespace NeoFx.TestNode
 
             var iter = db.NewIterator(blockIndexFamily, readOptions);
             iter.SeekToLast();
-            if (iter.Valid() 
+            if (iter.Valid()
                 && iter.TryGetKey<uint>(BufferReaderExtensions.TryReadBigEndian, out var index)
                 && iter.TryGetValue<UInt256>(UInt256.TryRead, out var hash))
             {
@@ -88,83 +103,71 @@ namespace NeoFx.TestNode
             throw new InvalidOperationException("Missing Genesis Block");
         }
 
-        private uint GetLastBlockIndex()
+        public bool TryGetBlockGap(out UInt256 start, out UInt256 stop)
         {
-            using var snapshot = db.CreateSnapshot();
-            var readOptions = new ReadOptions().SetSnapshot(snapshot);
-
-            var iter = db.NewIterator(blockIndexFamily, readOptions);
-            iter.SeekToLast();
-            if (iter.Valid()
-                && iter.TryGetKey<uint>(BufferReaderExtensions.TryReadBigEndian, out var index))
+            if (unverifiedBlocks.Count == 0)
             {
-                return index;
+                start = default;
+                stop = default;
+                return false;
             }
 
-            throw new InvalidOperationException("Missing Genesis Block");
+            var firstUnverified = unverifiedBlocks.First();
+            var lastVerified = GetLastBlockHash();
+
+            log.LogInformation("TryGetBlockGap {start} {stop}", lastVerified.index, firstUnverified.Index);
+
+            start = lastVerified.hash;
+            stop = firstUnverified.CalculateHash();
+            return true;
         }
 
         public void AddBlock(in Block block)
         {
-            var index = GetLastBlockIndex();
+            var (index, _) = GetLastBlockHash();
             if (block.Index <= index)
                 return;
 
             if (index + 1 == block.Index)
             {
-                PutBlock(block, true);
+                log.LogInformation("Add block {index}", block.Index);
+                PutBlock(block);
+                ProcessUnverifiedBlocks(block.Index);
             }
             else
             {
                 log.LogWarning("Adding Unverified block {index}", block.Index);
-                unverifiedBlocks.Add(block.Index, block);
+                unverifiedBlocks.Add(block);
             }
         }
 
-        public void Cleanup()
+        private void ProcessUnverifiedBlocks(uint index)
         {
-            var index = GetLastBlockIndex();
-            index = ProcessUnverifiedBlocks(index); 
-            RemoveProcessedUnverifiedBlocks(index);
-        }
-
-        private uint ProcessUnverifiedBlocks(uint index)
-        {
-            foreach (var kvp in unverifiedBlocks)
+            foreach (var block in unverifiedBlocks)
             {
-                if (kvp.Key <= index)
+                if (block.Index <= index)
                     continue;
 
-                if (kvp.Key == index + 1)
+                if (block.Index == index + 1)
                 {
-                        log.LogInformation("Processing Unverified block {index}", kvp.Key);
-                        PutBlock(kvp.Value);
-                        index = kvp.Key;
-                        continue;
+                    log.LogInformation("Processing Unverified block {index}", block.Index);
+                    PutBlock(block);
+                    index = block.Index;
+                    continue;
                 }
-                
+
                 break;
             }
 
-            return index;
+            unverifiedBlocks.RemoveWhere(b => b.Index <= index);
         }
 
-        private void RemoveProcessedUnverifiedBlocks(uint index)
-        {
-            var processedKeys = unverifiedBlocks.Keys.TakeWhile(i => i <= index).ToList();
-            for (var x = 0; x < processedKeys.Count; x++)
-            {
-                unverifiedBlocks.Remove(processedKeys[x]);
-            }
-        }
 
         static WriteOptions syncWriteOptions = new WriteOptions().SetSync(true);
         static WriteOptions asyncWriteOptions = new WriteOptions().SetSync(false);
 
         UInt256 PutBlock(in Block block, bool syncWrite = false)
         {
-            log.LogInformation("Put block {index}", block.Index);
-
             var batch = new WriteBatch();
 
             Span<UInt256> txHashes = stackalloc UInt256[block.Transactions.Length];
@@ -219,6 +222,11 @@ namespace NeoFx.TestNode
             Debug.Assert(writer.Span.IsEmpty);
 
             batch.Put(transactionsFamily, keyBuffer, txSpan);
+        }
+
+        class BlockComparer : IComparer<Block>
+        {
+            public int Compare(Block x, Block y) => x.Index.CompareTo(y.Index);
         }
     }
 }
