@@ -30,7 +30,7 @@ namespace NeoFx.TestNode
         {
             this.log = log ?? NullLogger<PipelineSocket>.Instance;
         }
-        
+
         public void Dispose()
         {
             socket.Dispose();
@@ -43,7 +43,7 @@ namespace NeoFx.TestNode
             await socket.ConnectAsync(endpoint).ConfigureAwait(false);
             Execute(token);
         }
-        
+
         private void Execute(CancellationToken token)
         {
             StartSocketReceive(token)
@@ -95,7 +95,7 @@ namespace NeoFx.TestNode
                 {
                     throw new OperationCanceledException();
                 }
-                
+
                 var buffer = readResult.Buffer;
                 if (buffer.Length > 0)
                 {

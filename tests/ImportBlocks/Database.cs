@@ -46,19 +46,19 @@ namespace ImportBlocks
             db.Dispose();
         }
 
-            public bool TryReadItem(ref BufferReader<byte> reader, out (BlockHeader header, ImmutableArray<UInt256> hashes) value)
+        public bool TryReadItem(ref BufferReader<byte> reader, out (BlockHeader header, ImmutableArray<UInt256> hashes) value)
+        {
+            if (BlockHeader.TryRead(ref reader, out var header)
+                && reader.TryReadVarArray<UInt256>(UInt256.TryRead, out var hashes))
             {
-                if (BlockHeader.TryRead(ref reader, out var header)
-                    && reader.TryReadVarArray<UInt256>(UInt256.TryRead, out var hashes))
-                {
-                    Debug.Assert(reader.Remaining == 0);
-                    value = (header, hashes);
-                    return true;
-                }
-
-                value = default;
-                return false;
+                Debug.Assert(reader.Remaining == 0);
+                value = (header, hashes);
+                return true;
             }
+
+            value = default;
+            return false;
+        }
 
         public IEnumerable<(UInt256 key, (BlockHeader header, ImmutableArray<UInt256> hashes) blockState)> GetBlocks()
         {

@@ -15,7 +15,7 @@ namespace NeoFx.TestNode
             return CreateHostBuilder(args).Build().RunAsync();
         }
 
-        public static IHostBuilder CreateHostBuilder(string[] args) 
+        public static IHostBuilder CreateHostBuilder(string[] args)
         {
             if (!Directory.Exists("logs"))
             {

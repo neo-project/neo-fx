@@ -36,7 +36,7 @@ namespace NeoFx.RocksDb
             return false;
         }
 
-        public static unsafe bool KeyExists(this RocksDb db,  ColumnFamilyHandle columnFamily, ReadOnlySpan<byte> key)
+        public static unsafe bool KeyExists(this RocksDb db, ColumnFamilyHandle columnFamily, ReadOnlySpan<byte> key)
         {
             fixed (byte* keyPtr = key)
             {
@@ -59,7 +59,7 @@ namespace NeoFx.RocksDb
                 }
             }
         }
-      
+
         public static unsafe bool TryGet<T>(this RocksDb db,
                                                      ReadOnlySpan<byte> key,
                                                      ColumnFamilyHandle columnFamily,
@@ -121,7 +121,7 @@ namespace NeoFx.RocksDb
             iterator.SeekToFirst();
             return Iterate<TKey, TValue>(iterator, keyFactory, valueFactory);
         }
-        
+
         public static unsafe IEnumerable<(TKey key, TValue value)> Search<TKey, TValue>(
             this RocksDb db,
             ColumnFamilyHandle columnFamily,

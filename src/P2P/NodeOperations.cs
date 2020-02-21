@@ -27,7 +27,7 @@ namespace NeoFx.P2P
                 SequencePosition examined = buffer.End;
 
                 try
-                {                
+                {
                     if (readResult.IsCanceled)
                     {
                         throw new OperationCanceledException();
@@ -206,7 +206,7 @@ namespace NeoFx.P2P
                     return typedMessage;
                 }
 
-                var name = message == null ? "name" : message.GetType().Name; 
+                var name = message == null ? "name" : message.GetType().Name;
                 throw new InvalidOperationException($"Expected {typeof(T).Name} message, received {name}");
             }
         }

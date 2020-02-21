@@ -31,7 +31,7 @@ namespace NeoFx.P2P.Messages
             : this(type, hashes.ToImmutableArray())
         {
         }
-        
+
         public static bool TryRead(ref BufferReader<byte> reader, out InventoryPayload payload)
         {
             if (reader.TryRead(out byte type)

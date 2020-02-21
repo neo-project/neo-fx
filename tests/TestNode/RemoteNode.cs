@@ -82,7 +82,7 @@ namespace NeoFx.TestNode
 
         public ValueTask SendConsensusMessage(in ConsensusPayload payload, CancellationToken token = default)
             => NodeOperations
-                .SendMessage<ConsensusPayload>(pipelineSocket.Output, magic, ConsensusMessage.CommandText, payload, log, token)                
+                .SendMessage<ConsensusPayload>(pipelineSocket.Output, magic, ConsensusMessage.CommandText, payload, log, token)
                 .AsValueTask();
 
         public ValueTask SendGetAddrMessage(CancellationToken token = default)

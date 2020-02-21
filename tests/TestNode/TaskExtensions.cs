@@ -17,7 +17,7 @@ namespace NeoFx.TestNode
                 }
                 else
                 {
-                    log.LogInformation(name  + " completed {IsCanceled}", t.IsCanceled);
+                    log.LogInformation(name + " completed {IsCanceled}", t.IsCanceled);
                 }
                 onComplete?.Invoke(t.Exception);
             }).Forget();

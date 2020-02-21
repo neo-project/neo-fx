@@ -139,7 +139,7 @@ namespace NeoFx.TestNode
                         // The Neo docs suggest sending a getblocks message to retrieve a list 
                         // of block hashes to sync. However, we can calculate the block hashes 
                         // from the headers in this message without needing the extra round trip
-                          
+
                         var (index, _) = await blockchain.GetLastBlockHash();
                         foreach (var batch in headers.Where(h => h.Index > index).Batch(500))
                         {
