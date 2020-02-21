@@ -136,6 +136,10 @@ namespace NeoFx.TestNode
                         var headers = headersMessage.Headers;
                         log.LogInformation("Received HeadersMessage {headersCount}", headers.Length);
 
+                        // The Neo docs suggest sending a getblocks message to retrieve a list 
+                        // of block hashes to sync. However, we can calculate the block hashes 
+                        // from the headers in this message without needing the extra round trip
+                          
                         var (index, _) = await blockchain.GetLastBlockHash();
                         foreach (var batch in headers.Where(h => h.Index > index).Batch(500))
                         {
@@ -144,26 +148,6 @@ namespace NeoFx.TestNode
                         }
                     }
                     break;
-                //     {
-                //         // var headers = headersMessage.Headers;
-                //         // foo = headers.Take(10).Select(h => h.CalculateHash()).ToImmutableArray();
-
-                //         // var hashes = headers.Skip(10).Take(10).Select(h => h.CalculateHash());
-                //         // var payload = new InventoryPayload(InventoryPayload.InventoryType.Block, hashes);
-                //         // await node.SendGetDataMessage(payload, token);
-
-                //         // var (_, headerHash) = storage.GetLastHeaderHash();
-                //         // // await node.SendGetHeadersMessage(new HashListPayload(headerHash));
-
-                //         // var (blockIndex, blockHash) = storage.GetLastBlockHash();
-                //         // var hashStop = storage.GetHeaderHash(blockIndex + 100);
-
-                //         // await node.SendGetBlocksMessage(new HashListPayload(blockHash, hashStop));
-                //     }
-                //     break;
-                // case InvMessage invMessage:
-                //     log.LogInformation("Received InvMessage {type} {count}", invMessage.Type, invMessage.Hashes.Length);
-                //     break;
                 case InvMessage invMessage when invMessage.Type == InventoryPayload.InventoryType.Block:
                     {
                         log.LogInformation("Received Block InvMessage {count}", invMessage.Hashes.Length);
