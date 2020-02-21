@@ -21,6 +21,7 @@ namespace NeoFx.TestNode
     {
         Task ConnectAsync(ChannelWriter<(IRemoteNode node, Message message)> writer, uint index, UInt256 hash, CancellationToken token);
         void AddAddresses(ImmutableArray<NodeAddress> nodeAddresses);
+        Task BroadcastGetBlocks(UInt256 start, UInt256 stop, CancellationToken token);
     }
 
     class RemoteNodeManager : IRemoteNodeManager
@@ -36,8 +37,6 @@ namespace NeoFx.TestNode
 
         private ImmutableList<IRemoteNode> connectedNodes = ImmutableList<IRemoteNode>.Empty;
         private ImmutableHashSet<IPEndPoint> unconnectedNodes = ImmutableHashSet<IPEndPoint>.Empty;
-        // readonly TaskGuard connectPeers;
-        // readonly TaskGuard checkBlockGap;
 
         public RemoteNodeManager(
             IHostApplicationLifetime hostApplicationLifetime,
@@ -51,11 +50,6 @@ namespace NeoFx.TestNode
             this.seeds = networkOptions.Value.Seeds.ToImmutableArray();
             this.nonce = nodeOptions.Value.Nonce;
             this.remoteNodeFactory = remoteNodeFactory;
-
-
-
-            // connectPeers = new TaskGuard(PeerConnectorAsync, nameof(PeerConnectorAsync), logger, 10);
-            // checkBlockGap = new TaskGuard(GapCheckAsync, nameof(GapCheckAsync), logger, 10);
         }
 
         public async Task ConnectAsync(ChannelWriter<(IRemoteNode node, Message message)> writer, uint index, UInt256 hash, CancellationToken token)
@@ -115,24 +109,17 @@ namespace NeoFx.TestNode
             }
         }
 
+        public async Task BroadcastGetBlocks(UInt256 start, UInt256 stop, CancellationToken token)
+        {
+            log.LogInformation("BroadcastGetBlocks {start} {stop}", start, stop);
 
-        // async Task GapCheckAsync(CancellationToken token)
-        // {
-        //     var gap = await blockchain.TryGetBlockGap();
-        //     log.LogInformation(nameof(GapCheckAsync) + " {success} {start} {stop}", gap.success, gap.start, gap.stop);
-
-        //     if (gap.success)
-        //     {
-        //         log.LogInformation("Sending GetBlocks {start} {stop}", gap.start, gap.stop);
-        //         var payload = new HashListPayload(gap.start);
-
-        //         var nodes = connectedNodes;
-        //         foreach (var node in nodes)
-        //         {
-        //             await node.SendGetBlocksMessage(payload, token);
-        //         }
-        //     } 
-        // }
+            var payload = new HashListPayload(start, stop);
+            var nodes = connectedNodes;
+            for (int i = 0; i < nodes.Count; i++)
+            {
+                await nodes[i].SendGetBlocksMessage(payload, token);
+            }
+        }
 
         int addConnectionsRunning = 0;
 

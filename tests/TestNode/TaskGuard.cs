@@ -32,7 +32,7 @@ namespace NeoFx.TestNode
         public void Run(CancellationToken token)
         {
             if (running == 0 && 
-                (hasZeroGuardTime || lastCheck.Add(guardTime) >= DateTimeOffset.Now))
+                (hasZeroGuardTime || lastCheck.Add(guardTime) <= DateTimeOffset.Now))
             {
                 RunAsync(token).LogResult(logger, name);
             }

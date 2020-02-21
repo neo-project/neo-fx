@@ -18,6 +18,7 @@ namespace NeoFx.TestNode
         private readonly ILogger<LocalNode> log;
         private readonly IRemoteNodeManager remoteNodeManager;
         private readonly Channel<(IRemoteNode node, Message message)> channel = Channel.CreateUnbounded<(IRemoteNode node, Message msg)>();
+        private readonly TaskGuard checkGapTask;
 
         public LocalNode(IBlockchain blockchain, IHostApplicationLifetime hostApplicationLifetime, ILogger<LocalNode> logger, IRemoteNodeManager remoteNodeManager)
         {
@@ -25,6 +26,16 @@ namespace NeoFx.TestNode
             this.hostApplicationLifetime = hostApplicationLifetime;
             log = logger;
             this.remoteNodeManager = remoteNodeManager;
+
+            checkGapTask = new TaskGuard(async token => 
+            {
+                var (success, start, stop) = await blockchain.TryGetBlockGap();
+                log.LogInformation("checkGapTask {success} {start} {stop}", success, start, stop);
+                if (success)
+                {
+                    await remoteNodeManager.BroadcastGetBlocks(start, stop, token);
+                }
+            }, nameof(checkGapTask), log, TimeSpan.FromSeconds(30));
         }
 
         protected override async Task ExecuteAsync(CancellationToken token)
@@ -86,13 +97,13 @@ namespace NeoFx.TestNode
                         var hashes = invMessage.Hashes;
                         log.LogInformation("Received Block InvMessage {count} {node}", hashes.Length, node.RemoteEndPoint);
                         await node.SendGetDataMessage(invMessage.Payload, token);
-                        // checkBlockGap.Run(token);
                     }
                     break;
                 case BlockMessage blockMessage:
                     {
                         log.LogInformation("Received BlockMessage {index} {node}", blockMessage.Block.Index, node.RemoteEndPoint);
                         await blockchain.AddBlock(blockMessage.Block);
+                        checkGapTask.Run(token);
                     }
                     break;
                 default:
