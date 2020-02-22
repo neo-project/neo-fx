@@ -3,6 +3,7 @@ using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Threading;
@@ -33,6 +34,7 @@ namespace NeoFx.TestNode
         private readonly ImmutableArray<string> seeds;
 
         private ChannelWriter<(IRemoteNode node, Message message)>? writer;
+        private TaskGuard connectPeersTask;
         private Timer? connectPeersTimer;
 
         private ImmutableList<IRemoteNode> connectedNodes = ImmutableList<IRemoteNode>.Empty;
@@ -50,22 +52,24 @@ namespace NeoFx.TestNode
             this.seeds = networkOptions.Value.Seeds.ToImmutableArray();
             this.nonce = nodeOptions.Value.Nonce;
             this.remoteNodeFactory = remoteNodeFactory;
+
+            connectPeersTask = new TaskGuard(RunAddConnections, nameof(RunAddConnections), log);
         }
 
         public async Task ConnectAsync(ChannelWriter<(IRemoteNode node, Message message)> writer, uint index, UInt256 hash, CancellationToken token)
         {
             if (Interlocked.CompareExchange(ref this.writer, writer, null) == null)
             {
-                var seedNode = await ConnectSeedAsync(index, hash, token);
-                StartReceivingMessages(seedNode, writer, token)
-                    .LogResult(log, nameof(StartReceivingMessages));
+                unconnectedNodes = await InitializeEndpoints();
+                await ConnectSeedAsync(index, hash, token);
 
-                connectPeersTimer = new Timer(_ => {
-                    if (connectedNodes.Count < 10) 
+                connectPeersTimer = new Timer(_ => 
+                {
+                    if (connectedNodes.Count < 10 && unconnectedNodes.Count > 0)
                     {
-                        AddConnectionsAsync().LogResult(log, nameof(AddConnectionsAsync));
+                        connectPeersTask.Run(hostApplicationLifetime.ApplicationStopping);
                     }
-                }, null, default, TimeSpan.FromSeconds(10));
+                }, null, TimeSpan.Zero, TimeSpan.FromSeconds(10));
             }
             else
             {
@@ -75,8 +79,6 @@ namespace NeoFx.TestNode
 
         public void AddAddresses(ImmutableArray<NodeAddress> nodeAddresses)
         {
-            log.LogInformation("Adding {count} addresses", nodeAddresses.Length);
-
             ImmutableInterlocked.Update(ref unconnectedNodes, original =>
             {
                 foreach (var address in nodeAddresses)
@@ -88,6 +90,18 @@ namespace NeoFx.TestNode
                 }
                 return original;
             });
+
+            log.LogInformation("Received {count} addresses {total}", nodeAddresses.Length, unconnectedNodes.Count);
+        }
+
+        public async Task<ImmutableHashSet<IPEndPoint>> InitializeEndpoints()
+        {
+            var builder = ImmutableHashSet.CreateBuilder<IPEndPoint>();
+            await foreach (var (endpoint, seed) in ResolveSeeds(seeds))
+            {
+                builder.Add(endpoint);
+            }
+            return builder.ToImmutable();
         }
 
         async Task StartReceivingMessages(IRemoteNode node, ChannelWriter<(IRemoteNode node, Message message)> writer, CancellationToken token)
@@ -131,94 +145,76 @@ namespace NeoFx.TestNode
             }
         }
 
-        int addConnectionsRunning = 0;
-
-        async Task AddConnectionsAsync()
+        async Task<IRemoteNode?> ConnectNodeAsync(uint startHeight, CancellationToken token)
         {
-            if (writer != null 
-                && unconnectedNodes.Count > 0
-                && Interlocked.CompareExchange(ref addConnectionsRunning, 1, 0) == 1)
+            var endpoint = unconnectedNodes.FirstOrDefault();
+            if (endpoint == null || writer == null)
+                return null;
+
+            ImmutableInterlocked.Update(ref unconnectedNodes, original => original.Remove(endpoint));
+
+            try
             {
-                try
-                {
-                    var token = hostApplicationLifetime.ApplicationStopping;
-                    while (connectedNodes.Count <= 20 && !token.IsCancellationRequested)
-                    {
-                        log.LogInformation(nameof(AddConnectionsAsync) + " Connected: {connected} / Unconnected: {unconnected}",
-                            connectedNodes.Count, unconnectedNodes.Count);
-
-                        var endpoint = unconnectedNodes.FirstOrDefault();
-                        if (endpoint == null)
-                            break;
-
-                        ImmutableInterlocked.Update(ref unconnectedNodes, original => original.Remove(endpoint));
-
-                        try
-                        {
-                            log.LogInformation("Connecting to {endpoint}", endpoint);
-                            var (node, version) = await remoteNodeFactory.ConnectAsync(endpoint, nonce, 0, token);
-                            log.LogInformation("{endpoint} connected", endpoint);
-                            await node.SendGetAddrMessage(token);
-                            StartReceivingMessages(node, writer, token)
-                                .LogResult(log, nameof(StartReceivingMessages));
-                        }
-                        catch (Exception ex)
-                        {
-                            log.LogWarning(ex, "{endpoint} connection failed", endpoint);
-                        }
-                    }
-                }
-                finally
-                {
-                    addConnectionsRunning = 0;
-                }
+                log.LogInformation("Connecting to {endpoint}", endpoint);
+                var (node, version) = await remoteNodeFactory.ConnectAsync(endpoint, nonce, startHeight, token);
+                log.LogInformation("{endpoint} connected", endpoint);
+                await node.SendGetAddrMessage(token);
+                StartReceivingMessages(node, writer, token)
+                    .LogResult(log, nameof(StartReceivingMessages));
+                return node;
+            }
+            catch (Exception ex)
+            {
+                log.LogWarning(ex, "{endpoint} connection failed", endpoint);
+                return null;
             }
         }
 
-        async Task<IRemoteNode> ConnectSeedAsync(uint index, UInt256 hash, CancellationToken token)
+        async Task RunAddConnections(CancellationToken token)
         {
-            await foreach (var (endpoint, seed) in ResolveSeeds(seeds))
+            while (unconnectedNodes.Count > 0
+                && connectedNodes.Count <= 20 
+                && !token.IsCancellationRequested)
+            {
+                log.LogInformation(nameof(RunAddConnections) + " Connected: {connected} / Unconnected: {unconnected}",
+                    connectedNodes.Count, unconnectedNodes.Count);
+
+                var node = await ConnectNodeAsync(0, token);
+            }
+        }
+
+        async Task ConnectSeedAsync(uint index, UInt256 hash, CancellationToken token)
+        {
+            while (unconnectedNodes.Count > 0)
             {
                 token.ThrowIfCancellationRequested();
 
-                try
+                var node = await ConnectNodeAsync(index, token);
+                if (node != null)
                 {
-                    log.LogInformation("Connecting to {seed}", seed);
-                    var (node, version) = await remoteNodeFactory.ConnectAsync(endpoint, nonce, index, token);
-                    log.LogInformation("{seed} connected", seed);
-
-                    await node.SendGetAddrMessage(token);
-                    if (version.StartHeight > index)
-                    {
-                        await node.SendGetHeadersMessage(new HashListPayload(hash), token);
-                    }
-
-                    return node;
-                }
-                catch (Exception ex)
-                {
-                    log.LogWarning(ex, "{seed} connection failed", seed);
+                    await node.SendGetHeadersMessage(new HashListPayload(hash), token);
+                    return;
                 }
             }
 
             var errorMessage = "could not connect to any seed nodes";
             log.LogCritical(errorMessage);
             throw new System.IO.IOException(errorMessage);
+        }
 
-            static async IAsyncEnumerable<(IPEndPoint, string)> ResolveSeeds(ImmutableArray<string> seeds)
+        static async IAsyncEnumerable<(IPEndPoint, string)> ResolveSeeds(ImmutableArray<string> seeds)
+        {
+            for (int i = 0; i < seeds.Length; i++)
             {
-                for (int i = 0; i < seeds.Length; i++)
+                string seed = seeds[i];
+                var colonIndex = seed.IndexOf(':');
+                var host = seed.Substring(0, colonIndex);
+                var port = int.Parse(seed.AsSpan().Slice(colonIndex + 1));
+                var addresses = await Dns.GetHostAddressesAsync(host);
+                if (addresses.Length > 0)
                 {
-                    string seed = seeds[i];
-                    var colonIndex = seed.IndexOf(':');
-                    var host = seed.Substring(0, colonIndex);
-                    var port = int.Parse(seed.AsSpan().Slice(colonIndex + 1));
-                    var addresses = await Dns.GetHostAddressesAsync(host);
-                    if (addresses.Length > 0)
-                    {
-                        var endPoint = new IPEndPoint(addresses[0], port);
-                        yield return (endPoint, seed);
-                    }
+                    var endPoint = new IPEndPoint(addresses[0], port);
+                    yield return (endPoint, seed);
                 }
             }
         }
