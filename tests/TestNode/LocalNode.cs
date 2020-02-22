@@ -1,5 +1,6 @@
 using System;
 using System.Buffers.Binary;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Channels;
@@ -35,7 +36,7 @@ namespace NeoFx.TestNode
                 {
                     await remoteNodeManager.BroadcastGetBlocks(start, stop, token);
                 }
-            }, nameof(checkGapTask), log, TimeSpan.FromSeconds(30));
+            }, nameof(checkGapTask), log, TimeSpan.FromSeconds(5));
         }
 
         protected override async Task ExecuteAsync(CancellationToken token)
@@ -62,10 +63,10 @@ namespace NeoFx.TestNode
             }
         }
 
+        uint lastHeaderIndex = 0;
+
         async Task ProcessMessageAsync(IRemoteNode node, Message message, CancellationToken token)
         {
-            await Task.CompletedTask;
-
             switch (message)
             {
                 case AddrMessage addrMessage:
@@ -80,15 +81,24 @@ namespace NeoFx.TestNode
                         var headers = headersMessage.Headers;
                         log.LogInformation("Received HeadersMessage {headersCount} {node}", headers.Length, node.RemoteEndPoint);
 
-                        // The Neo docs suggest sending a getblocks message to retrieve a list 
-                        // of block hashes to sync. However, the block hashes can be calculated
-                        // from the headers in this message without needing the extra round trip
-
-                        var (index, _) = await blockchain.GetLastBlockHash();
-                        foreach (var batch in headers.Where(h => h.Index > index).Batch(500))
+                        if (headers.Length > 0)
                         {
-                            var payload = new InventoryPayload(InventoryPayload.InventoryType.Block, batch.Select(h => h.CalculateHash()));
-                            await node.SendGetDataMessage(payload, token);
+                            // The Neo docs suggest sending a getblocks message to retrieve a list 
+                            // of block hashes to sync. However, the block hashes can be calculated
+                            // from the headers in this message without needing the extra round trip
+
+                            var (index, _) = await blockchain.GetLastBlockHash();
+                            foreach (var batch in headers.Where(h => h.Index > index).Batch(500))
+                            {
+                                var payload = new InventoryPayload(InventoryPayload.InventoryType.Block, batch.Select(h => h.CalculateHash()));
+                                await node.SendGetDataMessage(payload, token);
+                            }
+
+                            var lastHeader = headers.OrderBy(h => h.Index).Last();
+                            Debug.Assert(lastHeader.Index > lastHeaderIndex);
+                            lastHeaderIndex = lastHeader.Index;
+
+                            await remoteNodeManager.BroadcastGetHeaders(lastHeader.CalculateHash(), token);
                         }
                     }
                     break;
@@ -102,7 +112,10 @@ namespace NeoFx.TestNode
                 case BlockMessage blockMessage:
                     {
                         log.LogInformation("Received BlockMessage {index} {node}", blockMessage.Block.Index, node.RemoteEndPoint);
-                        await blockchain.AddBlock(blockMessage.Block);
+                        if (blockMessage.Block.Index <= lastHeaderIndex)
+                        {
+                            await blockchain.AddBlock(blockMessage.Block);
+                        }
                         checkGapTask.Run(token);
                     }
                     break;
