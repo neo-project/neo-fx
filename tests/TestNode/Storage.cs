@@ -144,8 +144,10 @@ namespace NeoFx.TestNode
             }
             else
             {
-                log.LogWarning("Adding Unverified block {index}", block.Index);
-                unverifiedBlocks.Add(block);
+                if (unverifiedBlocks.Add(block))
+                {
+                    log.LogWarning("Adding Unverified block {index}", block.Index);
+                }
             }
         }
 
