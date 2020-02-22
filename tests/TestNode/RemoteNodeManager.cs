@@ -61,7 +61,10 @@ namespace NeoFx.TestNode
                     .LogResult(log, nameof(StartReceivingMessages));
 
                 connectPeersTimer = new Timer(_ => {
-                    AddConnectionsAsync().LogResult(log, nameof(AddConnectionsAsync));
+                    if (connectedNodes.Count < 10) 
+                    {
+                        AddConnectionsAsync().LogResult(log, nameof(AddConnectionsAsync));
+                    }
                 }, null, default, TimeSpan.FromSeconds(10));
             }
             else
@@ -109,14 +112,22 @@ namespace NeoFx.TestNode
             }
         }
 
+        IEnumerable<IRemoteNode> GetRandomRemoteNodes()
+        {
+            var r = new Random();
+            var nodes = connectedNodes;
+            return nodes
+                .OrderBy(n => r.NextDouble())
+                .Take(Math.Min(nodes.Count / 2, 3));
+        }
+
         public async Task BroadcastGetBlocks(UInt256 start, UInt256 stop, CancellationToken token)
         {
             var payload = new HashListPayload(start, stop);
-            var nodes = connectedNodes;
-            for (int i = 0; i < nodes.Count; i++)
+            foreach (var node in GetRandomRemoteNodes())
             {
-                log.LogInformation("BroadcastGetBlocks {start} {stop} {node}", start, stop, nodes[i].RemoteEndPoint);
-                await nodes[i].SendGetBlocksMessage(payload, token);
+                log.LogInformation("BroadcastGetBlocks {start} {stop} {node}", start, stop, node.RemoteEndPoint);
+                await node.SendGetBlocksMessage(payload, token);
             }
         }
 
@@ -131,7 +142,7 @@ namespace NeoFx.TestNode
                 try
                 {
                     var token = hostApplicationLifetime.ApplicationStopping;
-                    while (connectedNodes.Count <= 10 && !token.IsCancellationRequested)
+                    while (connectedNodes.Count <= 20 && !token.IsCancellationRequested)
                     {
                         log.LogInformation(nameof(AddConnectionsAsync) + " Connected: {connected} / Unconnected: {unconnected}",
                             connectedNodes.Count, unconnectedNodes.Count);
