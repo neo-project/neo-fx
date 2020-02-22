@@ -9,8 +9,6 @@ namespace NeoFxTests
 {
     public class HashTests
     {
-        private static Lazy<SHA256> _sha256 = new Lazy<SHA256>(() => SHA256.Create());
-
         [Fact]
         public void Test_neofx_Base58CheckDecode_matches_neo()
         {
