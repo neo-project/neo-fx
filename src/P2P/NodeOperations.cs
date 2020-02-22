@@ -1,5 +1,6 @@
 using System;
 using System.Buffers;
+using System.Buffers.Binary;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Pipelines;
@@ -99,9 +100,9 @@ namespace NeoFx.P2P
                     return false;
                 }
 
-                Span<byte> hashBuffer = stackalloc byte[32];
+                Span<byte> hashBuffer = stackalloc byte[UInt256.Size];
                 HashHelpers.TryHash256(_buffer.Slice(MessageHeader.Size), hashBuffer);
-                var checksum = BitConverter.ToUInt32(hashBuffer.Slice(0, 4));
+                var checksum = BinaryPrimitives.ReadUInt32LittleEndian(hashBuffer.Slice(0, sizeof(uint)));
                 if (header.Checksum != checksum)
                 {
                     // ignore messages sent with invalid checksum
