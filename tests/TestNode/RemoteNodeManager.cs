@@ -111,12 +111,11 @@ namespace NeoFx.TestNode
 
         public async Task BroadcastGetBlocks(UInt256 start, UInt256 stop, CancellationToken token)
         {
-            log.LogInformation("BroadcastGetBlocks {start} {stop}", start, stop);
-
             var payload = new HashListPayload(start, stop);
             var nodes = connectedNodes;
             for (int i = 0; i < nodes.Count; i++)
             {
+                log.LogInformation("BroadcastGetBlocks {start} {stop} {node}", start, stop, nodes[i].RemoteEndPoint);
                 await nodes[i].SendGetBlocksMessage(payload, token);
             }
         }
