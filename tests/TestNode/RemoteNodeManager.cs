@@ -23,6 +23,7 @@ namespace NeoFx.TestNode
         Task ConnectAsync(ChannelWriter<(IRemoteNode node, Message message)> writer, uint index, UInt256 hash, CancellationToken token);
         void AddAddresses(ImmutableArray<NodeAddress> nodeAddresses);
         Task BroadcastGetBlocks(UInt256 start, UInt256 stop, CancellationToken token);
+        Task BroadcastGetHeaders(UInt256 start, CancellationToken token);
     }
 
     class RemoteNodeManager : IRemoteNodeManager
@@ -61,7 +62,8 @@ namespace NeoFx.TestNode
             if (Interlocked.CompareExchange(ref this.writer, writer, null) == null)
             {
                 unconnectedNodes = await InitializeEndpoints();
-                await ConnectSeedAsync(index, hash, token);
+                await ConnectSeedsAsync(index, token);
+                await BroadcastGetHeaders(hash, token);
 
                 connectPeersTimer = new Timer(_ => 
                 {
@@ -96,6 +98,7 @@ namespace NeoFx.TestNode
 
         public async Task<ImmutableHashSet<IPEndPoint>> InitializeEndpoints()
         {
+            var seeds = this.seeds.OrderBy(_ => StaticRandom.NextDouble());
             var builder = ImmutableHashSet.CreateBuilder<IPEndPoint>();
             await foreach (var (endpoint, seed) in ResolveSeeds(seeds))
             {
@@ -126,22 +129,38 @@ namespace NeoFx.TestNode
             }
         }
 
-        IEnumerable<IRemoteNode> GetRandomRemoteNodes()
+        IEnumerable<IRemoteNode> GetRandomRemoteNodes(int count)
         {
-            var r = new Random();
-            var nodes = connectedNodes;
-            return nodes
-                .OrderBy(n => r.NextDouble())
-                .Take(Math.Min(nodes.Count / 2, 3));
+            return connectedNodes
+                .OrderBy(_ => StaticRandom.NextDouble())
+                .Take(count);
         }
 
         public async Task BroadcastGetBlocks(UInt256 start, UInt256 stop, CancellationToken token)
         {
+            var total = connectedNodes.Count;
+            var count = Math.Min(total / 2, 3);
+            log.LogInformation("BroadcastGetBlocks to {count} of {total}", count, total);
+
             var payload = new HashListPayload(start, stop);
-            foreach (var node in GetRandomRemoteNodes())
+            foreach (var node in GetRandomRemoteNodes(count))
             {
-                log.LogInformation("BroadcastGetBlocks {start} {stop} {node}", start, stop, node.RemoteEndPoint);
+                log.LogInformation("SendGetBlocksMessage {start} {stop} {node}", start, stop, node.RemoteEndPoint);
                 await node.SendGetBlocksMessage(payload, token);
+            }
+        }
+
+        public async Task BroadcastGetHeaders(UInt256 start, CancellationToken token)
+        {
+            var total = connectedNodes.Count;
+            var count = Math.Min(total / 2, 3);
+            log.LogInformation("BroadcastGetHeaders to {count} of {total}", count, total);
+
+            var payload = new HashListPayload(start);
+            foreach (var node in GetRandomRemoteNodes(count))
+            {
+                log.LogInformation("SendGetHeadersMessage {start} {node}", start, node.RemoteEndPoint);
+                await node.SendGetHeadersMessage(payload, token);
             }
         }
 
@@ -183,30 +202,32 @@ namespace NeoFx.TestNode
             }
         }
 
-        async Task ConnectSeedAsync(uint index, UInt256 hash, CancellationToken token)
+        async Task ConnectSeedsAsync(uint index, CancellationToken token)
         {
-            while (unconnectedNodes.Count > 0)
+            bool flag = false;
+            while (unconnectedNodes.Count > 0 && connectedNodes.Count < 5)
             {
                 token.ThrowIfCancellationRequested();
 
                 var node = await ConnectNodeAsync(index, token);
                 if (node != null)
                 {
-                    await node.SendGetHeadersMessage(new HashListPayload(hash), token);
-                    return;
+                    flag = true;
                 }
             }
 
-            var errorMessage = "could not connect to any seed nodes";
-            log.LogCritical(errorMessage);
-            throw new System.IO.IOException(errorMessage);
+            if (!flag)
+            {
+                var errorMessage = "could not connect to any seed nodes";
+                log.LogCritical(errorMessage);
+                throw new System.IO.IOException(errorMessage);
+            }
         }
 
-        static async IAsyncEnumerable<(IPEndPoint, string)> ResolveSeeds(ImmutableArray<string> seeds)
+        static async IAsyncEnumerable<(IPEndPoint, string)> ResolveSeeds(IEnumerable<string> seeds)
         {
-            for (int i = 0; i < seeds.Length; i++)
+            foreach (string seed in seeds)
             {
-                string seed = seeds[i];
                 var colonIndex = seed.IndexOf(':');
                 var host = seed.Substring(0, colonIndex);
                 var port = int.Parse(seed.AsSpan().Slice(colonIndex + 1));
