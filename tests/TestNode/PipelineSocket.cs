@@ -1,9 +1,11 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
+using System.Diagnostics;
 using System.IO.Pipelines;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -40,7 +42,11 @@ namespace NeoFx.TestNode
         {
             log.LogInformation("connecting to {host}:{port}", endpoint.Address, endpoint.Port);
 
-            await socket.ConnectAsync(endpoint).ConfigureAwait(false);
+            var args = new SocketAsyncEventArgs();
+            args.RemoteEndPoint = endpoint;
+            var awaitable = new SocketAwaitable(args);
+
+            await socket.ConnectAsync(awaitable);
             Execute(token);
         }
 
@@ -58,10 +64,16 @@ namespace NeoFx.TestNode
         private async Task StartSocketReceive(CancellationToken token)
         {
             var writer = recvPipe.Writer;
+            var args = new SocketAsyncEventArgs();
+            var awaitable = new SocketAwaitable(args);
+
             while (!token.IsCancellationRequested)
             {
                 var memory = writer.GetMemory();
-                var bytesRead = await socket.ReceiveAsync(memory, SocketFlags.None, token).ConfigureAwait(false);
+                args.SetBuffer(memory);
+
+                await socket.ReceiveAsync(awaitable);
+                var bytesRead = args.BytesTransferred;
                 log.LogDebug("received {bytesRead} bytes from socket", bytesRead);
                 if (bytesRead == 0)
                 {
@@ -86,6 +98,9 @@ namespace NeoFx.TestNode
         private async Task StartSocketSend(CancellationToken token)
         {
             var reader = sendPipe.Reader;
+            var args = new SocketAsyncEventArgs();
+            var awaitable = new SocketAwaitable(args);
+
             while (!token.IsCancellationRequested)
             {
                 var readResult = await reader.ReadAsync(token).ConfigureAwait(false);
@@ -101,7 +116,8 @@ namespace NeoFx.TestNode
                 {
                     foreach (var segment in buffer)
                     {
-                        await socket.SendAsync(segment, SocketFlags.None, token).ConfigureAwait(false);
+                        args.SetBuffer(MemoryMarshal.AsMemory(segment));
+                        await socket.SendAsync(awaitable);
                         log.LogDebug("sent {length} via socket", segment.Length);
                     }
                 }
