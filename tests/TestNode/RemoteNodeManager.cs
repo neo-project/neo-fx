@@ -205,7 +205,7 @@ namespace NeoFx.TestNode
         async Task ConnectSeedsAsync(uint index, CancellationToken token)
         {
             bool flag = false;
-            while (unconnectedNodes.Count > 0 && connectedNodes.Count < 5)
+            while (unconnectedNodes.Count > 0 && connectedNodes.Count <= 6)
             {
                 token.ThrowIfCancellationRequested();
 

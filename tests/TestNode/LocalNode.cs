@@ -1,5 +1,7 @@
 using System;
 using System.Buffers.Binary;
+using System.Collections.Concurrent;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
@@ -64,6 +66,24 @@ namespace NeoFx.TestNode
         }
 
         uint lastHeaderIndex = 0;
+        ConcurrentQueue<UInt256> hashCache = new ConcurrentQueue<UInt256>();
+
+        bool CheckHashCache(UInt256 hash)
+        {
+            return hashCache.Any(h => h.Equals(hash));
+        }
+
+        void AddHashCache(in UInt256 hash)
+        {
+            if (!CheckHashCache(hash))
+            {
+                hashCache.Enqueue(hash);
+                while (hashCache.Count >= 10000)
+                {
+                    hashCache.TryDequeue(out _);
+                }
+            }
+        }
 
         async Task ProcessMessageAsync(IRemoteNode node, Message message, CancellationToken token)
         {
@@ -95,26 +115,36 @@ namespace NeoFx.TestNode
                             }
 
                             var lastHeader = headers.OrderBy(h => h.Index).Last();
-                            Debug.Assert(lastHeader.Index > lastHeaderIndex);
-                            lastHeaderIndex = lastHeader.Index;
-
-                            await remoteNodeManager.BroadcastGetHeaders(lastHeader.CalculateHash(), token);
+                            lastHeaderIndex = Math.Max(lastHeader.Index, lastHeaderIndex);
                         }
                     }
                     break;
                 case InvMessage invMessage when invMessage.Type == InventoryPayload.InventoryType.Block:
                     {
                         var hashes = invMessage.Hashes;
-                        log.LogInformation("Received Block InvMessage {count} {node}", hashes.Length, node.RemoteEndPoint);
-                        await node.SendGetDataMessage(invMessage.Payload, token);
+                        log.LogInformation("Received Block InvMessage {count} {lastHeaderIndex} {node}", hashes.Length, lastHeaderIndex, node.RemoteEndPoint);
+
+                        var newHashes = hashes.Where(h => CheckHashCache(h)).ToImmutableArray();
+                        if (newHashes.Length > 0)
+                        {
+                            var payload = new InventoryPayload(invMessage.Type, newHashes);
+                            await node.SendGetDataMessage(payload, token);
+                        }
                     }
                     break;
                 case BlockMessage blockMessage:
                     {
-                        log.LogInformation("Received BlockMessage {index} {node}", blockMessage.Block.Index, node.RemoteEndPoint);
+                        log.LogDebug("Received BlockMessage {index} {node}", blockMessage.Block.Index, node.RemoteEndPoint);
                         if (blockMessage.Block.Index <= lastHeaderIndex)
                         {
+                            var hash = blockMessage.Block.CalculateHash();
+                            AddHashCache(hash);
                             await blockchain.AddBlock(blockMessage.Block);
+                            if (blockMessage.Block.Index == lastHeaderIndex)
+                            {
+                                await remoteNodeManager.BroadcastGetHeaders(hash, token);
+                            }
+
                         }
                         checkGapTask.Run(token);
                     }
