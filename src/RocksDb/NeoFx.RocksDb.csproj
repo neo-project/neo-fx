@@ -4,12 +4,18 @@
     <AssemblyName>NeoFx.RocksDb</AssemblyName>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Authors>Neo Global Development Seattle</Authors>
+    <Company>The Neo Project</Company>
+    <Copyright>2015-2020 The Neo Project</Copyright>
     <LangVersion>8.0</LangVersion>
     <Nullable>enable</Nullable>
     <PackageIcon>neo-logo-72.png</PackageIcon>
     <PackageId>Neo.Fx.RocksDb</PackageId>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/neo-project/neo-fx</PackageProjectUrl>
+    <PackageTags>Neo;Blockchain</PackageTags>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/neo-project/neo-fx.git</RepositoryUrl>
     <RootNamespace>NeoFx.RocksDb</RootNamespace>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>	
     <TargetFramework>netstandard2.1</TargetFramework>
