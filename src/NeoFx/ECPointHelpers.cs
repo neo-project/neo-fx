@@ -263,8 +263,6 @@ namespace NeoFx
             return (Uh, Vl);
         }
 
-        private static readonly Lazy<Random> _random = new Lazy<Random>(() => new Random());
-
         private static BigInteger NextBigInteger(int sizeInBits)
         {
             if (sizeInBits < 0)
@@ -272,7 +270,7 @@ namespace NeoFx
             if (sizeInBits == 0)
                 return 0;
             Span<byte> span = stackalloc byte[(sizeInBits / 8) + 1];
-            _random.Value.NextBytes(span);
+            StaticRandom.NextBytes(span);
             if (sizeInBits % 8 == 0)
                 span[span.Length - 1] = 0;
             else

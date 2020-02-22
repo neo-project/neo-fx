@@ -17,9 +17,8 @@ namespace NeoFx.TestNode
         
         static uint GetRandomNonce() 
         {
-            var random = new Random();
             Span<byte> span = stackalloc byte[4];
-            random.NextBytes(span);
+            StaticRandom.NextBytes(span);
             return BinaryPrimitives.ReadUInt32LittleEndian(span);
         }
     }
