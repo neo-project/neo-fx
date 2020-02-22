@@ -17,63 +17,68 @@ using NeoFx.P2P.Messages;
 
 namespace NeoFx.TestNode
 {
-    class RemoteNodeManager
+    interface IRemoteNodeManager
     {
-        private readonly IBlockchain blockchain;
-        private readonly IRemoteNodeFactory remoteNodeFactory;
+        Task ConnectAsync(ChannelWriter<(IRemoteNode node, Message message)> writer, uint index, UInt256 hash, CancellationToken token);
+        void AddAddresses(ImmutableArray<NodeAddress> nodeAddresses);
+        Task BroadcastGetBlocks(UInt256 start, UInt256 stop, CancellationToken token);
+    }
+
+    class RemoteNodeManager : IRemoteNodeManager
+    {
         private readonly IHostApplicationLifetime hostApplicationLifetime;
-        private readonly NetworkOptions networkOptions;
+        private readonly IRemoteNodeFactory remoteNodeFactory;
         private readonly ILogger<RemoteNodeManager> log;
         private readonly uint nonce;
-        private readonly Channel<(IRemoteNode node, Message message)> channel = Channel.CreateUnbounded<(IRemoteNode node, Message msg)>();
+        private readonly ImmutableArray<string> seeds;
+
+        private ChannelWriter<(IRemoteNode node, Message message)>? writer;
+        private Timer? connectPeersTimer;
+
         private ImmutableList<IRemoteNode> connectedNodes = ImmutableList<IRemoteNode>.Empty;
         private ImmutableHashSet<IPEndPoint> unconnectedNodes = ImmutableHashSet<IPEndPoint>.Empty;
-        readonly TaskGuard connectPeers;
-        readonly TaskGuard checkBlockGap;
 
         public RemoteNodeManager(
-            IBlockchain blockchain,
-            IRemoteNodeFactory remoteNodeFactory,
             IHostApplicationLifetime hostApplicationLifetime,
+            ILogger<RemoteNodeManager> logger,
             IOptions<NetworkOptions> networkOptions,
-            ILogger<RemoteNodeManager> logger)
+            IOptions<NodeOptions> nodeOptions,
+            IRemoteNodeFactory remoteNodeFactory)
         {
-            this.blockchain = blockchain;
-            this.remoteNodeFactory = remoteNodeFactory;
             this.hostApplicationLifetime = hostApplicationLifetime;
-            this.networkOptions = networkOptions.Value;
             this.log = logger;
-
-            connectPeers = new TaskGuard(PeerConnectorAsync, nameof(PeerConnectorAsync), logger, 10);
-            checkBlockGap = new TaskGuard(GapCheckAsync, nameof(GapCheckAsync), logger, 10);
-
-            var random = new Random();
-            Span<byte> span = stackalloc byte[4];
-            random.NextBytes(span);
-            nonce = BinaryPrimitives.ReadUInt32LittleEndian(span);
+            this.seeds = networkOptions.Value.Seeds.ToImmutableArray();
+            this.nonce = nodeOptions.Value.Nonce;
+            this.remoteNodeFactory = remoteNodeFactory;
         }
 
-        public void Execute(CancellationToken token)
+        public async Task ConnectAsync(ChannelWriter<(IRemoteNode node, Message message)> writer, uint index, UInt256 hash, CancellationToken token)
         {
-            ExecuteAsync(token)
-                .LogResult(log, nameof(ExecuteAsync), ex => channel.Writer.Complete(ex));
+            if (Interlocked.CompareExchange(ref this.writer, writer, null) == null)
+            {
+                var seedNode = await ConnectSeedAsync(index, hash, token);
+                StartReceivingMessages(seedNode, writer, token)
+                    .LogResult(log, nameof(StartReceivingMessages));
+
+                connectPeersTimer = new Timer(_ => {
+                    AddConnectionsAsync().LogResult(log, nameof(AddConnectionsAsync));
+                }, null, default, TimeSpan.FromSeconds(10));
+            }
+            else
+            {
+                log.LogError("Already connected");
+            }
         }
 
-        async Task ExecuteAsync(CancellationToken token)
+        public void AddAddresses(ImmutableArray<NodeAddress> nodeAddresses)
         {
-            var node = await ConnectSeed(token);
-            StartReceivingMessages(node, token)
-                .LogResult(log, nameof(StartReceivingMessages));
+            log.LogInformation("Adding {count} addresses", nodeAddresses.Length);
 
-            await StartProcessingMessages(token);
-        }
-
-        void AddUnconnectedNodes(IEnumerable<IPEndPoint> endpoints)
-        {
             ImmutableInterlocked.Update(ref unconnectedNodes, original =>
             {
-                foreach (var endpoint in endpoints)
+                foreach (var address in nodeAddresses)
                 {
+                    var endpoint = address.EndPoint;
                     if (connectedNodes.Any(n => n.RemoteEndPoint.Equals(endpoint)))
                         continue;
                     original = original.Add(endpoint);
@@ -82,12 +87,7 @@ namespace NeoFx.TestNode
             });
         }
 
-        void RemoveUnconnectedNode(IPEndPoint endpoint)
-        {
-            ImmutableInterlocked.Update(ref unconnectedNodes, original => original.Remove(endpoint));
-        }
-
-        async Task StartReceivingMessages(IRemoteNode node, CancellationToken token)
+        async Task StartReceivingMessages(IRemoteNode node, ChannelWriter<(IRemoteNode node, Message message)> writer, CancellationToken token)
         {
             log.LogInformation("StartReceivingMessages {node}", node.RemoteEndPoint);
 
@@ -98,7 +98,7 @@ namespace NeoFx.TestNode
                 if (message != null)
                 {
                     log.LogDebug("Received message on {address}", node.RemoteEndPoint);
-                    await channel.Writer.WriteAsync((node, message), token);
+                    await writer.WriteAsync((node, message), token);
                 }
                 else
                 {
@@ -109,125 +109,65 @@ namespace NeoFx.TestNode
             }
         }
 
-        async Task StartProcessingMessages(CancellationToken token)
+        public async Task BroadcastGetBlocks(UInt256 start, UInt256 stop, CancellationToken token)
         {
-            var reader = channel.Reader;
-            while (true)
+            log.LogInformation("BroadcastGetBlocks {start} {stop}", start, stop);
+
+            var payload = new HashListPayload(start, stop);
+            var nodes = connectedNodes;
+            for (int i = 0; i < nodes.Count; i++)
             {
-                connectPeers.Run(token);
-
-                while (reader.TryRead(out var item))
-                {
-                    await ProcessMessageAsync(item.node, item.message, token);
-                }
-
-                if (!await reader.WaitToReadAsync(token))
-                {
-                    return;
-                }
+                await nodes[i].SendGetBlocksMessage(payload, token);
             }
         }
 
-        async Task GapCheckAsync(CancellationToken token)
+        int addConnectionsRunning = 0;
+
+        async Task AddConnectionsAsync()
         {
-            var gap = await blockchain.TryGetBlockGap();
-            log.LogInformation(nameof(GapCheckAsync) + " {success} {start} {stop}", gap.success, gap.start, gap.stop);
-
-            if (gap.success)
+            if (writer != null 
+                && unconnectedNodes.Count > 0
+                && Interlocked.CompareExchange(ref addConnectionsRunning, 1, 0) == 1)
             {
-                log.LogInformation("Sending GetBlocks {start} {stop}", gap.start, gap.stop);
-                var payload = new HashListPayload(gap.start);
-
-                var nodes = connectedNodes;
-                foreach (var node in nodes)
-                {
-                    await node.SendGetBlocksMessage(payload, token);
-                }
-            } 
-        }
-
-        async Task PeerConnectorAsync(CancellationToken token)
-        {
-            while (connectedNodes.Count <= 10 && !token.IsCancellationRequested)
-            {
-                log.LogInformation(nameof(PeerConnectorAsync) + " Connected: {connected} / Unconnected: {unconnected}",
-                    connectedNodes.Count, unconnectedNodes.Count);
-
-                var endpoint = unconnectedNodes.FirstOrDefault();
-                if (endpoint == null)
-                    break;
-
-                RemoveUnconnectedNode(endpoint);
-
                 try
                 {
-                    log.LogInformation("Connecting to {endpoint}", endpoint);
-                    var (node, version) = await remoteNodeFactory.ConnectAsync(endpoint, nonce, 0, token);
-                    log.LogInformation("{endpoint} connected", endpoint);
-                    await node.SendGetAddrMessage(token);
-                    StartReceivingMessages(node, token)
-                        .LogResult(log, nameof(StartReceivingMessages));
-                }
-                catch (Exception ex)
-                {
-                    log.LogWarning(ex, "{endpoint} connection failed", endpoint);
-                }
-            }
-        }
-
-        async Task ProcessMessageAsync(IRemoteNode node, Message message, CancellationToken token)
-        {
-            switch (message)
-            {
-                case AddrMessage addrMessage:
+                    var token = hostApplicationLifetime.ApplicationStopping;
+                    while (connectedNodes.Count <= 10 && !token.IsCancellationRequested)
                     {
-                        var addresses = addrMessage.Addresses;
-                        log.LogInformation("Received AddrMessage {addressesCount} {node}", addresses.Length, node.RemoteEndPoint);
-                        AddUnconnectedNodes(addresses.Select(a => a.EndPoint));
-                    }
-                    break;
-                case HeadersMessage headersMessage:
-                    {
-                        var headers = headersMessage.Headers;
-                        log.LogInformation("Received HeadersMessage {headersCount} {node}", headers.Length, node.RemoteEndPoint);
+                        log.LogInformation(nameof(AddConnectionsAsync) + " Connected: {connected} / Unconnected: {unconnected}",
+                            connectedNodes.Count, unconnectedNodes.Count);
 
-                        // The Neo docs suggest sending a getblocks message to retrieve a list 
-                        // of block hashes to sync. However, we can calculate the block hashes 
-                        // from the headers in this message without needing the extra round trip
+                        var endpoint = unconnectedNodes.FirstOrDefault();
+                        if (endpoint == null)
+                            break;
 
-                        var (index, _) = await blockchain.GetLastBlockHash();
-                        foreach (var batch in headers.Where(h => h.Index > index).Batch(500))
+                        ImmutableInterlocked.Update(ref unconnectedNodes, original => original.Remove(endpoint));
+
+                        try
                         {
-                            var payload = new InventoryPayload(InventoryPayload.InventoryType.Block, batch.Select(h => h.CalculateHash()));
-                            await node.SendGetDataMessage(payload, token);
+                            log.LogInformation("Connecting to {endpoint}", endpoint);
+                            var (node, version) = await remoteNodeFactory.ConnectAsync(endpoint, nonce, 0, token);
+                            log.LogInformation("{endpoint} connected", endpoint);
+                            await node.SendGetAddrMessage(token);
+                            StartReceivingMessages(node, writer, token)
+                                .LogResult(log, nameof(StartReceivingMessages));
+                        }
+                        catch (Exception ex)
+                        {
+                            log.LogWarning(ex, "{endpoint} connection failed", endpoint);
                         }
                     }
-                    break;
-                case InvMessage invMessage when invMessage.Type == InventoryPayload.InventoryType.Block:
-                    {
-                        var hashes = invMessage.Hashes;
-                        log.LogInformation("Received Block InvMessage {count} {node}", hashes.Length, node.RemoteEndPoint);
-                        await node.SendGetDataMessage(invMessage.Payload, token);
-                        checkBlockGap.Run(token);
-                    }
-                    break;
-                case BlockMessage blockMessage:
-                    {
-                        log.LogInformation("Received BlockMessage {index} {node}", blockMessage.Block.Index, node.RemoteEndPoint);
-                        await blockchain.AddBlock(blockMessage.Block);
-                    }
-                    break;
-                default:
-                    log.LogInformation("Received {messageType} {node}", message.GetType().Name, node.RemoteEndPoint);
-                    break;
+                }
+                finally
+                {
+                    addConnectionsRunning = 0;
+                }
             }
         }
 
-        async Task<IRemoteNode> ConnectSeed(CancellationToken token)
+        async Task<IRemoteNode> ConnectSeedAsync(uint index, UInt256 hash, CancellationToken token)
         {
-            var (index, hash) = await blockchain.GetLastBlockHash();
-
-            await foreach (var (endpoint, seed) in ResolveSeeds(networkOptions.Seeds))
+            await foreach (var (endpoint, seed) in ResolveSeeds(seeds))
             {
                 token.ThrowIfCancellationRequested();
 
@@ -255,10 +195,11 @@ namespace NeoFx.TestNode
             log.LogCritical(errorMessage);
             throw new System.IO.IOException(errorMessage);
 
-            static async IAsyncEnumerable<(IPEndPoint, string)> ResolveSeeds(string[] seeds)
+            static async IAsyncEnumerable<(IPEndPoint, string)> ResolveSeeds(ImmutableArray<string> seeds)
             {
-                foreach (var seed in seeds)
+                for (int i = 0; i < seeds.Length; i++)
                 {
+                    string seed = seeds[i];
                     var colonIndex = seed.IndexOf(':');
                     var host = seed.Substring(0, colonIndex);
                     var port = int.Parse(seed.AsSpan().Slice(colonIndex + 1));
