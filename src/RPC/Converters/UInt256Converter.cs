@@ -20,6 +20,7 @@ namespace NeoFx.RPC.Converters
         {
             Debug.Assert(value.GetType() == typeof(UInt256));
 
+            var q = ((UInt256)value).ToString();
             writer.WriteValue(((UInt256)value).ToString());
         }
     }
