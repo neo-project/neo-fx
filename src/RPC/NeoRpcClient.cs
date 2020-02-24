@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using NeoFx.Models;
 using NeoFx.RPC.Converters;
 using NeoFx.RPC.Models;
+using Newtonsoft.Json.Linq;
 using StreamJsonRpc;
 
 namespace NeoFx.RPC
@@ -21,6 +22,7 @@ namespace NeoFx.RPC
             formatter.JsonSerializer.Converters.Add(new BlockConverter());
             formatter.JsonSerializer.Converters.Add(new BlockHeaderConverter());
             formatter.JsonSerializer.Converters.Add(new PeersConverter());
+            formatter.JsonSerializer.Converters.Add(new TransactionConverter());
             formatter.JsonSerializer.Converters.Add(new UInt256Converter());
             formatter.JsonSerializer.Converters.Add(new ValidatorConverter());
 
@@ -94,7 +96,12 @@ namespace NeoFx.RPC
         }
 
         // getrawmempool
-        // getrawtransaction
+
+        public Task<Transaction> GetRawTransactionAsync(UInt256 hash)
+        {
+            return jsonRpc.InvokeAsync<Transaction>("getrawtransaction", hash);
+        }
+
         // getstorage
         // gettransactionheight
         // gettxout
@@ -115,6 +122,16 @@ namespace NeoFx.RPC
         // listplugins
         // sendrawtransaction
         // submitblock
-        // validateaddress
+        
+        public async Task<bool> ValidateAddressAsync(string address)
+        {
+            var json = await jsonRpc.InvokeAsync<JObject>("validateaddress", address);
+            return json.Value<bool>("isvalid");
+        }
+
+        public Task<bool> ValidateAddressAsync(UInt160 scriptHash)
+        {
+            return ValidateAddressAsync(scriptHash.ToAddress());
+        }
     }
 }
