@@ -17,6 +17,7 @@ namespace NeoFx.RPC
         public NeoRpcClient(Uri uri, HttpClient? httpClient = null)
         {
             var formatter = new JsonMessageFormatter();
+            formatter.JsonSerializer.Converters.Add(new AccountConverter());
             formatter.JsonSerializer.Converters.Add(new BlockConverter());
             formatter.JsonSerializer.Converters.Add(new BlockHeaderConverter());
             formatter.JsonSerializer.Converters.Add(new PeersConverter());
@@ -27,7 +28,16 @@ namespace NeoFx.RPC
             jsonRpc.StartListening();
         }
 
-        // getaccountstate
+        public Task<Account> GetAccountState(string address)
+        {
+            return jsonRpc.InvokeAsync<Account>("getaccountstate", address);
+        }
+
+        public Task<Account> GetAccountState(UInt160 scriptHash)
+        {
+            return GetAccountState(scriptHash.ToAddress());
+        }
+
         // getassetstate 
 
         public Task<UInt256> GetBestBlockHashAsync()

@@ -135,5 +135,38 @@ namespace NeoFx
         {
             writer.Write(Key.AsSpan());
         }
+
+        public static bool TryParse(ReadOnlySpan<char> hex, out EncodedPublicKey key)
+        {
+            if (hex.Length % 2 == 0)
+            {
+                var byteLength = hex.Length >> 1;
+                if (byteLength == 1 || byteLength == 33 || byteLength == 65)
+                {
+                    var array = new byte[byteLength];
+                    if (hex.TryConvertHexString(array, out var bytesWritten))
+                    {
+                        Debug.Assert(bytesWritten == hex.Length >> 1);
+                        key = new EncodedPublicKey(
+                            Unsafe.As<byte[], ImmutableArray<byte>>(ref array));
+
+                        return true;
+                    }
+                } 
+            }
+
+            key = default;
+            return false;
+        }
+
+        public static EncodedPublicKey Parse(ReadOnlySpan<char> hex)
+        {
+            if (TryParse(hex, out var key))
+            {
+                return key;
+            }
+
+            throw new ArgumentException(nameof(hex));
+        }
     }
 }
