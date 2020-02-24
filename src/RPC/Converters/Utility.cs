@@ -1,5 +1,11 @@
 using System;
+using System.Buffers;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using DevHawk.Buffers;
+using NeoFx.Storage;
+using Newtonsoft.Json;
 
 namespace NeoFx.RPC.Converters
 {
@@ -30,6 +36,27 @@ namespace NeoFx.RPC.Converters
             }
 
             bytesWritten = default;
+            return false;
+        }
+
+        public static bool TryReadHexToken<T>(this JsonReader reader, TryReadItem<T> factory, [MaybeNullWhen(false)] out T value)
+        {
+            if (reader.TokenType == JsonToken.String)
+            {
+                var hex = (string)reader.Value; 
+
+                using var memoryOwner = MemoryPool<byte>.Shared.Rent(hex.Length >> 1);
+                if (hex.TryConvertHexString(memoryOwner.Memory.Span, out var bytesWritten))
+                {
+                    var bufferReader = new BufferReader<byte>(memoryOwner.Memory.Span.Slice(0, hex.Length >> 1));
+                    if (factory(ref bufferReader, out value))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            value = default!;
             return false;
         }
     }

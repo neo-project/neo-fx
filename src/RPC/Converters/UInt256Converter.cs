@@ -4,23 +4,17 @@ using Newtonsoft.Json;
 
 namespace NeoFx.RPC.Converters
 {
-    public class UInt256Converter : JsonConverter
+    public class UInt256Converter : JsonConverter<UInt256>
     {
-        public override bool CanConvert(Type objectType)
-            => objectType.Equals(typeof(UInt256));
-
-        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+        public override UInt256 ReadJson(JsonReader reader, Type objectType, UInt256 existingValue, bool hasExistingValue, JsonSerializer serializer)
         {
             return reader.TokenType == JsonToken.String
                            ? UInt256.Parse((string)reader.Value)
                            : throw new InvalidOperationException();
         }
 
-        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+        public override void WriteJson(JsonWriter writer, UInt256 value, JsonSerializer serializer)
         {
-            Debug.Assert(value.GetType() == typeof(UInt256));
-
-            var q = ((UInt256)value).ToString();
             writer.WriteValue(((UInt256)value).ToString());
         }
     }

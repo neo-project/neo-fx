@@ -7,15 +7,24 @@ using Newtonsoft.Json;
 
 namespace NeoFx.RPC.Converters
 {
-    public class BlockConverter : JsonConverter
+    public class BlockConverter : JsonConverter<Block>
     {
-        public override bool CanConvert(Type objectType)
-            => objectType.Equals(typeof(Block));
-
-        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+        private static bool TryReadBlock(ref BufferReader<byte> reader, out Block block)
         {
-            if (reader.TokenType == JsonToken.String
-                && TryParseBlock((string)reader.Value, out var block))
+            if (Block.TryRead(ref reader, out block))
+            {
+                Debug.Assert(reader.Remaining == 0);
+                return true;
+            }
+
+            block = default;
+            return false;
+        }
+
+        public override Block ReadJson(JsonReader reader, Type objectType, Block existingValue, bool hasExistingValue, JsonSerializer serializer)
+        {
+            
+            if (reader.TryReadHexToken(TryReadBlock, out Block block))
             {
                 return block;
             }
@@ -23,27 +32,9 @@ namespace NeoFx.RPC.Converters
             throw new InvalidOperationException();
         }
 
-        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+        public override void WriteJson(JsonWriter writer, Block value, JsonSerializer serializer)
         {
             throw new NotImplementedException();
-        }
-
-        private static bool TryParseBlock(string hex, out Block block)
-        {
-            using var memoryOwner = MemoryPool<byte>.Shared.Rent(hex.Length >> 1);
-            if (hex.TryConvertHexString(memoryOwner.Memory.Span, out var bytesWritten))
-            {
-                Debug.Assert(bytesWritten == hex.Length >> 1);
-                var reader = new BufferReader<byte>(memoryOwner.Memory.Span.Slice(0, bytesWritten));
-                if (Block.TryRead(ref reader, out block))
-                {
-                    Debug.Assert(reader.Remaining == 0);
-                    return true;
-                }
-            }
-
-            block = default;
-            return false;
         }
     }
 }
