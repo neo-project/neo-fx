@@ -11,7 +11,7 @@ namespace RpcTestClient
             var uri = new Uri("http://seed6.ngd.network:20332");
             var client = new NeoRpcClient(uri);
 
-            var index = await client.GetLatestBlockIndexAsync();
+            var index = await client.GetBlockCountAsync();
                 Console.WriteLine(index);
 
             var version = await client.GetVersionAsync();
@@ -22,6 +22,19 @@ namespace RpcTestClient
 
             var header = await client.GetBlockHeaderAsync(hash);
             Console.WriteLine($"{header.Index}-{header.Timestamp}");
+
+            var peers = await client.GetPeersAsync();
+            Console.WriteLine($"{peers.Connected.Length}-{peers.Unconnected.Length}");
+            Console.WriteLine("connected");
+            foreach (var peer in peers.Unconnected)
+            {
+                Console.WriteLine($"\t{peer.address}:{peer.port}");
+            }
+            Console.WriteLine("unconnected");
+            foreach (var peer in peers.Unconnected)
+            {
+                Console.WriteLine($"\t{peer.address}:{peer.port}");
+            }
         }
     }
 }
