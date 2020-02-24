@@ -35,6 +35,12 @@ namespace RpcTestClient
             {
                 Console.WriteLine($"\t{peer.address}:{peer.port}");
             }
+
+            Console.WriteLine("\nValidators");
+            foreach (var validator in await client.GetValidatorsAsync())
+            {
+                Console.WriteLine($"\t{validator.PublicKey}");
+            }
         }
     }
 }

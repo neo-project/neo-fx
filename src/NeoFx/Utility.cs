@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 
 namespace NeoFx
 {
@@ -35,5 +36,28 @@ namespace NeoFx
             bytesWritten = default;
             return false;
         }
+
+        public static bool TryHexFormat(this ReadOnlySpan<byte> src, Span<char> destination, out int charsWritten)
+        {
+            charsWritten = default;
+
+            if (destination.Length >= src.Length * 2)
+            {
+                for (int i = 0; i < src.Length; i++)
+                {
+                    if (!src[i].TryFormat(destination.Slice(i * 2, 2), out var written, "x2"))
+                    {
+                        return false;
+                    }
+                    Debug.Assert(written == 2);
+                }
+
+                charsWritten = src.Length * 2;
+                return true;
+            }
+
+            return false;
+        }
+
     }
 }

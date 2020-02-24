@@ -1,6 +1,5 @@
 namespace NeoFx.RPC.Models
 {
-
     public readonly struct Version
     {
         public readonly int Port;

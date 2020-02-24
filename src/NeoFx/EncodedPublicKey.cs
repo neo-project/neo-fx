@@ -21,8 +21,35 @@ namespace NeoFx
 
         public int Size => Key.Length;
 
+        private static bool ValidKey(ImmutableArray<byte> key)
+        {
+            // infinity
+            if (key == default || (key.Length == 1 && key[0] == 0x00))
+            {
+                return true;
+            }
+
+            // compressed
+            if (key.Length == 33 && (key[0] == 0x02 || key[0] == 0x03))
+            {
+                return true;
+            }
+            // uncompressed
+            if (key.Length == 65 && (key[0] == 0x04 || key[0] == 0x06 || key[0] == 0x07))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
         public EncodedPublicKey(ImmutableArray<byte> key)
         {
+            if (!ValidKey(key))
+            {
+                throw new ArgumentException(nameof(key));
+            }
+
             if (key == default)
             {
                 this = Infinity;
@@ -167,6 +194,20 @@ namespace NeoFx
             }
 
             throw new ArgumentException(nameof(hex));
+        }
+
+        public bool TryFormat(Span<char> destination, out int charsWritten)
+        {
+            return Key.AsSpan().TryHexFormat(destination, out charsWritten);
+        }
+
+        public override string ToString()
+        {
+            return string.Create((Key.Length * 2), this, (buffer, that) =>
+            {
+                bool result = that.TryFormat(buffer, out var charWritten);
+                Debug.Assert(result && charWritten == (that.Key.Length * 2));
+            });
         }
     }
 }

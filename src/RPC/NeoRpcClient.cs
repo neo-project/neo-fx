@@ -22,20 +22,21 @@ namespace NeoFx.RPC
             formatter.JsonSerializer.Converters.Add(new BlockHeaderConverter());
             formatter.JsonSerializer.Converters.Add(new PeersConverter());
             formatter.JsonSerializer.Converters.Add(new UInt256Converter());
+            formatter.JsonSerializer.Converters.Add(new ValidatorConverter());
 
             var messageHandler = new HttpClientMessageHandler(httpClient ?? new HttpClient(), uri, formatter);
             jsonRpc = new JsonRpc(messageHandler);
             jsonRpc.StartListening();
         }
 
-        public Task<Account> GetAccountState(string address)
+        public Task<Account> GetAccountStateAsync(string address)
         {
             return jsonRpc.InvokeAsync<Account>("getaccountstate", address);
         }
 
-        public Task<Account> GetAccountState(UInt160 scriptHash)
+        public Task<Account> GetAccountStateAsync(UInt160 scriptHash)
         {
-            return GetAccountState(scriptHash.ToAddress());
+            return GetAccountStateAsync(scriptHash.ToAddress());
         }
 
         // getassetstate 
@@ -97,7 +98,11 @@ namespace NeoFx.RPC
         // getstorage
         // gettransactionheight
         // gettxout
-        // getvalidators
+
+        public Task<Validator[]> GetValidatorsAsync()
+        {
+            return jsonRpc.InvokeAsync<Validator[]>("getvalidators");
+        }
 
         public Task<Version> GetVersionAsync()
         {
