@@ -16,6 +16,17 @@
             "console": "internalConsole"
         },
         {
+            "name": "RpcTestClient",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/tests/RpcTestClient/bin/Debug/netcoreapp3.1/RpcTestClient.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/tests/RpcTestClient",
+            "stopAtEntry": false,
+            "console": "internalConsole"
+        },
+        {
             "name": "ImportBlocks",
             "type": "coreclr",
             "request": "launch",

@@ -54,31 +54,11 @@ namespace NeoFx.Models
 
         protected Transaction(byte version, IEnumerable<TransactionAttribute>? attributes, IEnumerable<CoinReference>? inputs, IEnumerable<TransactionOutput>? outputs, IEnumerable<Witness>? witnesses)
         {
-            static ImmutableArray<T> ToImmutableArray<T>(in IEnumerable<T>? enumerable)
-            {
-                if (enumerable == null)
-                {
-                    return ImmutableArray.Create<T>();
-                }
-
-                if (enumerable is ImmutableArray<T> immutableArray)
-                {
-                    return immutableArray;
-                }
-
-                if (enumerable is T[] array)
-                {
-                    return ImmutableArray.Create(array);
-                }
-
-                return ImmutableArray.CreateRange(enumerable);
-            }
-
             Version = version;
-            Attributes = ToImmutableArray(attributes);
-            Inputs = ToImmutableArray(inputs);
-            Outputs = ToImmutableArray(outputs);
-            Witnesses = ToImmutableArray(witnesses);
+            Attributes = attributes.ToImmutableArray();
+            Inputs = inputs.ToImmutableArray();
+            Outputs = outputs.ToImmutableArray();
+            Witnesses = witnesses.ToImmutableArray();
         }
 
         public static bool TryRead(ref BufferReader<byte> reader, [MaybeNullWhen(false)] out Transaction tx)

@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>NeoFx.RPC</AssemblyName>
+    <Authors>Neo Global Development Seattle</Authors>
+    <Company>The Neo Project</Company>
+    <Copyright>2015-2020 The Neo Project</Copyright>
+    <LangVersion>8.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <PackageIcon>neo-logo-72.png</PackageIcon>
+    <PackageId>Neo.Fx.RPC</PackageId>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/neo-project/neo-fx</PackageProjectUrl>
+    <PackageTags>Neo;Blockchain</PackageTags>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/neo-project/neo-fx.git</RepositoryUrl>
+    <RootNamespace>NeoFx.RPC</RootNamespace>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <TargetFramework>netstandard2.1</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="../neo-logo-72.png" Pack="true" Visible="false" PackagePath=""/>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\NeoFX\NeoFx.csproj"/>
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="3.1.2"/>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="all"/>
+    <PackageReference Include="StreamJsonRpc" Version="2.3.99"/>
+  </ItemGroup>
+</Project>
