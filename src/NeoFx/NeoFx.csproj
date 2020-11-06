@@ -32,7 +32,6 @@
 
   <ItemGroup>
     <PackageReference Include="DevHawk.RIPEMD160" Version="2.0.4" />
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All"/>
     <PackageReference Include="SimpleBase" Version="2.0.0" />
     <PackageReference Include="System.Collections.Immutable" Version="1.6.0" />
   </ItemGroup>
